@@ -26,3 +26,7 @@
 *.exe
 *.out
 *.app
+
+# Hand-added files
+square_laplace
+imag_laplace
