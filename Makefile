@@ -3,8 +3,8 @@
 
 #============================================================
 
-C_SOURCES =  generic_inverters.cpp
-C_OBJS    = generic_inverters.o
+C_SOURCES =  generic_cg.cpp generic_bicgstab.cpp generic_gmres.cpp
+C_OBJS    = generic_bicgstab.o generic_cg.o generic_gmres.o
 C_INCLUDES  = generic_inverters.h generic_vector.h
 C_LIBS    = -lm
 EXAMPLES = square_laplace imag_laplace
