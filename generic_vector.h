@@ -4,6 +4,29 @@
 
 #include <complex>
 
+// Zeroes a vector.
+template<typename T> inline void zero(T* v1, int size)
+{
+   int i;
+   for (i = 0; i < size; i++)
+   {
+      v1[i] = 0.0;
+   }
+}
+
+// Zeroes a complex vector. 
+template <typename T> inline void zero(std::complex<T>* v1, int size)
+{
+  // Initialize.
+  int i;
+  
+  for (i = 0; i < size; i++)
+  {
+    v1[i] = 0.0;
+  }
+  
+}
+
 
 // Computes v1 dot v2.
 template<typename T> inline T dot(T* v1, T* v2, int size)

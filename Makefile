@@ -7,7 +7,7 @@ C_SOURCES =  generic_cg.cpp generic_bicgstab.cpp generic_gmres.cpp
 C_OBJS    = generic_bicgstab.o generic_cg.o generic_gmres.o
 C_INCLUDES  = generic_inverters.h generic_vector.h
 C_LIBS    = -lm
-EXAMPLES = square_laplace imag_laplace
+EXAMPLES = square_laplace imag_laplace unit_test
 
 
 CCX = g++
@@ -31,6 +31,8 @@ square_laplace :  $(C_OBJS)
 imag_laplace : $(C_OBJS)
 	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
 
+unit_test : $(C_OBJS)
+	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
 
 #============================================================
 

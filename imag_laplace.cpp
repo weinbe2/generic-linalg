@@ -96,7 +96,7 @@ int main(int argc, char** argv)
    
    for (i = 0; i < N*N; i++)
    {
-      explicit_resid += pow(abs(rhs[i] - check[i]),2);
+      explicit_resid += real(conj(rhs[i]-check[i])*(rhs[i]-check[i]));
    }
    explicit_resid = sqrt(explicit_resid);
    
@@ -151,7 +151,7 @@ void square_laplacian(complex<double>* lhs, complex<double>* rhs, void* extra_da
 
       // 0
       // Added mass term here.
-      lhs[i] = lhs[i]+(4+MASS)*rhs[i];
+      lhs[i] = lhs[i]+(4+MASS+complex<double>(0.0,1.0))*rhs[i];
    }
        
 }
