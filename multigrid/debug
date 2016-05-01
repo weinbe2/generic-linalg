@@ -1,0 +1,1727 @@
+==3947== Memcheck, a memory error detector
+==3947== Copyright (C) 2002-2013, and GNU GPL'd, by Julian Seward et al.
+==3947== Using Valgrind-3.10.1 and LibVEX; rerun with -h for copyright info
+==3947== Command: ./mg_square_laplace 128 0.04 6 8
+==3947== 
+Start Length 128 Mass 4.00000000000000008327e-02 Levels 6 GMRES 8
+
+V cycle for 128 by 128 lattice with nlev = 6 out of max 6.
+Solving A [lhs] = [rhs] for lhs, using a point source.
+Entering iteration.
+size 16384max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+size 4096max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+size 1024max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+size 256max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+size 64max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+size 16max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+Finished descent.
+Started level 6.
+size 4max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+==3947== Invalid write of size 8
+==3947==    at 0x405414: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:174)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f88530 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== Invalid write of size 8
+==3947==    at 0x40543F: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:177)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f88530 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== Invalid write of size 8
+==3947==    at 0x405458: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:179)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f88530 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== Invalid read of size 8
+==3947==    at 0x405474: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:183)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f88530 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+==3947== Invalid read of size 8
+==3947==    at 0x405511: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:219)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f87ea0 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== Invalid read of size 8
+==3947==    at 0x4054FD: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:221)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f87ea0 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+==3947== Invalid write of size 8
+==3947==    at 0x405394: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:158)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f88870 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== Invalid write of size 8
+==3947==    at 0x4053C5: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:161)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f88870 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== Invalid read of size 8
+==3947==    at 0x4053D0: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:159)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f88870 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+==3947== Invalid read of size 8
+==3947==    at 0x4054F8: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:221)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f87ea8 is 8 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4052ED: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:135)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== Invalid write of size 8
+==3947==    at 0x4054E8: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:218)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f87f00 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x405301: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:136)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== Invalid write of size 8
+==3947==    at 0x40550C: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:221)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f87f00 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x405301: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:136)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+==3947== Invalid read of size 8
+==3947==    at 0x407880: gaussian_elimination(double*, double*, double**, int) (generic_gelim.cpp:47)
+==3947==    by 0x405541: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:228)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f87f00 is 0 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x405301: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:136)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+==3947== Invalid read of size 8
+==3947==    at 0x407870: gaussian_elimination(double*, double*, double**, int) (generic_gelim.cpp:49)
+==3947==    by 0x405541: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:228)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947==  Address 0x5f87f08 is 8 bytes after a block of size 32 alloc'd
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x405301: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:136)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+Ran GMRES on 6.
+Begin interpolate add.
+End interpolate add, begin zeroing coarse phi.
+End zeroing coarse phi.
+Started level 5.
+size 16max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+Ran GMRES on 5.
+Begin interpolate add.
+End interpolate add, begin zeroing coarse phi.
+End zeroing coarse phi.
+Started level 4.
+size 64max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+Ran GMRES on 4.
+Begin interpolate add.
+End interpolate add, begin zeroing coarse phi.
+End zeroing coarse phi.
+Started level 3.
+size 256max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+Ran GMRES on 3.
+Begin interpolate add.
+End interpolate add, begin zeroing coarse phi.
+End zeroing coarse phi.
+Started level 2.
+size 1024max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+Ran GMRES on 2.
+Begin interpolate add.
+End interpolate add, begin zeroing coarse phi.
+End zeroing coarse phi.
+Started level 1.
+size 4096max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+Ran GMRES on 1.
+Begin interpolate add.
+End interpolate add, begin zeroing coarse phi.
+End zeroing coarse phi.
+Started level 0.
+size 16384max_iter: 9.
+Finished initial allocation.
+Performed initial residual.
+About to enter iteration loop.
+Begin iteration 1.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 2.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 3.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 4.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 5.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 6.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 7.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Begin iteration 8.
+Initialized and zeroed new memory.
+Apply operator.
+Done applying operator. Begin modified Gram-Schmidt.
+End orthogonalization. Begin normalization.
+End normalization. End Gram-Schmidt.
+Begin construct RHS.
+End construct RHS.
+Begin constructing normal hTh operator.
+End constructing normal hTh operator. Begin gaussian elim.
+Gaussian Elimination: Begin allocation.
+Gaussian Elimination: Allocated first pointer.
+Gaussian Elimination: End allocation.
+End gaussian elim.
+Exited iteration loop.
+Ran GMRES on 0.
+Finished ascent.
+Iter 1 Relative residual -nan.
+Algorithm GMRES took 8 iterations to reach a residual of -nan.
+Computing [check] = A [lhs] as a confirmation.
+[check] should equal [rhs]. The residual is            -nan.
+-------------------------
+Fin Len 128 Mass 0.04 Lvls 6 GMRES 8 Itr 1 Ops 7688384 Fmul 349472 Fadd 1747360 Imul 1397888 Iadd 2795776 Imod 1397888 Res -nan
+Level 0 Dslash 16
+Level 1 Dslash 16
+Level 2 Dslash 16
+Level 3 Dslash 16
+Level 4 Dslash 16
+Level 5 Dslash 16
+==3947== 
+==3947== HEAP SUMMARY:
+==3947==     in use at exit: 17,608 bytes in 336 blocks
+==3947==   total heap usage: 1,034 allocs, 698 frees, 10,562,153 bytes allocated
+==3947== 
+==3947== 384 bytes in 6 blocks are definitely lost in loss record 1 of 6
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x404F22: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:70)
+==3947==    by 0x4020B3: main (mg_square_laplace.cpp:179)
+==3947== 
+==3947== 448 bytes in 7 blocks are definitely lost in loss record 2 of 6
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x404F22: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:70)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== 1,528 (168 direct, 1,360 indirect) bytes in 3 blocks are definitely lost in loss record 4 of 6
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4077D4: gaussian_elimination(double*, double*, double**, int) (generic_gelim.cpp:34)
+==3947==    by 0x405541: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:228)
+==3947==    by 0x4020B3: main (mg_square_laplace.cpp:179)
+==3947== 
+==3947== 15,248 (1,968 direct, 13,280 indirect) bytes in 53 blocks are definitely lost in loss record 6 of 6
+==3947==    at 0x4C2B800: operator new[](unsigned long) (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
+==3947==    by 0x4077D4: gaussian_elimination(double*, double*, double**, int) (generic_gelim.cpp:34)
+==3947==    by 0x405541: minv_vector_gmres_norestart(double*, double*, int, int, double, void (*)(double*, double*, void*), void*) (generic_gmres.cpp:228)
+==3947==    by 0x402249: main (mg_square_laplace.cpp:213)
+==3947== 
+==3947== LEAK SUMMARY:
+==3947==    definitely lost: 2,968 bytes in 69 blocks
+==3947==    indirectly lost: 14,640 bytes in 267 blocks
+==3947==      possibly lost: 0 bytes in 0 blocks
+==3947==    still reachable: 0 bytes in 0 blocks
+==3947==         suppressed: 0 bytes in 0 blocks
+==3947== 
+==3947== For counts of detected and suppressed errors, rerun with: -v
+==3947== ERROR SUMMARY: 2224 errors from 18 contexts (suppressed: 0 from 0)

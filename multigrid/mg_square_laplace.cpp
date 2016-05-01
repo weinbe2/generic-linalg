@@ -171,10 +171,15 @@ int main(int argc, char** argv)
   iter = 0;
   while (resid/bnorm > 1e-6)
   {
+    
     for (p.level=0;p.level<nlev;p.level++) // go down.
     {
       // Perform one iteration of GMRES(8).
       invif = minv_vector_gmres_norestart(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
+      
+      // Perform 8 iterations of BiCGStab
+      //invif = minv_vector_bicgstab(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
+      
       dslash[p.level] += rest; 
       
       // Project the residual coarse <- fine.
@@ -202,6 +207,10 @@ int main(int argc, char** argv)
       // Perform one iteration of GMRES(8), perhaps using old
       // phi as an initial guess!
       invif = minv_vector_gmres_norestart(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
+      
+      // Perform 8 iterations of BiCGStab
+      //invif = minv_vector_bicgstab(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
+      
       dslash[p.level] += rest;
       
       // We've now done a solve at the lowest level!
@@ -210,7 +219,7 @@ int main(int argc, char** argv)
         // Interpolate phi up to the next level!
         interpolate_add(phi[p.level-1], phi[p.level], p);
         
-        // Clear out fine phi for the next iteration.
+        // Clear out coarse phi for the next iteration.
         for(x=0;x<p.size[p.level];x++)
         {
           for(y=0;y<p.size[p.level];y++)

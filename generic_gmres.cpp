@@ -42,6 +42,13 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
 //  see https://en.wikipedia.org/wiki/Generalized_minimal_residual_method
 // A clearer article: 
 // http://www.math.iit.edu/~fass/477577_Chapter_14.pdf
+  // An even clearer: http://epubs.siam.org/doi/abs/10.1137/0907058
+  
+  if (size < max_iter)
+  {
+    cout << "The matrix dimension is " << size << ", which is smaller than the " << max_iter << " in GMRES(" << max_iter << "). Using GMRES("<<size<<") instead.\n" << flush;
+    max_iter = size;
+  }
   
   // Solve a counting issue...
   max_iter++;
@@ -67,11 +74,11 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
   //gmstr.h = h; // Depreciated, no longer use CG for normal subspace.
   
   // Prepare space for the residual, and a temporary vector.
-  res = new double[size];
-  tmp = new double[size];
-  tmp2 = new double[size];
-  y = new double[max_iter];
-  bhTy = new double [max_iter];
+  res = new double[size]; zero(res, size);
+  tmp = new double[size]; zero(tmp, size);
+  tmp2 = new double[size]; zero(tmp2, size);
+  y = new double[max_iter]; zero(y, max_iter);
+  bhTy = new double [max_iter]; zero(bhTy, max_iter);
   //res = (double*)malloc(size*sizeof(double));
   //tmp = (double*)malloc(size*sizeof(double));
   //tmp2 = (double*)malloc(size*sizeof(double));
@@ -105,7 +112,6 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
   }
   //printf("\n");
   
-  
   // Begin Arnoldi iterations. Taken from
   // https://en.wikipedia.org/wiki/Arnoldi_iteration
   for (iter = 1; iter < max_iter; iter++)
@@ -126,10 +132,9 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
     {
       q[iter][j] = h[iter-1][j] = hTh[iter-1][j] = 0.0;
     }
-    
     // Compute q_{iter} = Aq_{iter-1}
     (*matrix_vector)(q[iter],q[iter-1],extra_info);
-    
+
     // Perform an Arnoldi iteration. In some regards, this is just
     // a Gram-Schmidt process.
     for (j=0;j<iter;j++)
@@ -174,6 +179,7 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
     
     // Compute bhTy = beta H^T e_1, or the first column of H^T.
     //printf("bhTy: ");
+    
     for(i=0;i<iter;i++)
     {
       bhTy[i] = beta*h[i][0];
@@ -181,9 +187,11 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
     }
     //printf("\n");
     
+    
     // Need to compute hTh, which is the iter x iter
     // normal matrix.
     // Recall h is iter x (iter+1)
+    
     for (i=0;i<iter;i++)
     {
       for (j=0;j<iter;j++)
@@ -197,7 +205,13 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
       }
       //printf("\n");
     }
-    gaussian_elimination(y, bhTy, hTh, iter);
+    
+    // If gaussian elimination fails, break---it means we converged on the
+    // previous step.
+    if (!gaussian_elimination(y, bhTy, hTh, iter))
+    {
+      break;
+    }
     
     //printf("Exit gaussian elimination.\n"); fflush(stdout);
     

@@ -14,7 +14,8 @@
 using namespace std;
 
 // Perform gaussian elimination on a matrix to solve Ax=b
-void gaussian_elimination(double* x, double* b, double** matrix, int size)
+// If gaussian elimination fails, return 0, else return 1.
+int gaussian_elimination(double* x, double* b, double** matrix, int size)
 {
   // Initialize variables.
   int i,j,k;
@@ -25,10 +26,12 @@ void gaussian_elimination(double* x, double* b, double** matrix, int size)
   
   // Declare size of matrix.
   grown_matrix = new double*[size];
+  
   for (i=0;i<size;i++)
   {
     grown_matrix[i] = new double[size+1];
   }
+  
   
   // Copy things over.
   for (i=0;i<size;i++)
@@ -58,7 +61,7 @@ void gaussian_elimination(double* x, double* b, double** matrix, int size)
     //printf("Max: %d %.8f\n", max_index, max_val); fflush(stdout);
     if (max_index == -1) // everything's 0!
     {
-      return;
+      return 0; 
     }
     
     // Put maximal row in pivot location.
@@ -112,9 +115,10 @@ void gaussian_elimination(double* x, double* b, double** matrix, int size)
   }
   delete[] grown_matrix;
   
+  return 1;
 }
 
-void gaussian_elimination(complex<double>* x, complex<double>* b, complex<double>** matrix, int size)
+int gaussian_elimination(complex<double>* x, complex<double>* b, complex<double>** matrix, int size)
 {
   // Initialize variables.
   int i,j,k;
@@ -158,7 +162,7 @@ void gaussian_elimination(complex<double>* x, complex<double>* b, complex<double
     //printf("Max: %d %.8f\n", max_index, max_val); fflush(stdout);
     if (max_index == -1) // everything's 0!
     {
-      return;
+      return 0;
     }
     
     // Put maximal row in pivot location.
@@ -212,6 +216,7 @@ void gaussian_elimination(complex<double>* x, complex<double>* b, complex<double
   }
   free(grown_matrix);
   
+  return 1;
 }
 
 

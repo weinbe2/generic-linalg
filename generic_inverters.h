@@ -21,8 +21,8 @@ struct inversion_info
 };
 
 // Performs gaussian elimination.
-void gaussian_elimination(double* x, double* b, double** matrix, int size);
-void gaussian_elimination(complex<double>* x, complex<double>* b, complex<double>** matrix, int size);
+int gaussian_elimination(double* x, double* b, double** matrix, int size);
+int gaussian_elimination(complex<double>* x, complex<double>* b, complex<double>** matrix, int size);
 
 // Solves lhs = A^(-1) rhs with conjugate gradient
 // Requires matrix to be symmetric (Hermitian) positive definite 
@@ -57,6 +57,5 @@ inversion_info minv_vector_gmres_restart(complex<double>  *phi, complex<double> 
 // Gauss-Seidel: https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method
 // Jacobi iterations: https://en.wikipedia.org/wiki/Jacobi_method
 // SOR: https://en.wikipedia.org/wiki/Successive_over-relaxation
-
 
 #endif // define ESW_INVERTER
