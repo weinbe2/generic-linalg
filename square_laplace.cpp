@@ -68,6 +68,7 @@ int main(int argc, char** argv)
    // 4: maximum iterations
    // 5: residual
    // 5a for gmres_restart: how often to restart.
+   // 5a for sor: overrelaxation parameter. Set to omega*largest eigenvalue < 1. 
    // 6: function pointer
    // 7: "extra data": can set this to not-null to pass in gauge fields, etc.
    
@@ -76,6 +77,7 @@ int main(int argc, char** argv)
    //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 8, square_laplacian, NULL);
    //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 20, square_laplacian, NULL);
+   //invif = minv_vector_sor(lhs, rhs, N*N, 10000, 1e-6, 0.1, square_laplacian, NULL);
    
    if (invif.success == true)
    {

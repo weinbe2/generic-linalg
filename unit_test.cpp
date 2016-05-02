@@ -117,7 +117,7 @@ int main(int argc, char** argv)
     
    printf("Begin Check SOR with omega = 0.1.\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
-   invif = minv_vector_sor(lhs, rhs, N*N, 10000, 1e-6, 0.1, square_laplacian, NULL);
+   invif = minv_vector_sor(lhs, rhs, N*N, 10000, 1e-6, 0.01, square_laplacian, NULL);
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
