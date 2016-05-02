@@ -1,6 +1,7 @@
 // Fri Jan 15 13:06:07 EST 2016
 // Evan S Weinberg weinbe2@bu.edu
-// C++ file for multigrid on square laplace using GMRES(8) for internal iteration.
+// C++ file for multigrid on square laplace using GMRES(n) for internal iteration.
+// Also supports using SOR as a smoother. 
 // Based heavily on "mg.c" by Rich Brower!
 
 #include <cstdio>
@@ -55,8 +56,12 @@ int main(int argc, char** argv)
   param_t p; 
   inversion_info invif;
   
+  // For smoothing
+  int smoother, smoother_steps;
+  double omega; 
+  
   // Set the lattice size, and other such things.
-  if (argc == 5)
+  if (argc == 5 || argc == 6)
   {
     stringstream ss;
     
@@ -78,20 +83,53 @@ int main(int argc, char** argv)
     ss << argv[4]; // GMRES(n)
     ss >> rest;
     ss.clear();
+    
+    if (argc == 6)
+    {
+      ss << argv[5]; // number of smoother steps.
+      ss >> smoother_steps;
+      ss.clear();
+    }
+    else
+    {
+      smoother_steps = 0; // don't smooth.
+    }
   }
   else
   {
     cout << "This program solves the 2D laplace equation \\ del^2+m^2 with periodic boundary conditions.\n";
-    cout << "Call as: ./mg_square_laplace.cpp [length] [mass] [levels] [gmres(n)]\n";
-    cout << "   [length]:   The length in one dimension. We solve on an L by L space.\n";
-    cout << "   [mass]:     The IR regulator mass.\n";
-    cout << "   [levels]:   The number of levels to do down. The maximum is log_2(L)-1.\n";
-    cout << "   [gmres(n)]: The n for our GMRES(n) inner solver.\n";
+    cout << "Call as: ./mg_square_laplace.cpp [length] [mass] [levels] [gmres(n)] {n_smooth}\n";
+    cout << "   [length]:    The length in one dimension. We solve on an L by L space.\n";
+    cout << "   [mass]:      The IR regulator mass.\n";
+    cout << "   [levels]:    The number of levels to do down. The maximum is log_2(L)-1.\n";
+    cout << "   [gmres(n)]:  The n for our GMRES(n) inner solver.\n";
+    cout << "   {n_smooth}:  The number of smoothing steps to use. (Default: 0)\n";
     return 0;
   }
   
-  printf("Start Length %d Mass %15.20e Levels %d GMRES %d\n", p.N, p.m, nlev, rest);
+  if (smoother_steps <= 0) // if number of smoother steps is 0 or negative
+  {
+    smoother = 0; // don't smooth!
+  }
+  else // smooth
+  {
+    smoother = 1;
+    
+    // What is the relaxation parameter?
+    // Needs to be set s.t. (1-omega*|largest eigenvalue|) < 1. 
+    // For 2D laplace, |largest eigenvalue| is 4+m^2 -> use omega = (2/3)/(4+m^2)
+  omega = 2.0/(3.0*(4.0+p.m*p.m));
+  }
+    
   
+  
+  
+  
+  printf("Start Length %d Mass %15.20e Levels %d GMRES %d\n", p.N, p.m, nlev, rest);
+  if (smoother == 1)
+  {
+    printf("Using a %d step smoother with omega = %.8e.\n", smoother_steps, omega);
+  }
   
   if(nlev  > p.Lmax)
   { 
@@ -174,6 +212,7 @@ int main(int argc, char** argv)
     
     for (p.level=0;p.level<nlev;p.level++) // go down.
     {
+      
       // Perform one iteration of GMRES(8).
       invif = minv_vector_gmres_norestart(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
       
@@ -204,6 +243,13 @@ int main(int argc, char** argv)
     // We're now at the lowest level. Come back up!
     for (p.level=nlev;p.level>=0;p.level--) // Come up
     {
+      if (smoother == 1)
+      {
+        // Do "smoother_steps" iterations of SOR with parameter omega.
+        minv_vector_sor(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], smoother_steps, 1e-10, omega, square_laplacian, &p);
+      }
+      
+      
       // Perform one iteration of GMRES(8), perhaps using old
       // phi as an initial guess!
       invif = minv_vector_gmres_norestart(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);

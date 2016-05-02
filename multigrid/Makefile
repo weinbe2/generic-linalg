@@ -4,8 +4,8 @@
 #============================================================
 TARGET	= mg_square_laplace
 
-C_SOURCES =  mg_square_laplace.cpp ../generic_cg.cpp ../generic_bicgstab.cpp ../generic_gmres.cpp ../generic_gelim.cpp
-C_OBJS    = mg_square_laplace.o generic_bicgstab.o generic_cg.o generic_gmres.o generic_gelim.o
+C_SOURCES =  mg_square_laplace.cpp ../generic_cg.cpp ../generic_bicgstab.cpp ../generic_gmres.cpp ../generic_gelim.cpp ../generic_sor.cpp
+C_OBJS    = mg_square_laplace.o generic_bicgstab.o generic_cg.o generic_gmres.o generic_gelim.o generic_sor.o
 
 CCX = g++
 #CXXFLAGS =   -std=c99 -g -O2  

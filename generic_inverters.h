@@ -6,7 +6,7 @@
 #define ESW_INVERTER
 
 // Uncomment to print warnings. 
-#define VERBOSE_WARN
+//#define VERBOSE_WARN
 
 #include <complex>
 
