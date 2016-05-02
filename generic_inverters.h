@@ -5,6 +5,9 @@
 #ifndef ESW_INVERTER
 #define ESW_INVERTER
 
+// Uncomment to print warnings. 
+#define VERBOSE_WARN
+
 #include <complex>
 
 using std::complex; 
@@ -53,9 +56,13 @@ inversion_info minv_vector_gmres_restart(double  *phi, double  *phi0, int size, 
 
 inversion_info minv_vector_gmres_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
 
+// Solves lhs = A^(-1) rhs with SOR.
+// Makes no assumption about matrix, but omega has to be properly set for convergence. 
+inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info);
+
 // Could also want (as a smoother): 
 // Gauss-Seidel: https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method
 // Jacobi iterations: https://en.wikipedia.org/wiki/Jacobi_method
-// SOR: https://en.wikipedia.org/wiki/Successive_over-relaxation
+
 
 #endif // define ESW_INVERTER

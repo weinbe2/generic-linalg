@@ -162,6 +162,9 @@ int gaussian_elimination(complex<double>* x, complex<double>* b, complex<double>
     //printf("Max: %d %.8f\n", max_index, max_val); fflush(stdout);
     if (max_index == -1) // everything's 0!
     {
+      #ifdef VERBOSE_WARN
+      cout << "Singular matrix in Gaussian elimination.\n" << flush;
+      #endif
       return 0;
     }
     

@@ -114,6 +114,22 @@ int main(int argc, char** argv)
    printf("Explicit Resid: %.15e.\n", explicit_resid);
    printf("End Check restarted GMRES(8).\n");
    printf("\n\n\n");
+    
+   printf("Begin Check SOR with omega = 0.1.\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+   invif = minv_vector_sor(lhs, rhs, N*N, 10000, 1e-6, 0.1, square_laplacian, NULL);
+   if (invif.success == true)
+   {
+      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+   }
+   else
+   {
+      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+   }
+   explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check SOR with omega = 0.1.\n");
+   printf("\n\n\n");
    
    // Free the lattice.
    delete[] lattice;

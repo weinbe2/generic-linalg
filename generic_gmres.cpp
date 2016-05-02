@@ -44,9 +44,14 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
 // http://www.math.iit.edu/~fass/477577_Chapter_14.pdf
   // An even clearer: http://epubs.siam.org/doi/abs/10.1137/0907058
   
+  // If size < max_iter, GMRES(max_iter) becomes unstable. 
+  // (And, technically, we'll get some error overflow issues.)
+  // This solves this problem.
   if (size < max_iter)
   {
+    #ifdef VERBOSE_WARN
     cout << "The matrix dimension is " << size << ", which is smaller than the " << max_iter << " in GMRES(" << max_iter << "). Using GMRES("<<size<<") instead.\n" << flush;
+    #endif
     max_iter = size;
   }
   
