@@ -3,6 +3,8 @@
 
 // This is a set of testing routines that make sure the inverters (CG, BiCGStab, GMRES)
 // always work! Need to update with imaginary value tests. 
+    
+// Need to put in a test for power iterations. Prob requires returning eigenvector. 
 
 #include <iostream>
 #include <cmath>
@@ -11,6 +13,7 @@
 #include <complex>
 
 #include "generic_inverters.h"
+#include "generic_eigenvalues.h"
 #include "generic_vector.h"
 
 using namespace std; 
@@ -40,9 +43,11 @@ int main(int argc, char** argv)
    int i, j;
    double *lattice; // At some point, I'll have a generic (template) lattice class.
    double *lhs, *rhs, *check; // For some Kinetic terms.
+   double eig = 0.0; // To test power iterations.
    double explicit_resid = 0.0;
    double bnorm = 0.0;
    inversion_info invif;
+   eigenvalue_info eigif;
  
    // Initialize the lattice. Indexing: index = y*N + x.
    lattice = new double[N*N];
@@ -129,6 +134,22 @@ int main(int argc, char** argv)
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
    printf("End Check SOR with omega = 0.1.\n");
+   printf("\n\n\n");
+    
+   printf("Begin Check Power Iteration.\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+   eigif = eig_vector_poweriter(&eig, rhs, N*N, 10000, 1e-7, square_laplacian, NULL);
+   if (eigif.success == true)
+   {
+      printf("GOOD Iter: %d RelResid: %.15e Eval: %.15e.\n", eigif.iter, eigif.relative_diff, eig);
+   }
+   else
+   {
+      printf("FAIL Iter: %d RelResid: %.15e Eval: %.15e.\n", eigif.iter, eigif.relative_diff, eig);
+   }
+   //explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   //printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check Power Iteration.\n");
    printf("\n\n\n");
    
    // Free the lattice.

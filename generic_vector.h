@@ -27,6 +27,29 @@ template <typename T> inline void zero(std::complex<T>* v1, int size)
   
 }
 
+// Copy v2 into v1.
+template<typename T> inline void copy(T* v1, T* v2, int size)
+{
+  // Initialize.
+  int i;
+  
+  for (i = 0; i < size; i++)
+  {
+    v1[i] = v2[i];
+  }
+}
+
+// Copy v2 into v1.
+template<typename T> inline void copy(std::complex<T>* v1, std::complex<T>* v2, int size)
+{
+  // Initialize.
+  int i;
+  
+  for (i = 0; i < size; i++)
+  {
+    v1[i] = v2[i];
+  }
+}
 
 // Computes v1 dot v2.
 template<typename T> inline T dot(T* v1, T* v2, int size)

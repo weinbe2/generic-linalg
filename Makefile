@@ -3,9 +3,9 @@
 
 #============================================================
 
-C_SOURCES =  generic_cg.cpp generic_bicgstab.cpp generic_gmres.cpp generic_gelim.cpp generic_sor.cpp
-C_OBJS    = generic_bicgstab.o generic_cg.o generic_gmres.o generic_gelim.o generic_sor.o
-C_INCLUDES  = generic_inverters.h generic_vector.h
+C_SOURCES =  generic_cg.cpp generic_bicgstab.cpp generic_gmres.cpp generic_gelim.cpp generic_sor.cpp generic_poweriter.cpp
+C_OBJS    = generic_bicgstab.o generic_cg.o generic_gmres.o generic_gelim.o generic_sor.o generic_poweriter.o
+C_INCLUDES  = generic_inverters.h generic_vector.h generic_eigenvalues.h
 C_LIBS    = -lm
 EXAMPLES = square_laplace imag_laplace unit_test
 
