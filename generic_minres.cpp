@@ -18,7 +18,7 @@ using namespace std;
 
 // Assumes the symmetric part of the matrix is positive definite.
 // Taken from section 5.3.2 of Saad, 2nd Edition.
-inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info)
 {
   // Initialize vectors.
   double *p, *r, *x;
@@ -112,7 +112,7 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
 
 // Assumes the Hermitian part of the matrix is positive definite.
 // Taken from section 5.3.2 of Saad, 2nd Edition.
-inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
 {
   // Initialize vectors.
   complex<double> *p, *r, *x;
