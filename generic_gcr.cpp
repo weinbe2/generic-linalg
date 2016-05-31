@@ -1,16 +1,15 @@
 // Fri Apr 29 11:54:22 EDT 2016
 // Evan S Weinberg
-// C++ file for CR/GCR inverter.
+// C++ file for GCR inverter.
 
 // To do:
 // 1. Template various functions to support float, double,
 //    as well as complex< > variants.
-// 2. Correct CR/GCR. 
 
 #include <iostream>
 #include <cmath>
 #include <string>
-#include <sstream>
+#include <vector>
 #include <complex>
 
 #include "generic_inverters.h"
@@ -20,152 +19,266 @@ using namespace std;
 
     
 
-// Solves lhs = A^(-1) rhs
-// Currently does not work!
-/*inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+// Solves lhs = A^(-1) rhs using GCR.
+// Taken from section 6.9 of Saad, 2nd Edition.
+inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info)
 {
-// GCR solutions to Mphi = b 
-//  see https://en.wikipedia.org/wiki/Conjugate_residual_method
 
   // Initialize vectors.
-  double *res, *resNew, *Ares, *pvec, *Apvec, *pvec_tmp;
-  double alpha, beta, denom, rAr, rArNew, rsq, bsqrt, truersq, Apsq; 
-  int k,i;
+  double *x, *r, *Ar, *p, *Ap;
+  vector<double*> p_store, Ap_store; // GCR requires explicit reorthogonalization against old search vectors.
+  double alpha, beta_ij, rsq, bsqrt, truersq;
+  int k,i,ii;
   inversion_info invif;
 
   // Allocate memory.
-  res = (double*)malloc(size*sizeof(double));
-  resNew = (double*)malloc(size*sizeof(double));
-  Ares = (double*)malloc(size*sizeof(double));
-  pvec = (double*)malloc(size*sizeof(double));
-  Apvec = (double*)malloc(size*sizeof(double));
-  pvec_tmp = (double*)malloc(size*sizeof(double));
+  x = new double[size];
+  r = new double[size];
+  Ar = new double[size];
+  p = new double[size];
+  Ap = new double[size];
+  
+  // Zero vectors. 
+  zero<double>(p, size);  zero<double>(r, size);
+  zero<double>(Ap, size); zero<double>(Ar, size);
 
   // Initialize values.
-  rAr = 0.0; rArNew = 0.0; rsq = 0.0; bsqrt = 0.0; truersq = 0.0, Apsq = 0.0;
-
-  // Take advantage of initial guess in phi.
-  (*matrix_vector)(Apvec, phi, extra_info);
-  for(i = 0; i<size; i++) {
-    res[i] = phi0[i] - Apvec[i];  
-    resNew[i] = 0.0;
-	Ares[i] = 0.0;
-    pvec[i] = res[i];
-    Apvec[i] = 0.0; // We don't need this component anymore.
-    bsqrt += phi0[i]*phi0[i];
-    pvec_tmp[i] = 0.0;
-  }
-  bsqrt = sqrt(bsqrt);
+  rsq = 0.0; bsqrt = 0.0; truersq = 0.0;
   
-  // Compute A r_0, A p_0 ( = A r_0)
-  (*matrix_vector)(Ares, res, extra_info);
-  for (i = 0; i < size; i++) {
-	  Apvec[i] = Ares[i];
-	  Apsq = Apsq + (Apvec[i]*Apvec[i]);
-	  rAr += Ares[i]*res[i];
-  }
+  // Copy initial guess into solution.
+  copy<double>(x, phi, size);
   
-  //cout << "Iteration 0 rAr " << rAr << endl;
-  //cout << "Iteration 0 Apsq " << Apsq << endl;
+  // Find norm of rhs.
+  bsqrt = sqrt(norm2sq<double>(phi0, size));
   
-  if (abs(rAr) < 1e-20)
+  // 1. r_0 = b - Ax_0. x is phi, the initial guess.
+  (*matrix_vector)(p, x, extra_info); // Put Ax_0 into p, temp.
+  for (i = 0; i < size; i++)
   {
-    printf("GCR: Failed to converge iter = 0 because rAr is zero.\n");
-    invif.resSq = rAr;
-    invif.iter = 0;
-    invif.name = "GCR";
-    invif.success = false;
-    return invif;
+    r[i] = phi0[i] - p[i]; // r_0 = b - Ax_0
   }
+  
+  // 2. p_0 = r_0.
+  copy<double>(p, r, size);
+  
+  // 3. Compute A p_0.
+  (*matrix_vector)(Ap, p, extra_info); 
 
-  // iterate till convergence.
-  // This can be optimised to only require one matrix
-  // multiply per iteration.
+  // iterate until convergence
   for(k = 0; k< max_iter; k++) {
-	  
-	// alpha = r_k A r_k / (A p_k)^2 = rAr/Apsq
-	alpha = rAr/Apsq; 
-	
-	// x_{k+1} = x_k + alpha_k p_k
-	// r_{k+1} = r_k - alpha_k A p_k
-	for(i=0;i < size; i++) {
-		phi[i] += alpha * pvec[i];
-		res[i] -= alpha * Apvec[i];
-    }
-	
-	// Exit if new residual is small enough
-    rsq = 0.0;
-    for (i = 0; i < size; i++) rsq += res[i]*res[i];
     
-	if (sqrt(rsq) < eps*bsqrt) {
+    // If we've hit here, push the latest p, Ap to storage.
+    p_store.push_back(p);
+    Ap_store.push_back(Ap);
+    
+    // 4. alpha = <r, Ap_k>/<Ap_k, Ap_k>
+    alpha = dot<double>(r, Ap, size)/norm2sq<double>(Ap, size);
+    
+    // 5. x = x + alpha p_k
+    // 6. r = r - alpha Ap_k
+    for (i = 0; i < size; i++)
+    {
+      x[i] = x[i] + alpha*p[i];
+      r[i] = r[i] - alpha*Ap[i];
+    }
+    
+    // Compute norm.
+    rsq = norm2sq<double>(r, size);
+    
+    // Check convergence. 
+    if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
-
-	// Else, update rAr for beta = rAr_{new}/rAr_{old}
-	
-    (*matrix_vector)(Ares, res, extra_info);
-    rArNew = 0.0;
-    for(i=0; i< size; i++) rArNew += res[i]*Ares[i];
-    beta = rArNew/rAr;
-	 rAr = rArNew;
-	 
-	 if (abs(rAr) < 1e-20)
+    
+    // 7. Compute Ar.
+    zero<double>(Ar, size);
+    (*matrix_vector)(Ar, r, extra_info);
+    
+    // 8. b_ij = -<Ar_{j+1}, Ap_i>/<Ap_i, Ap_i> for i = 0, ..., j
+    // 9. p_{j+1} = r_{j+1} + sum_i=0^j b_ij p_i
+    // 10. Ap_{j+1} = Ar_{j+1} + sum_i=0^j b_ij Ap_i
+    p = new double[size];  copy<double>(p, r, size);
+    Ap = new double[size]; copy<double>(Ap, Ar, size);
+    for (ii = 0; ii <= k; ii++)
     {
-      printf("GCR: Failed to converge iter = %d because rAr is zero.\n", k+1);
-      invif.resSq = rsq;
-      invif.iter = k;
-      invif.name = "GCR";
-      invif.success = false;
-      return invif;
+      beta_ij = -dot<double>(Ar, Ap_store[ii], size)/norm2sq<double>(Ap_store[ii], size); 
+      for (i = 0; i < size; i++)
+      {
+        p[i] += beta_ij*p_store[ii][i];
+        Ap[i] += beta_ij*Ap_store[ii][i]; 
+      }
     }
-	 
-	 //cout << "Iteration " << (k+1) << " rAr " << rAr << endl;
-	
-	// Update p, Ap, Apsq.
-	// p_{k+1} = r_{k+1} + beta_k p_k
-	// A p_{k+1} = A r_{k+1} + beta_k A p_k
-	Apsq = 0.0;
-	for (i = 0; i < size; i++) {
-	  pvec[i] = res[i] + beta*pvec[i];
-	  Apvec[i] = Ares[i] + beta*Apvec[i];
-	  Apsq += Apvec[i]*Apvec[i];
-	}
-	
-   //cout << "Iteration " << (k+1) << " Apsq " << Apsq << endl;
-	
   } 
     
   if(k == max_iter) {
+    //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
-    //printf("GCR: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     //return 0;// Failed convergence 
   }
   else
   {
-    invif.success = true;
-     //printf("GCR: Converged in %d iterations.\n", k);
+     invif.success = true;
+    k++; // Fix a counting issue...
+     //printf("CG: Converged in %d iterations.\n", k);
   }
   
-  truersq = 0.0;
-  (*matrix_vector)(Apvec,phi,extra_info);
-  for(i=0; i < size; i++) truersq += (Apvec[i] - phi0[i])*(Apvec[i] - phi0[i]);
+  // Check true residual.
+  zero<double>(p,size);
+  (*matrix_vector)(p,x,extra_info);
+  for(i=0; i < size; i++) truersq += (p[i] - phi0[i])*(p[i] - phi0[i]);
+  
+  // Copy solution into phi.
+  copy<double>(phi, x, size);
   
   // Free all the things!
-  free(res);
-  free(resNew);
-  free(Ares);
-  free(pvec);
-  free(Apvec);
-  free(pvec_tmp);
+  delete[] x;
+  delete[] r;
+  delete[] Ar;
+  k = p_store.size();
+  for (i = 0; i < k; i++)
+  {
+    delete[] p_store[i];
+    delete[] Ap_store[i];
+  }
 
-
+  
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  
   invif.resSq = truersq;
   invif.iter = k;
   invif.name = "GCR";
   return invif; // Convergence 
-} */
+} 
 
+inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+{
 
+  // Initialize vectors.
+  complex<double> *x, *r, *Ar, *p, *Ap;
+  vector<complex<double>*> p_store, Ap_store; // GCR requires explicit reorthogonalization against old search vectors.
+  double rsq, bsqrt, truersq;
+  complex<double> alpha, beta_ij;
+  int k,i,ii;
+  inversion_info invif;
+
+  // Allocate memory.
+  x = new complex<double>[size];
+  r = new complex<double>[size];
+  Ar = new complex<double>[size];
+  p = new complex<double>[size];
+  Ap = new complex<double>[size];
+  
+  // Zero vectors. 
+  zero<double>(p, size);  zero<double>(r, size);
+  zero<double>(Ap, size); zero<double>(Ar, size);
+
+  // Initialize values.
+  rsq = 0.0; bsqrt = 0.0; truersq = 0.0;
+  
+  // Copy initial guess into solution.
+  copy<double>(x, phi, size);
+  
+  // Find norm of rhs.
+  bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  // 1. r_0 = b - Ax_0. x is phi, the initial guess.
+  (*matrix_vector)(p, x, extra_info); // Put Ax_0 into p, temp.
+  for (i = 0; i < size; i++)
+  {
+    r[i] = phi0[i] - p[i]; // r_0 = b - Ax_0
+  }
+  
+  // 2. p_0 = r_0.
+  copy<double>(p, r, size);
+  
+  // 3. Compute A p_0.
+  (*matrix_vector)(Ap, p, extra_info); 
+
+  // iterate until convergence
+  for(k = 0; k< max_iter; k++) {
+    
+    // If we've hit here, push the latest p, Ap to storage.
+    p_store.push_back(p);
+    Ap_store.push_back(Ap);
+    
+    // 4. alpha = <r, Ap_k>/<Ap_k, Ap_k>
+    alpha = dot<double>(r, Ap, size)/norm2sq<double>(Ap, size);
+    
+    // 5. x = x + alpha p_k
+    // 6. r = r - alpha Ap_k
+    for (i = 0; i < size; i++)
+    {
+      x[i] = x[i] + alpha*p[i];
+      r[i] = r[i] - alpha*Ap[i];
+    }
+    
+    // Compute norm.
+    rsq = norm2sq<double>(r, size);
+    
+    // Check convergence. 
+    if (sqrt(rsq) < eps*bsqrt) {
+      //        printf("Final rsq = %g\n", rsqNew);
+      break;
+    }
+    
+    // 7. Compute Ar.
+    zero<double>(Ar, size);
+    (*matrix_vector)(Ar, r, extra_info);
+    
+    // 8. b_ij = -<Ar_{j+1}, Ap_i>/<Ap_i, Ap_i> for i = 0, ..., j
+    // 9. p_{j+1} = r_{j+1} + sum_i=0^j b_ij p_i
+    // 10. Ap_{j+1} = Ar_{j+1} + sum_i=0^j b_ij Ap_i
+    p = new complex<double>[size];  copy<double>(p, r, size);
+    Ap = new complex<double>[size]; copy<double>(Ap, Ar, size);
+    for (ii = 0; ii <= k; ii++)
+    {
+      beta_ij = -dot<double>(Ar, Ap_store[ii], size)/norm2sq<double>(Ap_store[ii], size); 
+      for (i = 0; i < size; i++)
+      {
+        p[i] += beta_ij*p_store[ii][i];
+        Ap[i] += beta_ij*Ap_store[ii][i]; 
+      }
+    }
+  } 
+    
+  if(k == max_iter) {
+    //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
+    invif.success = false;
+    //return 0;// Failed convergence 
+  }
+  else
+  {
+     invif.success = true;
+    k++; // Fix a counting issue...
+     //printf("CG: Converged in %d iterations.\n", k);
+  }
+  
+  // Check true residual.
+  zero<double>(p,size);
+  (*matrix_vector)(p,x,extra_info);
+  for(i=0; i < size; i++) truersq += real(conj(p[i] - phi0[i])*(p[i] - phi0[i]));
+  
+  // Copy solution into phi.
+  copy<double>(phi, x, size);
+  
+  // Free all the things!
+  delete[] x;
+  delete[] r;
+  delete[] Ar;
+  k = p_store.size();
+  for (i = 0; i < k; i++)
+  {
+    delete[] p_store[i];
+    delete[] Ap_store[i];
+  }
+
+  
+  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  
+  invif.resSq = truersq;
+  invif.iter = k;
+  invif.name = "GCR";
+  return invif; // Convergence 
+} 
 

@@ -33,10 +33,11 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
 
 inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
 
-// Solves lhs = A^(-1) rhs using conjugate residual
-// https://en.wikipedia.org/wiki/Conjugate_residual_method
-// Requires matrix to be symmetric (Hermitian), does not have to be positive definite.
-//inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_iter, double res, void (*matrix_vector)(double*,double*,void*), void* extra_info);
+// Solves lhs = A^(-1) rhs using generalized conjugate residual
+// Makes no assumptions about the matrix. 
+inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_iter, double res, void (*matrix_vector)(double*,double*,void*), void* extra_info);
+
+inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
 
 // Solves lhs = A^(-1) rhs with bicgstab
 // Makes no assumptions about the matrix.
@@ -61,6 +62,13 @@ inversion_info minv_vector_gmres_restart(complex<double>  *phi, complex<double> 
 inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info);
 
 inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
+
+// Solves lhs = A^(-1) rhs with MinRes.
+// Assumes the symmetric part of the matrix is positive definite.
+inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info);
+
+inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
+
 
 // Could also want (as a smoother): 
 // Gauss-Seidel: https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method

@@ -400,8 +400,8 @@ void square_laplacian(double* lhs, double* rhs, void* extra_data)
 
       // 0
       // Added mass term here.
-      //lhs[i] = lhs[i]+(4+p->m*p->m)*rhs[i]; // Could rescale 'm' on each level. Makes sense if each level is a blocking transform.
-      lhs[i] = lhs[i]+(4+p->m*p->m*p->a[p->level]*p->a[p->level])*rhs[i];
+      lhs[i] = lhs[i]+(4+p->m*p->m)*rhs[i]; // Could rescale 'm' on each level. Makes sense if each level is a blocking transform.
+      //lhs[i] = lhs[i]+(4+p->m*p->m*p->a[p->level]*p->a[p->level])*rhs[i];
    }
        
 }
