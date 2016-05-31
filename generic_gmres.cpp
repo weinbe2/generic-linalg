@@ -101,14 +101,8 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
   q[0] = new double[size];
   //q[0] = (double*)malloc(size*sizeof(double));
   
-  beta = 0.0; bres = 0.0;
-  for (i=0;i<size;i++)
-  {
-    beta = beta + res[i]*res[i];
-    bres = bres + phi0[i]*phi0[i];
-  }
-  beta = sqrt(beta);
-  bres = sqrt(bres);
+  beta = norm2sq<double>(res, size);  beta = sqrt(beta);
+  bres = norm2sq<double>(phi0, size); bres = sqrt(bres);
   
   for (i=0;i<size;i++)
   {
@@ -287,6 +281,7 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
   if(iter == max_iter) {
     //printf("GMRES: Failed to converge iter = %d, rsq = %e\n", iter,localres);
     invif.success = false;
+    iter--;
     //return 0;// Failed convergence 
   }
   else
@@ -415,6 +410,18 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
 //  see https://en.wikipedia.org/wiki/Generalized_minimal_residual_method
 // A clearer article: 
 // http://www.math.iit.edu/~fass/477577_Chapter_14.pdf
+  // An even clearer: http://epubs.siam.org/doi/abs/10.1137/0907058
+  
+  // If size < max_iter, GMRES(max_iter) becomes unstable. 
+  // (And, technically, we'll get some error overflow issues.)
+  // This solves this problem.
+  if (size < max_iter)
+  {
+    #ifdef VERBOSE_WARN
+    cout << "The matrix dimension is " << size << ", which is smaller than the " << max_iter << " in GMRES(" << max_iter << "). Using GMRES("<<size<<") instead.\n" << flush;
+    #endif
+    max_iter = size;
+  }
   
   // Solve a counting issue...
   max_iter++;
@@ -440,11 +447,11 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
   //gmstr.h = h; // Depreciated, no longer use CG for normal subspace.
   
   // Prepare space for the residual, and a temporary vector.
-  res = new complex<double>[size];
-  tmp = new complex<double>[size];
-  tmp2 = new complex<double>[size];
-  y = new complex<double>[max_iter];
-  bhTy = new complex<double>[max_iter];
+  res = new complex<double>[size]; zero(res, size);
+  tmp = new complex<double>[size]; zero(tmp, size);
+  tmp2 = new complex<double>[size]; zero(tmp2, size);
+  y = new complex<double>[max_iter]; zero(y, max_iter);
+  bhTy = new complex<double>[max_iter]; zero(bhTy, max_iter);
   //res = (double*)malloc(size*sizeof(double));
   //tmp = (double*)malloc(size*sizeof(double));
   //tmp2 = (double*)malloc(size*sizeof(double));
@@ -462,8 +469,8 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
   q[0] = new complex<double>[size];
   //q[0] = (double*)malloc(size*sizeof(double));
   
-  beta = sqrt(norm2sq<double>(res, size));
-  bres = sqrt(norm2sq<double>(phi0, size));
+  beta = norm2sq<double>(res, size);  beta = sqrt(beta);
+  bres = norm2sq<double>(phi0, size); bres = sqrt(bres);
   
   for (i=0;i<size;i++)
   {
@@ -471,7 +478,6 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     //printf("%.8f ", q[0][i]);
   }
   //printf("\n");
-  
   
   // Begin Arnoldi iterations. Taken from
   // https://en.wikipedia.org/wiki/Arnoldi_iteration
@@ -493,16 +499,19 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     {
       q[iter][j] = h[iter-1][j] = hTh[iter-1][j] = 0.0;
     }
-    
     // Compute q_{iter} = Aq_{iter-1}
     (*matrix_vector)(q[iter],q[iter-1],extra_info);
-    
+
     // Perform an Arnoldi iteration. In some regards, this is just
     // a Gram-Schmidt process.
     for (j=0;j<iter;j++)
     {
       // Compute q[j] dot q[iter].
-      h[iter-1][j] = dot<double>(q[j],q[iter], size);
+      h[iter-1][j] = 0.0;
+      for (i=0;i<size;i++)
+      {
+        h[iter-1][j] = h[iter-1][j] + q[j][i]*q[iter][i]; //q* q
+      }
       
       // Subtract off part of q[iter] along q[j].
       for (i=0;i<size;i++)
@@ -512,7 +521,13 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     } // Go to next existing q vector.
     
     // Normalize the new q[iter].
-    h[iter-1][iter] = sqrt(norm2sq<double>(q[iter], size));
+    h[iter-1][iter] = 0.0;
+    for(i=0;i<size;i++)
+    {
+      h[iter-1][iter] = h[iter-1][iter] + q[iter][i]*q[iter][i];
+    }
+    h[iter-1][iter] = sqrt(h[iter-1][iter]);
+    
     for(i=0;i<size;i++)
     {
       q[iter][i] = q[iter][i]/h[iter-1][iter];
@@ -531,6 +546,7 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     
     // Compute bhTy = beta H^T e_1, or the first column of H^T.
     //printf("bhTy: ");
+    
     for(i=0;i<iter;i++)
     {
       bhTy[i] = beta*h[i][0];
@@ -538,19 +554,31 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     }
     //printf("\n");
     
+    
     // Need to compute hTh, which is the iter x iter
     // normal matrix.
     // Recall h is iter x (iter+1)
+    
     for (i=0;i<iter;i++)
     {
       for (j=0;j<iter;j++)
       {
-        hTh[i][j] = dot<double>(h[i],h[j], iter+1);
+        hTh[i][j] = 0.0;
+        for (k=0;k<iter+1;k++)
+        {
+          hTh[i][j] = hTh[i][j] + h[i][k]*h[j][k];
+        }
         //printf("%.8f ", hTh[i][j]);
       }
       //printf("\n");
     }
-    gaussian_elimination(y, bhTy, hTh, iter);
+    
+    // If gaussian elimination fails, break---it means we converged on the
+    // previous step.
+    if (!gaussian_elimination(y, bhTy, hTh, iter))
+    {
+      break;
+    }
     
     //printf("Exit gaussian elimination.\n"); fflush(stdout);
     
@@ -599,7 +627,7 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     localres = 0.0;
     for (i=0;i<size;i++)
     {
-      localres = localres+pow(abs(phi0[i]-res[i]),2);
+      localres = localres+real(conj(phi0[i]-res[i])*(phi0[i]-res[i]));
     }
     localres=sqrt(localres);
     
@@ -619,40 +647,39 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
   }
   
   if(iter == max_iter) {
-    //printf("GMRES: Failed to converge iter = %d, rsq = %e\n", iter,localres);
+    //printf("GMRES: Failed to converge iter = %d, rsq = %e\n", iter,localres); fflush(stdout);
     invif.success = false;
+    iter--;
     //return 0;// Failed convergence 
   }
   else
   {
      invif.success = true;
-     //printf("GMRES: Converged in %d iterations.\n", iter);
+     //printf("GMRES: Converged in %d iterations.\n", iter); fflush(stdout);
   }
   
   // Check q's. Passes.
   /*
-  complex<double> tmp3;
   for (i=0;i<iter;i++)
   {
     for (j=0;j<iter;j++)
     {
-      tmp3 = 0.0;
+      bres = 0.0;
       for (k=0;k<size;k++)
       {
-        tmp3 = tmp3 + conj(q[i][k])*q[j][k];
+        bres = bres + q[i][k]*q[j][k];
       }
-      cout << tmp3 << " ";
+      printf("%.8f ", bres);
     }
-    cout << "\n";
-  }*/
-  
+    printf("\n");
+  }
+  */
   
   // Check A Q_n = Q_{n+1} \tilde H_n.
   // This requires a size x (iter-1) space.
   // We can check this column by column (of size 'size').
   // Works!
-  /*
-  for (i=0;i<iter-1;i++)
+  /*for (i=0;i<iter-1;i++)
   {
     // Column of A Q_n
     (*matrix_vector)(res, q[i], extra_info);
@@ -665,15 +692,15 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
       }
     }
     
-    complex<double> tmp3 = 0.0;
+    bres = 0.0;
     // Find magnitude of res.
     for (j=0;j<size;j++)
     {
-      tmp3 = tmp3 + conj(res[j])*res[j];
+      bres = bres + res[j]*res[j];
     }
-    cout << "Mag column " << i << ": " << sqrt(tmp3) << "\n";
-  }
-  */
+    printf("Mag column %d: %.8f\n", i, sqrt(bres));
+  }*/
+    
     
   
   
@@ -712,6 +739,7 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
 
 } 
 
+  
 
 // Performs GMRES with restarts when restart_freq is hit.
 // This may be sloppy, but it works.

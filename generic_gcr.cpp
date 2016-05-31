@@ -71,8 +71,8 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
     p_store.push_back(p);
     Ap_store.push_back(Ap);
     
-    // 4. alpha = <r, Ap_k>/<Ap_k, Ap_k>
-    alpha = dot<double>(r, Ap, size)/norm2sq<double>(Ap, size);
+    // 4. alpha = <Ap_k, r>/<Ap_k, Ap_k>
+    alpha = dot<double>(Ap, r, size)/norm2sq<double>(Ap, size);
     
     // 5. x = x + alpha p_k
     // 6. r = r - alpha Ap_k
@@ -102,7 +102,7 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
     Ap = new double[size]; copy<double>(Ap, Ar, size);
     for (ii = 0; ii <= k; ii++)
     {
-      beta_ij = -dot<double>(Ar, Ap_store[ii], size)/norm2sq<double>(Ap_store[ii], size); 
+      beta_ij = -dot<double>(Ap_store[ii], Ar, size)/norm2sq<double>(Ap_store[ii], size);
       for (i = 0; i < size; i++)
       {
         p[i] += beta_ij*p_store[ii][i];
@@ -203,7 +203,7 @@ inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, in
     Ap_store.push_back(Ap);
     
     // 4. alpha = <r, Ap_k>/<Ap_k, Ap_k>
-    alpha = dot<double>(r, Ap, size)/norm2sq<double>(Ap, size);
+    alpha = dot<double>(Ap, r, size)/norm2sq<double>(Ap, size);
     
     // 5. x = x + alpha p_k
     // 6. r = r - alpha Ap_k
@@ -226,14 +226,14 @@ inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, in
     zero<double>(Ar, size);
     (*matrix_vector)(Ar, r, extra_info);
     
-    // 8. b_ij = -<Ar_{j+1}, Ap_i>/<Ap_i, Ap_i> for i = 0, ..., j
+    // 8. b_ij = -<Ap_i, Ar_{j+1}>/<Ap_i, Ap_i> for i = 0, ..., j
     // 9. p_{j+1} = r_{j+1} + sum_i=0^j b_ij p_i
     // 10. Ap_{j+1} = Ar_{j+1} + sum_i=0^j b_ij Ap_i
     p = new complex<double>[size];  copy<double>(p, r, size);
     Ap = new complex<double>[size]; copy<double>(Ap, Ar, size);
     for (ii = 0; ii <= k; ii++)
     {
-      beta_ij = -dot<double>(Ar, Ap_store[ii], size)/norm2sq<double>(Ap_store[ii], size); 
+      beta_ij = -dot<double>(Ap_store[ii], Ar, size)/norm2sq<double>(Ap_store[ii], size);
       for (i = 0; i < size; i++)
       {
         p[i] += beta_ij*p_store[ii][i];
