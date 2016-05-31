@@ -74,9 +74,9 @@ int main(int argc, char** argv)
    
    //invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
    //invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
-   invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
-   //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-4, square_laplacian, NULL);
-   //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 8, square_laplacian, NULL);
+   //invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
+   //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
+   invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 8, square_laplacian, NULL);
    // Note: SOR doesn't converge in any reasonable amount of time. 
    //invif = minv_vector_sor(lhs, rhs, N*N, 400000, 1e-6, 0.01, square_laplacian, NULL);
    //invif = minv_vector_minres(lhs, rhs, N*N, 400000, 1e-6, 0.01, square_laplacian, NULL);

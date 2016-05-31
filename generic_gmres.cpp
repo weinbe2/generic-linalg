@@ -139,11 +139,12 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
     for (j=0;j<iter;j++)
     {
       // Compute q[j] dot q[iter].
-      h[iter-1][j] = 0.0;
-      for (i=0;i<size;i++)
-      {
-        h[iter-1][j] = h[iter-1][j] + q[j][i]*q[iter][i]; //q* q
-      }
+      h[iter-1][j] = dot<double>(q[j], q[iter], size);
+      //h[iter-1][j] = 0.0;
+      //for (i=0;i<size;i++)
+      //{
+      //  h[iter-1][j] = h[iter-1][j] + q[j][i]*q[iter][i]; //q* q
+      //}
       
       // Subtract off part of q[iter] along q[j].
       for (i=0;i<size;i++)
@@ -153,12 +154,13 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
     } // Go to next existing q vector.
     
     // Normalize the new q[iter].
-    h[iter-1][iter] = 0.0;
-    for(i=0;i<size;i++)
-    {
-      h[iter-1][iter] = h[iter-1][iter] + q[iter][i]*q[iter][i];
-    }
-    h[iter-1][iter] = sqrt(h[iter-1][iter]);
+    h[iter-1][iter] = sqrt(norm2sq<double>(q[iter], size));
+    //h[iter-1][iter] = 0.0;
+    //for(i=0;i<size;i++)
+    //{
+    //  h[iter-1][iter] = h[iter-1][iter] + q[iter][i]*q[iter][i];
+    //}
+    //h[iter-1][iter] = sqrt(h[iter-1][iter]);
     
     for(i=0;i<size;i++)
     {
@@ -507,11 +509,12 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     for (j=0;j<iter;j++)
     {
       // Compute q[j] dot q[iter].
-      h[iter-1][j] = 0.0;
-      for (i=0;i<size;i++)
-      {
-        h[iter-1][j] = h[iter-1][j] + q[j][i]*q[iter][i]; //q* q
-      }
+      h[iter-1][j] = dot<double>(q[j], q[iter], size);
+      //h[iter-1][j] = 0.0;
+      //for (i=0;i<size;i++)
+      //{
+      //  h[iter-1][j] = h[iter-1][j] + q[j][i]*q[iter][i]; //q* q
+      //}
       
       // Subtract off part of q[iter] along q[j].
       for (i=0;i<size;i++)
@@ -521,12 +524,13 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     } // Go to next existing q vector.
     
     // Normalize the new q[iter].
-    h[iter-1][iter] = 0.0;
-    for(i=0;i<size;i++)
-    {
-      h[iter-1][iter] = h[iter-1][iter] + q[iter][i]*q[iter][i];
-    }
-    h[iter-1][iter] = sqrt(h[iter-1][iter]);
+    h[iter-1][iter] = sqrt(norm2sq<double>(q[iter], size));
+    //h[iter-1][iter] = 0.0;
+    //for(i=0;i<size;i++)
+    //{
+    //  h[iter-1][iter] = h[iter-1][iter] + q[iter][i]*q[iter][i];
+    //}
+    //h[iter-1][iter] = sqrt(h[iter-1][iter]);
     
     for(i=0;i<size;i++)
     {
@@ -556,7 +560,7 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     
     
     // Need to compute hTh, which is the iter x iter
-    // normal matrix.
+    // normal matrix. NOTE! Should NOT be h^{Hermitian} h. 
     // Recall h is iter x (iter+1)
     
     for (i=0;i<iter;i++)
