@@ -7,7 +7,7 @@ C_SOURCES =  ../generic_cg.cpp ../generic_bicgstab.cpp ../generic_gcr.cpp ../gen
 C_OBJS    = generic_bicgstab.o generic_cg.o generic_gcr.o generic_gmres.o generic_gelim.o generic_sor.o generic_minres.o
 C_INCLUDES  = generic_inverters.h generic_vector.h
 C_LIBS    = -lm
-EXAMPLES = square_staggered
+EXAMPLES = square_laplace square_laplace_u1 square_staggered square_staggered_u1
 
 
 CCX = g++
@@ -26,6 +26,15 @@ all: $(EXAMPLES)
 	$(CCX) -c  $(CXXFLAGS) $(C_SOURCES)
 
 square_staggered : square_staggered.o $(C_OBJS)
+	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
+
+square_staggered_u1 : square_staggered_u1.o $(C_OBJS)
+	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
+
+square_laplace : square_laplace.o $(C_OBJS)
+	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
+
+square_laplace_u1 : square_laplace_u1.o $(C_OBJS)
 	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
 
 
