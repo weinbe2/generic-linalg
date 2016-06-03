@@ -151,6 +151,39 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
   return invif; // Convergence 
 } 
 
+// Performs GCR(restart_freq) with restarts when restart_freq is hit.
+// This may be sloppy, but it works.
+inversion_info minv_vector_gcr_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+{
+  int iter; // counts total number of iterations.
+  inversion_info invif;
+
+  iter = 0;  
+  do
+  {
+    invif = minv_vector_gcr(phi, phi0, size, restart_freq, res, matrix_vector, extra_info);
+    iter += invif.iter;
+  }
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
+  
+  invif.iter = iter;
+  stringstream ss;
+  ss << "GCR(" << restart_freq << ")";
+  invif.name = ss.str();
+  // invif.resSq is good.
+  if (sqrt(invif.resSq) > res)
+  {
+    invif.success = false;
+  }
+  else
+  {
+    invif.success = true;
+  }
+  
+  return invif;
+}
+
+
 inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
 {
 
@@ -282,3 +315,34 @@ inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, in
   return invif; // Convergence 
 } 
 
+// Performs GCR with restarts when restart_freq is hit.
+// This may be sloppy, but it works.
+inversion_info minv_vector_gcr_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+{
+  int iter; // counts total number of iterations.
+  inversion_info invif;
+
+  iter = 0;  
+  do
+  {
+    invif = minv_vector_gcr(phi, phi0, size, restart_freq, res, matrix_vector, extra_info);
+    iter += invif.iter;
+  }
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
+  
+  invif.iter = iter;
+  stringstream ss;
+  ss << "GCR(" << restart_freq << ")";
+  invif.name = ss.str();
+  // invif.resSq is good.
+  if (sqrt(invif.resSq) > res)
+  {
+    invif.success = false;
+  }
+  else
+  {
+    invif.success = true;
+  }
+  
+  return invif;
+}

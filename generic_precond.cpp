@@ -54,4 +54,20 @@ void minres_preconditioner(complex<double>* lhs, complex<double>* rhs, int size,
     minv_vector_minres(lhs, rhs, size, mps->n_step, mps->rel_res, mps->matrix_vector, mps->matrix_extra_data);
 }
 
+// GCR preconditioning function. 
+void gcr_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
+{
+    gcr_precond_struct_real* gps = (gcr_precond_struct_real*)extra_data; 
+    
+    // Run mps->nstep iterations of minres. 
+    minv_vector_gcr(lhs, rhs, size, gps->n_step, gps->rel_res, gps->matrix_vector, gps->matrix_extra_data);
+}
+
+void gcr_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data)
+{
+    gcr_precond_struct_complex* gps = (gcr_precond_struct_complex*)extra_data; 
+    
+    // Run mps->nstep iterations of minres. 
+    minv_vector_gcr(lhs, rhs, size, gps->n_step, gps->rel_res, gps->matrix_vector, gps->matrix_extra_data);
+}
 

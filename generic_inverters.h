@@ -39,6 +39,11 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
 
 inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
 
+// Solves lhs = A^(-1) with GCR(m), where m is restart_freq. 
+inversion_info minv_vector_gcr_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info);
+
+inversion_info minv_vector_gcr_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
+
 // Solves lhs = A^(-1) rhs with bicgstab
 // Makes no assumptions about the matrix.
 inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int max_iter, double res, void (*matrix_vector)(double*,double*,void*), void* extra_info);
@@ -68,10 +73,6 @@ inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, in
 inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info);
 
 inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
-
-
-// Preconditioned Conjugate Gradient:
-inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,void*), void* precond_info);
 
 
 // Could also want (as a smoother): 
