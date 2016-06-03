@@ -7,7 +7,9 @@
 #include <complex>
 
 #include "generic_inverters.h"
+#include "generic_inverters_precond.h"
 #include "generic_vector.h"
+
 
 using namespace std; 
 
@@ -22,6 +24,7 @@ using namespace std;
 
 // Square laplacian function.
 void square_laplacian(double* lhs, double* rhs, void* extra_data);
+
 
 
 int main(int argc, char** argv)
@@ -77,7 +80,47 @@ int main(int argc, char** argv)
    //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 8, square_laplacian, NULL);
    //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 20, square_laplacian, NULL);
-   invif = minv_vector_sor(lhs, rhs, N*N, 10000, 1e-6, 0.1, square_laplacian, NULL);
+   //invif = minv_vector_sor(lhs, rhs, N*N, 10000, 1e-6, 0.1, square_laplacian, NULL);
+   //invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
+   //invif = minv_vector_gcr_restart(lhs, rhs, N*N, 4000, 1e-8, 20, square_laplacian, NULL);
+    
+   // Indentity preconditioner.
+   //invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, identity_preconditioner, NULL); 
+    
+   // Minres preconditioner.
+   /*minres_precond_struct_real mps; 
+   mps.n_step = 10;
+   mps.rel_res = 1e-15; // Make n_step the dominant factor. 
+   mps.matrix_vector = square_laplacian; 
+   mps.matrix_extra_data = NULL;
+   invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); /**/
+    
+   // Indentity preconditioner. 
+   //invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, identity_preconditioner, NULL); 
+   
+   // Minres preconditioner. 
+   /*minres_precond_struct_real mps; 
+   mps.n_step = 10000; // Make rel_res the dominant factor. 
+   mps.rel_res = 1e-1; 
+   mps.matrix_vector = square_laplacian; 
+   mps.matrix_extra_data = NULL;
+   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); /**/
+    
+   // GCR preconditioner. 
+   /*gcr_precond_struct_real gps; 
+   gps.n_step = 8; 
+   gps.rel_res = 1e-20; // Make n_step the dominant factor. 
+   gps.matrix_vector = square_laplacian; 
+   gps.matrix_extra_data = NULL;
+   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, gcr_preconditioner, (void*)&gps); /**/
+    
+   // Restarted GCR with preconditioner. 
+   gcr_precond_struct_real gps; 
+   gps.n_step = 8; 
+   gps.rel_res = 1e-20; // Make n_step the dominant factor. 
+   gps.matrix_vector = square_laplacian; 
+   gps.matrix_extra_data = NULL;
+   invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 10000, 1e-6, 12, square_laplacian, NULL, gcr_preconditioner, (void*)&gps); /**/
    
    if (invif.success == true)
    {
