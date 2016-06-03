@@ -16,7 +16,6 @@
 
 using namespace std;
 
-// Based on Minv_phi_3d in fem.c
 // Solves lhs = A^(-1) rhs
 inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info)
 {
@@ -24,58 +23,57 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
 //  see http://en.wikipedia.org/wiki/Conjugate_gradient_method
 
   // Initialize vectors.
-  double *res, *resNew, *pvec, *Apvec, *pvec_tmp;
+  double *r, *p, *Ap;
   double alpha, beta, denom, rsq, rsqNew, bsqrt, truersq;
   int k,i;
   inversion_info invif;
 
   // Allocate memory.
-  res = new double[size];
-  resNew = new double[size];
-  pvec = new double[size];
-  Apvec = new double[size];
-  pvec_tmp = new double[size];
-  //res = (double*)malloc(size*sizeof(double));
-  //resNew = (double*)malloc(size*sizeof(double));
-  //pvec = (double*)malloc(size*sizeof(double));
-  //Apvec = (double*)malloc(size*sizeof(double));
-  //pvec_tmp = (double*)malloc(size*sizeof(double));
+  r = new double[size];
+  p = new double[size];
+  Ap = new double[size];
 
   // Initialize values.
   rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0;
 
-  // Take advantage of initial guess in phi.
-  (*matrix_vector)(Apvec, phi, extra_info);
-  for(i = 0; i<size; i++) {
-    res[i] = phi0[i] - Apvec[i];  
-    resNew[i] = 0.0;
-    pvec[i] = res[i];
-    Apvec[i] = 0.0; // We don't need this component anymore.
-    //bsqrt += phi0[i]*phi0[i];
-    pvec_tmp[i] = 0.0;
-  }
+  // Zero vectors;
+  zero<double>(r, size); 
+  zero<double>(p, size); zero<double>(Ap, size);
+  
+  // Find norm of rhs.
   bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  // 1. Compute r = b - Ax
+  (*matrix_vector)(p, phi, extra_info);
+  for (i = 0; i < size; i++)
+  {
+    r[i] = phi0[i] - p[i];
+  }
+  
+  // 2. p_0 = r_0.
+  copy<double>(p, r, size);
+  
+  // Compute Ap.
+  zero<double>(Ap, size);
+  (*matrix_vector)(Ap, p, extra_info);
+  
+  // Compute rsq.
+  rsq = norm2sq<double>(r, size);
 
   // iterate till convergence
   for(k = 0; k< max_iter; k++) {
-    rsq = norm2sq<double>(res, size);
-    //rsq = 0;
-    //for (i = 0; i < size; i++) rsq += res[i]*res[i];
+    
+    alpha = rsq/dot<double>(p, Ap, size);
 
-    (*matrix_vector)(Apvec, pvec, extra_info);
-    denom = dot<double>(pvec, Apvec, size);
-    //denom = 0;
-    //for(i=0; i< size; i++) denom += pvec[i]*Apvec[i];
-    alpha = rsq/denom;
-
-    for(i=0; i < size; i++)  phi[i] +=  alpha * pvec[i];
-    for(i=0; i < size; i++) resNew[i] = res[i]- alpha*Apvec[i];
+    for (i = 0; i < size; i++)
+    {
+      phi[i] = phi[i] + alpha*p[i];
+      r[i] = r[i] - alpha*Ap[i];
+    }
     
     // Exit if new residual is small enough
-    rsqNew = norm2sq<double>(resNew, size);
-    //rsqNew = 0;
-    //for (i = 0; i < size; i++) rsqNew += resNew[i]*resNew[i];
-    
+    rsqNew = norm2sq<double>(r, size);
+
     if (sqrt(rsqNew) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
@@ -83,10 +81,14 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
   
     // Update vec using new residual
     beta = rsqNew / rsq;
+    rsq = rsqNew; 
+    
     for (i = 0; i < size; i++) {
-      pvec[i] = resNew[i] + beta * pvec[i];
-      res[i] = resNew[i];
+      p[i] = r[i] + beta * p[i];
     }
+    
+    // Compute the new Ap.
+    (*matrix_vector)(Ap, p, extra_info);
   } 
     
   if(k == max_iter) {
@@ -100,20 +102,13 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
      //printf("CG: Converged in %d iterations.\n", k);
   }
   
-  (*matrix_vector)(Apvec,phi,extra_info);
-  for(i=0; i < size; i++) truersq += (Apvec[i] - phi0[i])*(Apvec[i] - phi0[i]);
+  (*matrix_vector)(Ap,phi,extra_info);
+  for(i=0; i < size; i++) truersq += (Ap[i] - phi0[i])*(Ap[i] - phi0[i]);
   
   // Free all the things!
-  delete[] res;
-  delete[] resNew;
-  delete[] pvec;
-  delete[] Apvec;
-  delete[] pvec_tmp;
-  //free(res);
-  //free(resNew);
-  //free(pvec);
-  //free(Apvec);
-  //free(pvec_tmp);
+  delete[] r;
+  delete[] p;
+  delete[] Ap;
 
   
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
@@ -130,60 +125,60 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
 // CG solutions to Mphi = b 
 //  see http://en.wikipedia.org/wiki/Conjugate_gradient_method
 
+  
   // Initialize vectors.
-  complex<double> *res, *resNew, *pvec, *Apvec, *pvec_tmp;
+  complex<double> *r, *p, *Ap;
   complex<double> alpha, beta, denom;
   double rsq, rsqNew, bsqrt, truersq;
   int k,i;
   inversion_info invif;
 
   // Allocate memory.
-  res = new complex<double>[size];
-  resNew = new complex<double>[size];
-  pvec = new complex<double>[size];
-  Apvec = new complex<double>[size];
-  pvec_tmp = new complex<double>[size];
-  //res = (double*)malloc(size*sizeof(double));
-  //resNew = (double*)malloc(size*sizeof(double));
-  //pvec = (double*)malloc(size*sizeof(double));
-  //Apvec = (double*)malloc(size*sizeof(double));
-  //pvec_tmp = (double*)malloc(size*sizeof(double));
+  r = new complex<double>[size];
+  p = new complex<double>[size];
+  Ap = new complex<double>[size];
 
   // Initialize values.
   rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0;
 
-  // Take advantage of initial guess in phi.
-  (*matrix_vector)(Apvec, phi, extra_info);
-  for(i = 0; i<size; i++) {
-    res[i] = phi0[i] - Apvec[i];  
-    resNew[i] = 0.0;
-    pvec[i] = res[i];
-    Apvec[i] = 0.0; // We don't need this component anymore.
-    //bsqrt += phi0[i]*phi0[i];
-    pvec_tmp[i] = 0.0;
-  }
+  // Zero vectors;
+  zero<double>(r, size); 
+  zero<double>(p, size); zero<double>(Ap, size);
+  
+  // Find norm of rhs.
   bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  // 1. Compute r = b - Ax
+  (*matrix_vector)(p, phi, extra_info);
+  for (i = 0; i < size; i++)
+  {
+    r[i] = phi0[i] - p[i];
+  }
+  
+  // 2. p_0 = r_0.
+  copy<double>(p, r, size);
+  
+  // Compute Ap.
+  zero<double>(Ap, size);
+  (*matrix_vector)(Ap, p, extra_info);
+  
+  // Compute rsq.
+  rsq = norm2sq<double>(r, size);
 
   // iterate till convergence
   for(k = 0; k< max_iter; k++) {
-    rsq = norm2sq<double>(res, size);
-    //rsq = 0;
-    //for (i = 0; i < size; i++) rsq += res[i]*res[i];
+    
+    alpha = rsq/dot<double>(p, Ap, size);
 
-    (*matrix_vector)(Apvec, pvec, extra_info);
-    denom = dot<double>(pvec, Apvec, size);
-    //denom = 0;
-    //for(i=0; i< size; i++) denom += pvec[i]*Apvec[i];
-    alpha = rsq/denom;
-
-    for(i=0; i < size; i++)  phi[i] +=  alpha * pvec[i];
-    for(i=0; i < size; i++) resNew[i] = res[i]- alpha*Apvec[i];
+    for (i = 0; i < size; i++)
+    {
+      phi[i] = phi[i] + alpha*p[i];
+      r[i] = r[i] - alpha*Ap[i];
+    }
     
     // Exit if new residual is small enough
-    rsqNew = norm2sq<double>(resNew, size);
-    //rsqNew = 0;
-    //for (i = 0; i < size; i++) rsqNew += resNew[i]*resNew[i];
-    
+    rsqNew = norm2sq<double>(r, size);
+
     if (sqrt(rsqNew) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
@@ -191,10 +186,14 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   
     // Update vec using new residual
     beta = rsqNew / rsq;
+    rsq = rsqNew; 
+    
     for (i = 0; i < size; i++) {
-      pvec[i] = resNew[i] + beta * pvec[i];
-      res[i] = resNew[i];
+      p[i] = r[i] + beta * p[i];
     }
+    
+    // Compute the new Ap.
+    (*matrix_vector)(Ap, p, extra_info);
   } 
     
   if(k == max_iter) {
@@ -208,20 +207,13 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
      //printf("CG: Converged in %d iterations.\n", k);
   }
   
-  (*matrix_vector)(Apvec,phi,extra_info);
-  for(i=0; i < size; i++) truersq += pow(abs(Apvec[i] - phi0[i]),2);
+  (*matrix_vector)(Ap,phi,extra_info);
+  for(i=0; i < size; i++) truersq += real(conj(Ap[i] - phi0[i])*(Ap[i] - phi0[i]));
   
   // Free all the things!
-  delete[] res;
-  delete[] resNew;
-  delete[] pvec;
-  delete[] Apvec;
-  delete[] pvec_tmp;
-  //free(res);
-  //free(resNew);
-  //free(pvec);
-  //free(Apvec);
-  //free(pvec_tmp);
+  delete[] r;
+  delete[] p;
+  delete[] Ap;
 
   
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
