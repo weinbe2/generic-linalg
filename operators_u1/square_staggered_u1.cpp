@@ -8,6 +8,7 @@
 #include <complex>
 
 #include "generic_inverters.h"
+#include "generic_inverters_precond.h"
 #include "generic_vector.h"
 
 using namespace std; 
@@ -104,10 +105,29 @@ int main(int argc, char** argv)
    // 6: function pointer
    // 7: "extra data": can set this to not-null to pass in gauge fields, etc.
    
-   invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-6, square_staggered_u1, (void*)lattice); 
+   //invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-6, square_staggered_u1, (void*)lattice);
    //invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-6, square_staggered_u1, (void*)lattice); 
+   //invif = minv_vector_gcr_restart(lhs, rhs, N*N, 4000, 1e-6, 12, square_staggered_u1, (void*)lattice);  // restarted GCR(12)
    //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-6, square_staggered_u1, (void*)lattice);
    //invif = minv_vector_minres(lhs, rhs, N*N, 4000, 1e-6, square_staggered_u1, (void*)lattice); 
+    
+   // Minres preconditioner to GCR, doing 6 iterations of MinRes. 
+   /*minres_precond_struct_complex mps; 
+   mps.n_step = 6; 
+   mps.rel_res = 1e-15; // n_step will trigger first. 
+   mps.matrix_vector = square_staggered_u1; 
+   mps.matrix_extra_data = (void*)lattice;
+   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_staggered_u1, (void*)lattice, minres_preconditioner, (void*)&mps); /**/
+    
+   // GCR preconditioned to GCR, preconditioner runs GCR to 10^-1 relative residual. 
+   gcr_precond_struct_complex gps; 
+   gps.n_step = 10000; // make rel res trigger first.
+   gps.rel_res = 1e-1; 
+   gps.matrix_vector = square_staggered_u1; 
+   gps.matrix_extra_data = (void*)lattice;
+   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_staggered_u1, (void*)lattice, minres_preconditioner, (void*)&gps); /**/
+    
+   
    
    if (invif.success == true)
    {
