@@ -7,7 +7,9 @@
 #include <complex>
 
 #include "generic_inverters.h"
+#include "generic_inverters_precond.h"
 #include "generic_vector.h"
+
 
 using namespace std; 
 
@@ -23,19 +25,7 @@ using namespace std;
 // Square laplacian function.
 void square_laplacian(double* lhs, double* rhs, void* extra_data);
 
-// Preconditioning function.
-void identity_preconditioner(double* lhs, double* rhs, void* extra_data); 
 
-// Preconditioning function.
-void minres_preconditioner(double* lhs, double* rhs, void* extra_data); 
-
-// Preconditioning struct. 
-struct minres_precon_struct
-{
-    int n_step; 
-    void (*matrix_vector)(double*, double*, void*);
-    void* matrix_extra_data; 
-};
 
 int main(int argc, char** argv)
 {  
@@ -85,7 +75,7 @@ int main(int argc, char** argv)
    // 6: function pointer
    // 7: "extra data": can set this to not-null to pass in gauge fields, etc.
    
-   //invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
+   invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
    //invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 8, square_laplacian, NULL);
@@ -95,11 +85,12 @@ int main(int argc, char** argv)
    //invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, identity_preconditioner, NULL); 
     
    // Minres preconditioner.
-   minres_precon_struct mps; 
+   /*minres_precond_struct_real mps; 
    mps.n_step = 10;
+   mps.rel_res = 1e-15; // Make n_step the dominant factor. 
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
-   invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); 
+   invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); /**/
     
    if (invif.success == true)
    {
@@ -179,26 +170,5 @@ void square_laplacian(double* lhs, double* rhs, void* extra_data)
    }
        
 }
-
-// Preconditioning function.
-void identity_preconditioner(double* lhs, double* rhs, void* extra_data)
-{
-    int i = 0; 
-    
-    for (i = 0; i < N*N; i++)
-    {
-        lhs[i] = rhs[i];
-    }
-}
-
-// Minres preconditioning function. 
-void minres_preconditioner(double* lhs, double* rhs, void* extra_data)
-{
-    minres_precon_struct* mps = (minres_precon_struct*)extra_data; 
-    
-    // Run mps->nstep iterations of minres. 
-    minv_vector_minres(lhs, rhs, N*N, mps->n_step, 1e-15, mps->matrix_vector, mps->matrix_extra_data);
-}
-
 
 
