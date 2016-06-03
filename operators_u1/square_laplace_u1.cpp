@@ -142,12 +142,20 @@ int main(int argc, char** argv)
    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 1000, 1e-6, 12, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&gps); /**/
     
    // Minres preconditioner to flex cg. 
-   minres_precond_struct_complex mps; 
+   /*minres_precond_struct_complex mps; 
    mps.n_step = 10000; // Make rel_res the dominant factor. 
    mps.rel_res = 1e-1; 
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
    invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&mps); /**/
+    
+   // Restarted Minres preconditioner to flex cg. 
+   minres_precond_struct_complex mps; 
+   mps.n_step = 10000; // Make rel_res the dominant factor. 
+   mps.rel_res = 0.8; 
+   mps.matrix_vector = square_laplacian; 
+   mps.matrix_extra_data = NULL;
+   invif = minv_vector_cg_flex_precond_restart(lhs, rhs, N*N, 10000, 1e-6, 12, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&mps); /**/
    
    if (invif.success == true)
    {

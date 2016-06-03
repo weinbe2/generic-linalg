@@ -158,6 +158,48 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
 
 } 
 
+// Solves lhs = A^(-1) rhs using flexibly preconditioned Conjugate gradient, 
+// restarting after restart_freq. 
+// This may be sloppy, but it works.
+inversion_info minv_vector_cg_flex_precond_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*), void* precond_info)
+{
+  int iter; // counts total number of iterations.
+  inversion_info invif;
+  double truersq = 0.0;
+  int i;
+
+  iter = 0;  
+  do
+  {
+    invif = minv_vector_cg_flex_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info);
+    iter += invif.iter;
+  }
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
+  
+  double *Aphi = new double[size];
+  (*matrix_vector)(Aphi, phi, extra_info);
+  for(i=0; i < size; i++) truersq += (Aphi[i] - phi0[i])*(Aphi[i] - phi0[i]);
+  invif.resSq = truersq; 
+  delete[] Aphi; 
+  
+  invif.iter = iter;
+  stringstream ss;
+  ss << "Flexibly Preconditioned Restarted CG(" << restart_freq << ")";
+  invif.name = ss.str();
+  // invif.resSq is good.
+  if (sqrt(invif.resSq) > res)
+  {
+    invif.success = false;
+  }
+  else
+  {
+    invif.success = true;
+  }
+  
+  return invif;
+}
+
+
 
 inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*), void* precond_info)
 {
@@ -294,3 +336,45 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
 
 
 }
+
+// Solves lhs = A^(-1) rhs using flexibly preconditioned Conjugate gradient, 
+// restarting after restart_freq. 
+// This may be sloppy, but it works.
+inversion_info minv_vector_cg_flex_precond_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*), void* precond_info)
+{
+  int iter; // counts total number of iterations.
+  inversion_info invif;
+  double truersq = 0.0;
+  int i;
+
+  iter = 0;  
+  do
+  {
+    invif = minv_vector_cg_flex_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info);
+    iter += invif.iter;
+  }
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
+  
+  complex<double> *Aphi = new complex<double>[size];
+  (*matrix_vector)(Aphi, phi, extra_info);
+  for(i=0; i < size; i++) truersq += real(conj(Aphi[i] - phi0[i])*(Aphi[i] - phi0[i]));
+  invif.resSq = truersq; 
+  delete[] Aphi;
+  
+  invif.iter = iter;
+  stringstream ss;
+  ss << "Flexibly Preconditioned Restarted CG(" << restart_freq << ")";
+  invif.name = ss.str();
+  // invif.resSq is good.
+  if (sqrt(invif.resSq) > res)
+  {
+    invif.success = false;
+  }
+  else
+  {
+    invif.success = true;
+  }
+  
+  return invif;
+}
+

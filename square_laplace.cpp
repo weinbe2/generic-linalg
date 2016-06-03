@@ -99,12 +99,20 @@ int main(int argc, char** argv)
    //invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, identity_preconditioner, NULL);
     
    // Minres preconditioner to flex cg. 
-   minres_precond_struct_real mps; 
+   /*minres_precond_struct_real mps; 
    mps.n_step = 10000; // Make rel_res the dominant factor. 
    mps.rel_res = 1e-1; 
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
    invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); /**/
+    
+   // Restarted CG with GCR preconditioner. 
+   gcr_precond_struct_real gps; 
+   gps.n_step = 10000; // Make rel_res the dominant factor.
+   gps.rel_res = 0.8; // Make n_step the dominant factor. 
+   gps.matrix_vector = square_laplacian; 
+   gps.matrix_extra_data = NULL;
+   invif = minv_vector_cg_flex_precond_restart(lhs, rhs, N*N, 10000, 1e-6, 12, square_laplacian, NULL, gcr_preconditioner, (void*)&gps); /**/
     
     
    // Indentity preconditioner. 
