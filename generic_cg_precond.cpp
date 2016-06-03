@@ -1,6 +1,6 @@
 // Fri Apr 29 11:54:22 EDT 2016
 // Evan S Weinberg
-// C++ file for CG inverter.
+// C++ file for preconditioned CG inverter.
 
 // To do:
 // 1. Template to support float, double. 

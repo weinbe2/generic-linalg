@@ -75,13 +75,14 @@ int main(int argc, char** argv)
    // 6: function pointer
    // 7: "extra data": can set this to not-null to pass in gauge fields, etc.
    
-   invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
+   //invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
    //invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 8, square_laplacian, NULL);
    //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 20, square_laplacian, NULL);
    //invif = minv_vector_sor(lhs, rhs, N*N, 10000, 1e-6, 0.1, square_laplacian, NULL);
     
+   // Indentity preconditioner.
    //invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, identity_preconditioner, NULL); 
     
    // Minres preconditioner.
@@ -91,6 +92,17 @@ int main(int argc, char** argv)
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
    invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); /**/
+    
+   // Indentity preconditioner. 
+   //invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, identity_preconditioner, NULL); 
+   
+   // Minres preconditioner. 
+   minres_precond_struct_real mps; 
+   mps.n_step = 10000; // Make rel_res the dominant factor. 
+   mps.rel_res = 1e-1; // Make n_step the dominant factor. 
+   mps.matrix_vector = square_laplacian; 
+   mps.matrix_extra_data = NULL;
+   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); /**/
     
    if (invif.success == true)
    {

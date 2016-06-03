@@ -192,6 +192,28 @@ int main(int argc, char** argv)
    printf("End Check Preconditioned CG (3 iter MinRes).\n");
    printf("\n\n\n");
     
+   printf("Begin Check Variably Preconditioned GCR (1e-1 rel resid MinRes).\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+   // Prepare MinRes preconditioner.
+   mps.n_step = 10000; // Make rel_res the dominant factor. 
+   mps.rel_res = 1e-1; // Make n_step the dominant factor. 
+   mps.matrix_vector = square_laplacian; 
+   mps.matrix_extra_data = NULL;
+   // End Prepare MinRes preconditioner.
+   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps);
+   if (invif.success == true)
+   {
+      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+   }
+   else
+   {
+      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+   }
+   explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check Variably Preconditioned GCR (1e-1 rel resid MinRes).\n");
+   printf("\n\n\n");
+    
    printf("Begin Check Power Iteration.\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
    eigif = eig_vector_poweriter(&eig, rhs, N*N, 10000, 1e-7, square_laplacian, NULL);
