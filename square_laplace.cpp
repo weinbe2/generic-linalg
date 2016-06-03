@@ -95,6 +95,18 @@ int main(int argc, char** argv)
    mps.matrix_extra_data = NULL;
    invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); /**/
     
+   // Identity preconditioner to flex cg.
+   //invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, identity_preconditioner, NULL);
+    
+   // Minres preconditioner to flex cg. 
+   minres_precond_struct_real mps; 
+   mps.n_step = 10000; // Make rel_res the dominant factor. 
+   mps.rel_res = 1e-1; 
+   mps.matrix_vector = square_laplacian; 
+   mps.matrix_extra_data = NULL;
+   invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); /**/
+    
+    
    // Indentity preconditioner. 
    //invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, identity_preconditioner, NULL); 
    
@@ -115,7 +127,7 @@ int main(int argc, char** argv)
    invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, gcr_preconditioner, (void*)&gps); /**/
     
    // Restarted GCR with preconditioner. 
-   gcr_precond_struct_real gps; 
+   /*gcr_precond_struct_real gps; 
    gps.n_step = 8; 
    gps.rel_res = 1e-20; // Make n_step the dominant factor. 
    gps.matrix_vector = square_laplacian; 

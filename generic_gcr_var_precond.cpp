@@ -147,8 +147,8 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
   delete[] x;
   delete[] r;
   delete[] Ar;
-  k = p_store.size();
-  for (i = 0; i < k; i++)
+  ii = p_store.size();
+  for (i = 0; i < ii; i++)
   {
     delete[] p_store[i];
     delete[] Ap_store[i];

@@ -134,12 +134,20 @@ int main(int argc, char** argv)
     
 
    // variably preconditioned restarted GCR(12), preconditioned with GCR restarted when rel_res is 1e-1.
-   gcr_precond_struct_complex gps; 
+   /*gcr_precond_struct_complex gps; 
    gps.n_step = 10000; // Let rel res dominate.
    gps.rel_res = 1e-1; 
    gps.matrix_vector = square_laplacian_u1; 
    gps.matrix_extra_data = (void*)lattice;
    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 1000, 1e-6, 12, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&gps); /**/
+    
+   // Minres preconditioner to flex cg. 
+   minres_precond_struct_complex mps; 
+   mps.n_step = 10000; // Make rel_res the dominant factor. 
+   mps.rel_res = 1e-1; 
+   mps.matrix_vector = square_laplacian; 
+   mps.matrix_extra_data = NULL;
+   invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&mps); /**/
    
    if (invif.success == true)
    {
