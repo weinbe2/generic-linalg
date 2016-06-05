@@ -11,17 +11,27 @@
 #include "generic_inverters_precond.h"
 #include "generic_vector.h"
 
+// Do restrict/prolong test?
+#define PDAGP_TEST
+
+// Do two vector restrict/prolong?
+#define PDAGP_2TEST
 
 using namespace std; 
 
 // For now, define the length in a direction.
-#define N 4
+#define N 8
 
 // Define pi.
 #define PI 3.141592653589793
 
 // Define mass.
 #define MASS 0.1*0.1
+
+// What's the X blocksize?
+#define X_BLOCKSIZE 2
+// What's the Y blocksize?
+#define Y_BLOCKSIZE 2
 
 // Square laplacian function.
 void square_laplacian(double* lhs, double* rhs, void* extra_data);
@@ -30,19 +40,19 @@ void square_laplacian(double* lhs, double* rhs, void* extra_data);
 void coarse_square_laplacian(double* lhs, double* rhs, void* extra_data); 
 
 // Useful mg functions.
-struct mg_precond_struct_real;
+struct mg_operator_struct_real;
 
 // Normalize the projectors based on the coarse blocksize. 
-void block_normalize(mg_precond_struct_real* mgstruct);
+void block_normalize(mg_operator_struct_real* mgstruct);
 
 // Prolong from the coarse lattice to the fine lattice. 
-void prolong(double* x_fine, double* x_coarse, mg_precond_struct_real* mgstruct);
+void prolong(double* x_fine, double* x_coarse, mg_operator_struct_real* mgstruct);
 
 // Restrict a fine vector to a coarse vector using the info in mgstruct.
-void restrict(double* x_coarse, double* x_fine, mg_precond_struct_real* mgstruct);
+void restrict(double* x_coarse, double* x_fine, mg_operator_struct_real* mgstruct);
 
-// Multigrid precond struct. 
-struct mg_precond_struct_real
+// Multigrid operator struct.
+struct mg_operator_struct_real
 {
     int blocksize_x; // How much to block in x direction.
     int blocksize_y; // How much to block in y direction. 
@@ -51,6 +61,19 @@ struct mg_precond_struct_real
     void (*matrix_vector)(double*, double*, void*);
     void* matrix_extra_data; 
 };
+
+enum inner_solver
+{
+    MINRES = 0,
+    CG = 1,
+    GCR = 2
+};
+
+// Preconditioning struct
+struct mg_precond_struct_real;
+
+// MG preconditioner!
+void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data);
 
 int main(int argc, char** argv)
 {  
@@ -69,9 +92,9 @@ int main(int argc, char** argv)
     int fine_size = x_fine*y_fine;
     
     // Build an mg_struct.
-    mg_precond_struct_real mgstruct;
-    mgstruct.blocksize_x = 2;
-    mgstruct.blocksize_y = 2;
+    mg_operator_struct_real mgstruct;
+    mgstruct.blocksize_x = X_BLOCKSIZE;
+    mgstruct.blocksize_y = Y_BLOCKSIZE;
     mgstruct.n_vector = 1;
     mgstruct.matrix_vector = square_laplacian;
     mgstruct.matrix_extra_data = NULL; 
@@ -94,17 +117,6 @@ int main(int argc, char** argv)
 
     // Set a point on the rhs.
     rhs[x_fine/2+(y_fine/2)*x_fine] = 1.0;
-    
-    // Print the fine rhs.
-    cout << "Check fine point src:\n"; 
-    for (int y = 0; y < y_fine; y++)
-    {
-        for (int x = 0; x < x_fine; x++)
-        {
-            cout << rhs[x+y*x_fine] << " ";
-        }
-        cout << "\n";
-    }
 
     // Get norm for rhs.
     for (i=0;i<fine_size;i++)
@@ -115,174 +127,241 @@ int main(int argc, char** argv)
 
     // Set a point on the lhs.
     lhs[x_fine/2+(y_fine/2)*x_fine+1] = 1.0;
-
+    
     // Create a projector.
     mgstruct.projectors = new double*[mgstruct.n_vector];
     mgstruct.projectors[0] = new double[fine_size];
-    
+
     cout << "Creating " << mgstruct.n_vector << " projector(s).\n";
     // Make a constant projector.
     for (i = 0; i < N*N; i++)
     {
         mgstruct.projectors[0][i] = 1;
     }
-    cout << "Check projector:\n"; 
-    for (int y = 0; y < y_fine; y++)
+    
+#ifdef PDAGP_TEST
     {
-        for (int x = 0; x < x_fine; x++)
-        {
-            cout << mgstruct.projectors[0][x+y*x_fine] << " ";
-        }
-        cout << "\n";
-    }
-    
-    // Test block normalizing the projector.
-    cout << "Block normalize the projector(s). X blocks: " << x_coarse << " Y blocks: " << y_coarse << "\n";
-    block_normalize(&mgstruct); 
-    
-    cout << "Check block normalized vector:\n"; 
-    for (int y = 0; y < y_fine; y++)
-    {
-        for (int x = 0; x < x_fine; x++)
-        {
-            cout << mgstruct.projectors[0][x+y*x_fine] << " ";
-        }
-        cout << "\n";
-    }
-    
-    
-    
-    // Restrict the original source. 
-    double* rhs_coarse = new double[coarse_size*mgstruct.n_vector];
-    cout << "Restricting the source.\n";
-    restrict(rhs_coarse, rhs, &mgstruct);
-    
-    // Check coarse source.
-    cout << "Check coarse src:\n"; 
-    for (int y = 0; y < y_coarse; y++)
-    {
-        for (int x = 0; x < x_coarse; x++)
-        {
-            cout << rhs_coarse[x+y*x_coarse] << " ";
-        }
-        cout << "\n";
-    }
-    
-    // Prolong the restricted source. 
-    double *rhs_PdagP = new double[fine_size];
-    cout << "Prolonging the restricted source.\n";
-    prolong(rhs_PdagP, rhs_coarse, &mgstruct);
-    
-    cout << "Check re-prolonged source vector:\n"; 
-    for (int y = 0; y < y_fine; y++)
-    {
-        for (int x = 0; x < x_fine; x++)
-        {
-            cout << rhs_PdagP[x+y*x_fine] << " ";
-        }
-        cout << "\n";
-    }
-    
-    // Test adding a second projector. 
-    mgstruct.n_vector = 2; 
-    double* tmp_store = mgstruct.projectors[0];
-    delete[] mgstruct.projectors;
-    mgstruct.projectors = new double*[mgstruct.n_vector];
-    mgstruct.projectors[0] = tmp_store; 
-    mgstruct.projectors[1] = new double[fine_size];
-    
-    // Clean up a bit.
-    delete[] rhs_coarse;
-    delete[] rhs_PdagP;
-    
-    // Add an even/odd vector. 
-    for (int y = 0; y < y_fine; y++)
-    {
-        for (int x = 0; x < x_fine; x++)
-        {
-            if ((x+y)%2 == 0)
-                mgstruct.projectors[1][x+y*x_fine] = 1;
-            else
-                mgstruct.projectors[1][x+y*x_fine] = -1;
-        }
-    }
-    
-    cout << "Check projector:\n"; 
-    for (int n = 0; n < mgstruct.n_vector; n++)
-    {
-        cout << "Vector " << n << "\n";
+        // Begin PdagP test.
+
+        // Print the fine rhs.
+        cout << "Check fine point src:\n"; 
         for (int y = 0; y < y_fine; y++)
         {
             for (int x = 0; x < x_fine; x++)
             {
-                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                cout << rhs[x+y*x_fine] << " ";
             }
             cout << "\n";
         }
-    }
-    
-    // Test block normalizing the projector.
-    cout << "Block normalize the projector(s). X blocks: " << x_coarse << " Y blocks: " << y_coarse << "\n";
-    block_normalize(&mgstruct); 
-    
-    cout << "Check block normalized vector:\n"; 
-    for (int n = 0; n < mgstruct.n_vector; n++)
-    {
-        cout << "Vector " << n << "\n";
+
+        cout << "Check projector:\n"; 
         for (int y = 0; y < y_fine; y++)
         {
             for (int x = 0; x < x_fine; x++)
             {
-                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                cout << mgstruct.projectors[0][x+y*x_fine] << " ";
             }
             cout << "\n";
         }
-    }
-    
-    // Restrict the original source. 
-    rhs_coarse = new double[coarse_size*mgstruct.n_vector];
-    cout << "Restricting the source.\n";
-    restrict(rhs_coarse, rhs, &mgstruct);
-    
-    // Check coarse source.
-    cout << "Check coarse src:\n"; 
-    for (int y = 0; y < y_coarse; y++)
-    {
-        for (int x = 0; x < x_coarse; x++)
+
+        // Test block normalizing the projector.
+        cout << "Block normalize the projector(s). X blocks: " << x_coarse << " Y blocks: " << y_coarse << "\n";
+        block_normalize(&mgstruct); 
+
+        cout << "Check block normalized vector:\n"; 
+        for (int y = 0; y < y_fine; y++)
         {
-            cout << "(";
-            for (int n = 0; n < mgstruct.n_vector; n++)
+            for (int x = 0; x < x_fine; x++)
             {
-                cout << rhs_coarse[(x+y*x_coarse)*mgstruct.n_vector+n] << ",";
+                cout << mgstruct.projectors[0][x+y*x_fine] << " ";
             }
-            cout << ") ";
+            cout << "\n";
         }
-        cout << "\n";
-    }
-    
-    // Prolong the restricted source. 
-    rhs_PdagP = new double[fine_size];
-    cout << "Prolonging the restricted source.\n";
-    prolong(rhs_PdagP, rhs_coarse, &mgstruct);
-    
-    cout << "Check re-prolonged source vector:\n"; 
-    for (int y = 0; y < y_fine; y++)
-    {
-        for (int x = 0; x < x_fine; x++)
+
+
+        // Restrict the original source. 
+        double* rhs_coarse = new double[coarse_size*mgstruct.n_vector];
+        cout << "Restricting the source.\n";
+        restrict(rhs_coarse, rhs, &mgstruct);
+
+        // Check coarse source.
+        cout << "Check coarse src:\n"; 
+        for (int y = 0; y < y_coarse; y++)
         {
-            cout << rhs_PdagP[x+y*x_fine] << " ";
+            for (int x = 0; x < x_coarse; x++)
+            {
+                cout << rhs_coarse[x+y*x_coarse] << " ";
+            }
+            cout << "\n";
         }
-        cout << "\n";
+
+        // Prolong the restricted source. 
+        double *rhs_PdagP = new double[fine_size];
+        cout << "Prolonging the restricted source.\n";
+        prolong(rhs_PdagP, rhs_coarse, &mgstruct);
+
+        cout << "Check re-prolonged source vector:\n"; 
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                cout << rhs_PdagP[x+y*x_fine] << " ";
+            }
+            cout << "\n";
+        }
+
+
+        // Try applying the coarse Laplace operator!
+        double* rhs_A_coarse = new double[coarse_size*mgstruct.n_vector]; 
+        zero<double>(rhs_A_coarse, coarse_size*mgstruct.n_vector); 
+
+        cout << "Applying the coarse Laplace operator to coarse source.\n";
+        coarse_square_laplacian(rhs_A_coarse, rhs_coarse, (void*)&mgstruct);
+
+        // Check A coarse source.
+        cout << "Check A times coarse src:\n"; 
+        for (int y = 0; y < y_coarse; y++)
+        {
+            for (int x = 0; x < x_coarse; x++)
+            {
+                cout << rhs_A_coarse[x+y*x_coarse] << " ";
+            }
+            cout << "\n";
+        }
+
+        // Prolong rhs_A_coarse.
+        cout << "Prolong A times coarse source.\n";
+        double* rhs_PAP_fine = new double[fine_size];
+        zero<double>(rhs_PAP_fine, fine_size);
+        prolong(rhs_PAP_fine, rhs_A_coarse, &mgstruct);
+
+        // Check PAP. 
+        cout << "Check PAP on source.\n";
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                cout << rhs_PAP_fine[x+y*x_fine] << " ";
+            }
+            cout << "\n";
+        }
+        
+        delete[] rhs_coarse;
+        delete[] rhs_A_coarse;
+        delete[] rhs_PdagP;
+        delete[] rhs_PAP_fine;
+    }
+#endif
+    
+    
+#ifdef PDAGP_2TEST
+    
+    // Test adding a second projector.
+    {
+        mgstruct.n_vector = 2; 
+        double* tmp_store = mgstruct.projectors[0];
+        delete[] mgstruct.projectors;
+        mgstruct.projectors = new double*[mgstruct.n_vector];
+        mgstruct.projectors[0] = tmp_store; 
+        mgstruct.projectors[1] = new double[fine_size];
+
+        // Add an even/odd vector. 
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                if ((x+y)%2 == 0)
+                    mgstruct.projectors[1][x+y*x_fine] = 1;
+                else
+                    mgstruct.projectors[1][x+y*x_fine] = -1;
+            }
+        }
+
+        cout << "Check projector:\n"; 
+        for (int n = 0; n < mgstruct.n_vector; n++)
+        {
+            cout << "Vector " << n << "\n";
+            for (int y = 0; y < y_fine; y++)
+            {
+                for (int x = 0; x < x_fine; x++)
+                {
+                    cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                }
+                cout << "\n";
+            }
+        }
+
+        // Test block normalizing the projector.
+        cout << "Block normalize the projector(s). X blocks: " << x_coarse << " Y blocks: " << y_coarse << "\n";
+        block_normalize(&mgstruct); 
+
+        cout << "Check block normalized vector:\n"; 
+        for (int n = 0; n < mgstruct.n_vector; n++)
+        {
+            cout << "Vector " << n << "\n";
+            for (int y = 0; y < y_fine; y++)
+            {
+                for (int x = 0; x < x_fine; x++)
+                {
+                    cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                }
+                cout << "\n";
+            }
+        }
+
+        // Restrict the original source. 
+        double* rhs_coarse = new double[coarse_size*mgstruct.n_vector];
+        cout << "Restricting the source.\n";
+        restrict(rhs_coarse, rhs, &mgstruct);
+
+        // Check coarse source.
+        cout << "Check coarse src:\n"; 
+        for (int y = 0; y < y_coarse; y++)
+        {
+            for (int x = 0; x < x_coarse; x++)
+            {
+                cout << "(";
+                for (int n = 0; n < mgstruct.n_vector; n++)
+                {
+                    cout << rhs_coarse[(x+y*x_coarse)*mgstruct.n_vector+n] << ",";
+                }
+                cout << ") ";
+            }
+            cout << "\n";
+        }
+
+        // Prolong the restricted source. 
+        double* rhs_PdagP = new double[fine_size];
+        cout << "Prolonging the restricted source.\n";
+        prolong(rhs_PdagP, rhs_coarse, &mgstruct);
+
+        cout << "Check re-prolonged source vector:\n"; 
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                cout << rhs_PdagP[x+y*x_fine] << " ";
+            }
+            cout << "\n";
+        }
+        
+        delete[] rhs_coarse;
+        delete[] rhs_PdagP;
     }
     
-    delete[] rhs_coarse;
-    //delete[] rhs_PdagP;
+#endif
     
     for (i = 0; i < mgstruct.n_vector; i++)
     {
         delete[] mgstruct.projectors[i];
     }
     delete[] mgstruct.projectors; 
+
+
+    
+    // Let's actually test a multigrid solve!
+    
+    
     
     return 0; 
         
@@ -448,7 +527,7 @@ void square_laplacian(double* lhs, double* rhs, void* extra_data)
 }
 
 // Properly normalize the P vectors.
-void block_normalize(mg_precond_struct_real* mgstruct)
+void block_normalize(mg_operator_struct_real* mgstruct)
 {
     int n, i;
     int x_fine = N;
@@ -512,7 +591,7 @@ void block_normalize(mg_precond_struct_real* mgstruct)
 }
 
 // Prolong a coarse vector to a fine vector using the info in mgstruct.
-void prolong(double* vec_fine, double* vec_coarse, mg_precond_struct_real* mgstruct)
+void prolong(double* vec_fine, double* vec_coarse, mg_operator_struct_real* mgstruct)
 {
     int n, i;
     int x_fine = N;
@@ -550,7 +629,7 @@ void prolong(double* vec_fine, double* vec_coarse, mg_precond_struct_real* mgstr
 }
 
 // Restrict a fine vector to a coarse vector using the info in mgstruct.
-void restrict(double* vec_coarse, double* vec_fine, mg_precond_struct_real* mgstruct)
+void restrict(double* vec_coarse, double* vec_fine, mg_operator_struct_real* mgstruct)
 {
     int n, i;
     int x_fine = N;
@@ -595,7 +674,7 @@ void coarse_square_laplacian(double* lhs, double* rhs, void* extra_data)
     int tmp; 
     
     // Grab the mg_precond_struct.
-    mg_precond_struct_real mgstruct = *(mg_precond_struct_real*)extra_data; 
+    mg_operator_struct_real mgstruct = *(mg_operator_struct_real*)extra_data; 
     
     // lhs and rhs are of size coarse_size. mgstruct.matrix_vector expects
     // fine_size. 
@@ -612,35 +691,48 @@ void coarse_square_laplacian(double* lhs, double* rhs, void* extra_data)
     zero<double>(Px, fine_size); zero<double>(APx, fine_size); 
     
     // Prolong. 
+    prolong(Px, rhs, &mgstruct);
     
-    // Loop over every site in coarse lattice. 
-    for (i = 0; i < coarse_size; i++)
-    {
-        n = i % mgstruct.n_vector; 
-        tmp = (i-n)/mgstruct.n_vector; 
-        int x_coarse = tmp % (N/mgstruct.blocksize_x);
-        int y_coarse = (tmp-x_coarse) / (N/mgstruct.blocksize_x); 
-
-        // What range of x and y on the fine lattice does this
-        // correspond to?
-
-        
-        // Alrighty, prolong. 
-        for (int x_fine = x_coarse*mgstruct.blocksize_x;x_fine < mgstruct.blocksize_x; x_fine++)
-        {
-            for(int y_fine = y_coarse*mgstruct.blocksize_y; y_fine < mgstruct.blocksize_y; y_fine++)
-            {
-                Px[x_fine+y_fine*N] += mgstruct.projectors[n][x_fine+y_fine*N]*rhs[i];
-            }
-        }
-        
-    }
+    // Apply the original matrix.
+    (*mgstruct.matrix_vector)(APx, Px, mgstruct.matrix_extra_data);
+    
+    // Restrict. 
+    zero<double>(lhs, coarse_size);
+    restrict(lhs, APx, &mgstruct); 
     
     delete[] Px;
     delete[] APx; 
     
 }
 
+struct mg_precond_struct_real
+{
+    // How many MinRes pre-smooth steps?
+    int n_pre_smooth;
+    
+    // How many MinRes post-smooth steps?
+    int n_post_smooth;
+    
+    // What inner solver should we use?
+    inner_solver in_solve_type; // MINRES, CG, or GCR
+    int n_step; // Max steps for inner solver?
+    double rel_res; // Rel_res for inner solver?
+    
+    // What's the mg_info?
+    mg_operator_struct_real* mgstruct; 
+    
+    // What's matrix function are we dealing with?
+    void (*matrix_vector)(double*, double*, void*);
+    void* matrix_extra_data; 
+};
 
+// MG preconditioner!! (Man, I'm excited!
+void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
+{
+    mg_precond_struct_real* mgprecond = (mg_precond_struct_real*)extra_data; 
+    
+    // GET EXCITED! First off, let's do some pre-smoothing. 
+    
+}
 
 
