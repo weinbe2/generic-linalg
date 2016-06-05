@@ -7,7 +7,7 @@ C_SOURCES =  ../generic_cg.cpp ../generic_bicgstab.cpp ../generic_gmres.cpp ../g
 C_OBJS    = generic_bicgstab.o generic_cg.o generic_gmres.o generic_gelim.o generic_sor.o generic_minres.o
 C_INCLUDES  = generic_inverters.h generic_vector.h
 C_LIBS    = -lm
-EXAMPLES = mg_square_laplace mg_square_laplace_sor mg_square_laplace_minres
+EXAMPLES = mg_square_laplace mg_square_laplace_sor mg_square_laplace_minres aa_mg_square_laplace
 
 
 CCX = g++
@@ -34,6 +34,8 @@ mg_square_laplace_sor : mg_square_laplace_sor.o $(C_OBJS)
 mg_square_laplace_minres : mg_square_laplace_minres.o $(C_OBJS)
 	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
 
+aa_mg_square_laplace : aa_mg_square_laplace.o $(C_OBJS)
+	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
 
 #============================================================
 
