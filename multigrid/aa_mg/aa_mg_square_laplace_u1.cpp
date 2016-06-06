@@ -13,6 +13,7 @@
 #include "mg.h"
 #include "mg_real.h"
 #include "mg_complex.h"
+#include "u1_utils.h"
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -42,6 +43,8 @@ using namespace std;
 // Square laplacian function.
 void square_laplacian(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
+// Square laplacian with u1 gauge field function. 
+void square_laplacian_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
 
 int main(int argc, char** argv)
 {  
@@ -59,6 +62,20 @@ int main(int argc, char** argv)
     int y_fine = N;
     int fine_size = x_fine*y_fine;
     
+    // Initialize the lattice. Indexing: index = y*N + x.
+    lattice = new complex<double>[2*fine_size];
+    lhs = new complex<double>[fine_size];
+    rhs = new complex<double>[fine_size];   
+    check = new complex<double>[fine_size];   
+    // Zero it out.
+    zero<double>(lattice, 2*fine_size);
+    zero<double>(rhs, fine_size);
+    zero<double>(lhs, fine_size);
+    zero<double>(check, fine_size);
+    
+    // Create a free lattice.
+    unit_gauge_u1(lattice, x_fine, y_fine);
+    
     // Build an mg_struct.
     mg_operator_struct_complex mgstruct;
     mgstruct.x_fine = N;
@@ -66,24 +83,14 @@ int main(int argc, char** argv)
     mgstruct.blocksize_x = X_BLOCKSIZE;
     mgstruct.blocksize_y = Y_BLOCKSIZE;
     mgstruct.n_vector = VECTOR_COUNT;
-    mgstruct.matrix_vector = square_laplacian;
-    mgstruct.matrix_extra_data = NULL; 
+    mgstruct.matrix_vector = square_laplacian_u1;
+    mgstruct.matrix_extra_data = (void*)lattice; 
     
     // Describe the coarse lattice. 
     int x_coarse = x_fine/mgstruct.blocksize_x; // how many coarse sites are there in the x dir?
     int y_coarse = y_fine/mgstruct.blocksize_y; // how many coarse sites are there in the y dir?
     int coarse_size = x_coarse*y_coarse; 
 
-    // Initialize the lattice. Indexing: index = y*N + x.
-    lattice = new complex<double>[fine_size];
-    lhs = new complex<double>[fine_size];
-    rhs = new complex<double>[fine_size];   
-    check = new complex<double>[fine_size];   
-    // Zero it out.
-    zero<double>(lattice, fine_size);
-    zero<double>(rhs, fine_size);
-    zero<double>(lhs, fine_size);
-    zero<double>(check, fine_size);
 
     // Set a point on the rhs.
     rhs[x_fine/2+(y_fine/2)*x_fine] = 1.0;
@@ -514,3 +521,54 @@ void square_laplacian(complex<double>* lhs, complex<double>* rhs, void* extra_da
    }
        
 }
+
+// Square lattice.
+// Kinetic term for a 2D laplacian w/ period bc. Applies lhs = A*rhs.
+// The unit vectors are e_1 = xhat, e_2 = yhat.
+// The "extra_data" is a cast to a complex gauge_field[N*N*2], 
+//    loaded by the function read_lattice_u1. 
+void square_laplacian_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+   // Declare variables.
+   int i;
+   int x,y;
+    
+   complex<double>* lattice = (complex<double>*)extra_data; 
+
+   // For a 2D square lattice, the stencil is:
+   //     |  0 -1  0 |
+   //     | -1 +4 -1 |
+   //     |  0 -1  0 |
+   //
+   // e2 = yhat
+   // ^
+   // | 
+   // |-> e1 = xhat
+
+   // Apply the stencil.
+   for (i = 0; i < N*N; i++)
+   {
+      lhs[i] = 0.0;
+      x = i%N; // integer mod.
+      y = i/N; // integer divide.
+      
+      // + e1.
+      lhs[i] = lhs[i]-conj(lattice[y*N*2+x*2])*rhs[y*N+((x+1)%N)];
+     
+      // - e1.
+      lhs[i] = lhs[i]-lattice[y*N*2+((x+N-1)%N)*2]*rhs[y*N+((x+N-1)%N)]; // The extra +N is because of the % sign convention.
+      
+      // + e2.
+      lhs[i] = lhs[i]-conj(lattice[y*N*2+x*2+1])*rhs[((y+1)%N)*N+x];
+    
+      // - e2.
+      lhs[i] = lhs[i]-lattice[((y+N-1)%N)*N*2+x*2+1]*rhs[((y+N-1)%N)*N+x];
+
+      // 0
+      // Added mass term here.
+      lhs[i] = lhs[i]+(4+MASS)*rhs[i];
+   }
+       
+}
+
+
