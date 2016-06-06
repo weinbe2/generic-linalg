@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <complex>
+#include <random>
 
 #include "generic_inverters.h"
 #include "generic_inverters_precond.h"
@@ -40,6 +41,9 @@ using namespace std;
 // 1 for just const vector, 2 for const + even/odd vector. 
 #define VECTOR_COUNT 1
 
+// Are we testing a random gauge rotation?
+#define TEST_RANDOM_GAUGE
+
 // Square laplacian function.
 void square_laplacian(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
@@ -51,11 +55,14 @@ int main(int argc, char** argv)
     // Declare some variables.
     cout << setiosflags(ios::fixed) << setprecision(6);
     int i, j, x, y;
-    complex<double> *lattice; // At some point, I'll have a generic (template) lattice class.
+    complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     double explicit_resid = 0.0;
     double bnorm = 0.0;
     inversion_info invif;
+    
+    // Create an RNG. 
+    std::mt19937 generator (1337u); // 1337u is the seed. 
     
     // Describe the fine lattice. 
     int x_fine = N;
@@ -75,6 +82,13 @@ int main(int argc, char** argv)
     
     // Create a free lattice.
     unit_gauge_u1(lattice, x_fine, y_fine);
+    
+#ifdef TEST_RANDOM_GAUGE
+    // Generate and perform a random gauge transformation.
+    complex<double>* gauge_trans = new complex<double>[fine_size];
+    rand_trans_u1(gauge_trans, x_fine, y_fine, generator);
+    apply_gauge_trans_u1(lattice, gauge_trans, x_fine, y_fine);
+#endif
     
     // Build an mg_struct.
     mg_operator_struct_complex mgstruct;
@@ -113,6 +127,9 @@ int main(int argc, char** argv)
     for (i = 0; i < N*N; i++)
     {
         mgstruct.projectors[0][i] = 1;
+#ifdef TEST_RANDOM_GAUGE
+        mgstruct.projectors[0][i] *= conj(gauge_trans[i]);
+#endif
         if (mgstruct.n_vector > 1)
         {
             x = i % N;
@@ -121,6 +138,10 @@ int main(int argc, char** argv)
         }
     }
     block_normalize(&mgstruct); 
+    
+#ifdef TEST_RANDOM_GAUGE
+    delete[] gauge_trans;
+#endif
     
 #ifdef PDAGP_TEST
     {
