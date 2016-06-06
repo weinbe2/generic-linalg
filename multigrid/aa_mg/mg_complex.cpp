@@ -12,17 +12,17 @@ using namespace std;
 #include "generic_inverters_precond.h"
 #include "generic_vector.h"
 #include "mg.h"
-#include "mg_real.h"
+#include "mg_complex.h"
 
 // General multigrid projector function!
-void coarse_square_laplace(double* lhs, double* rhs, void* extra_data)
+void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
     // Iterators.
     int i, j, k, n; 
     int tmp; 
     
     // Grab the mg_precond_struct.
-    mg_operator_struct_real* mgstruct = (mg_operator_struct_real*)extra_data; 
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
     
     // lhs and rhs are of size coarse_size. mgstruct.matrix_vector expects
     // fine_size. 
@@ -35,11 +35,11 @@ void coarse_square_laplace(double* lhs, double* rhs, void* extra_data)
     int coarse_length = coarse_size*mgstruct->n_vector;
     
     // Okay... how the hell are we going to do this. 
-    double* Px; // Holds prolonged current solution.
-    double* APx; // Holds A times prolonged current solution.
+    complex<double>* Px; // Holds prolonged current solution.
+    complex<double>* APx; // Holds A times prolonged current solution.
     
-    Px = new double[fine_size];
-    APx = new double[fine_size];
+    Px = new complex<double>[fine_size];
+    APx = new complex<double>[fine_size];
     
     zero<double>(Px, fine_size); zero<double>(APx, fine_size); 
     
@@ -59,7 +59,7 @@ void coarse_square_laplace(double* lhs, double* rhs, void* extra_data)
 }
 
 // Properly normalize the P vectors.
-void block_normalize(mg_operator_struct_real* mgstruct)
+void block_normalize(mg_operator_struct_complex* mgstruct)
 {
     int n, i;
     int x_fine = mgstruct->x_fine;
@@ -93,7 +93,7 @@ void block_normalize(mg_operator_struct_real* mgstruct)
             curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
             
             // Update the norm!
-            norms[curr_coarse] += mgstruct->projectors[n][i]*mgstruct->projectors[n][i];
+            norms[curr_coarse] += real(conj(mgstruct->projectors[n][i])*mgstruct->projectors[n][i]);
         }
         
         // Sqrt all of the norms.
@@ -123,7 +123,7 @@ void block_normalize(mg_operator_struct_real* mgstruct)
 }
 
 // Prolong a coarse vector to a fine vector using the info in mgstruct.
-void prolong(double* vec_fine, double* vec_coarse, mg_operator_struct_real* mgstruct)
+void prolong(complex<double>* vec_fine, complex<double>* vec_coarse, mg_operator_struct_complex* mgstruct)
 {
     int n, i;
     int x_fine = mgstruct->x_fine;
@@ -161,7 +161,8 @@ void prolong(double* vec_fine, double* vec_coarse, mg_operator_struct_real* mgst
 }
 
 // Restrict a fine vector to a coarse vector using the info in mgstruct.
-void restrict(double* vec_coarse, double* vec_fine, mg_operator_struct_real* mgstruct)
+// Hermitian conjugate of prolong. 
+void restrict(complex<double>* vec_coarse, complex<double>* vec_fine, mg_operator_struct_complex* mgstruct)
 {
     int n, i;
     int x_fine = mgstruct->x_fine;
@@ -193,17 +194,17 @@ void restrict(double* vec_coarse, double* vec_fine, mg_operator_struct_real* mgs
             curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
             
             // Update the fine with the coarse. 
-            vec_coarse[curr_coarse*mgstruct->n_vector+n] += mgstruct->projectors[n][i]*vec_fine[i];
+            vec_coarse[curr_coarse*mgstruct->n_vector+n] += conj(mgstruct->projectors[n][i])*vec_fine[i];
         }
     }
 }
 
 
 // MG preconditioner!! (Man, I'm excited!
-void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
+void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data)
 {
     cout << "Entered mg_preconditioner.\n";
-    mg_precond_struct_real* mgprecond = (mg_precond_struct_real*)extra_data; 
+    mg_precond_struct_complex* mgprecond = (mg_precond_struct_complex*)extra_data; 
     
     // Standard defines.
     int x_fine = mgprecond->mgstruct->x_fine;
@@ -219,7 +220,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     
     // GET EXCITED! First off, let's do some pre-smoothing. 
     // 1. z_presmooth = smoothed rhs. 
-    double* z_presmooth = new double[fine_size];
+    complex<double>* z_presmooth = new complex<double>[fine_size];
     zero<double>(z_presmooth, fine_size);
     if (mgprecond->n_pre_smooth > 0)
     {
@@ -233,11 +234,11 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     
     // Compute updated residual. 
     // 2. r_pre = rhs - A z_presmooth
-    double* Az_presmooth = new double[fine_size];
+    complex<double>* Az_presmooth = new complex<double>[fine_size];
     zero<double>(Az_presmooth, fine_size);
     (*mgprecond->mgstruct->matrix_vector)(Az_presmooth, z_presmooth, mgprecond->mgstruct->matrix_extra_data);
     
-    double* r_presmooth = new double[fine_size];
+    complex<double>* r_presmooth = new complex<double>[fine_size];
     for (int i = 0; i < fine_size; i++)
     {
         r_presmooth[i] = rhs[i] - Az_presmooth[i];
@@ -245,12 +246,12 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     
     // Restrict r_presmooth. 
     // 3. rhs_coarse = restrict(r_presmooth)
-    double* rhs_coarse = new double[coarse_length];
+    complex<double>* rhs_coarse = new complex<double>[coarse_length];
     zero<double>(rhs_coarse, coarse_length); 
     restrict(rhs_coarse, r_presmooth, mgprecond->mgstruct);
     
     // 4. Perform coarse solve.
-    double* lhs_coarse = new double[coarse_length];
+    complex<double>* lhs_coarse = new complex<double>[coarse_length];
     zero<double>(lhs_coarse, coarse_length);
     switch (mgprecond->in_solve_type)
     {
@@ -268,7 +269,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     
     // Project the lhs to the fine vector.
     // 5. lhs_postsmooth = prolong(lhs_coarse)
-    double* lhs_postsmooth = new double[fine_size];
+    complex<double>* lhs_postsmooth = new complex<double>[fine_size];
     zero<double>(lhs_postsmooth, fine_size);
     prolong(lhs_postsmooth, lhs_coarse, mgprecond->mgstruct); 
     
