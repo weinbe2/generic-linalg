@@ -423,11 +423,11 @@ int main(int argc, char** argv)
     
     if (invif.success == true)
     {
-     printf("Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+     printf("Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/bnorm);
     }
     else // failed, maybe.
     {
-     printf("Potential error! Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+     printf("Potential error! Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/bnorm);
      printf("This may be because the max iterations was reached.\n");
     }
     
@@ -475,11 +475,11 @@ int main(int argc, char** argv)
     
     if (invif.success == true)
     {
-     printf("Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+     printf("Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/bnorm);
     }
     else // failed, maybe.
     {
-     printf("Potential error! Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+     printf("Potential error! Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/bnorm);
      printf("This may be because the max iterations was reached.\n");
     }
 
@@ -489,13 +489,14 @@ int main(int argc, char** argv)
     // Check and make sure we get the right answer.
     square_laplacian(check, lhs, NULL);
 
+    explicit_resid = 0.0;
     for (i = 0; i < N*N; i++)
     {
       explicit_resid += (rhs[i] - check[i])*(rhs[i] - check[i]);
     }
-    explicit_resid = sqrt(explicit_resid);
+    explicit_resid = sqrt(explicit_resid)/bnorm;
 
-    printf("[check] should equal [rhs]. The residual is %15.20e.\n", explicit_resid);
+    printf("[check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
 
     // Free the lattice.
     delete[] lattice;
@@ -902,7 +903,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     for (int i = 0; i < fine_size; i++)
     {
         tmp2[i] = rhs_presmooth[i];
-        rhs_presmooth[i] = tmp1[i] - rhs[i];
+        rhs_presmooth[i] = rhs[i] - tmp1[i];
         
     }
     // Now, rhs_presmooth = (A r_smooth - rhs). 
@@ -937,7 +938,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     // rhs as the right hand side. 
     for (int i = 0; i < fine_size; i++)
     {
-        lhs[i] = tmp2[i] - lhs_postsmooth[i];
+        lhs[i] = tmp2[i] + lhs_postsmooth[i];
     }
     
     // Almost done! Do some post-smoothing.
