@@ -12,21 +12,21 @@
 #include "generic_vector.h"
 
 // Do restrict/prolong test?
-#define PDAGP_TEST
+//#define PDAGP_TEST
 
 // Do two vector restrict/prolong?
-#define PDAGP_2TEST
+//#define PDAGP_2TEST
 
 using namespace std; 
 
 // For now, define the length in a direction.
-#define N 8
+#define N 64
 
 // Define pi.
 #define PI 3.141592653589793
 
 // Define mass.
-#define MASS 0.1*0.1
+#define MASS 0.01*0.01
 
 // What's the X blocksize?
 #define X_BLOCKSIZE 2
@@ -70,7 +70,26 @@ enum inner_solver
 };
 
 // Preconditioning struct
-struct mg_precond_struct_real;
+struct mg_precond_struct_real
+{
+    // How many MinRes pre-smooth steps?
+    int n_pre_smooth;
+    
+    // How many MinRes post-smooth steps?
+    int n_post_smooth;
+    
+    // What inner solver should we use?
+    inner_solver in_solve_type; // MINRES, CG, or GCR
+    int n_step; // Max steps for inner solver?
+    double rel_res; // Rel_res for inner solver?
+    
+    // What's the mg_info?
+    mg_operator_struct_real* mgstruct; 
+    
+    // What's matrix function are we dealing with?
+    void (*matrix_vector)(double*, double*, void*);
+    void* matrix_extra_data; 
+};
 
 // MG preconditioner!
 void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data);
@@ -138,6 +157,7 @@ int main(int argc, char** argv)
     {
         mgstruct.projectors[0][i] = 1;
     }
+    block_normalize(&mgstruct); 
     
 #ifdef PDAGP_TEST
     {
@@ -351,17 +371,144 @@ int main(int argc, char** argv)
     
 #endif
     
+    cout << "Solving coarse system only.\n";
+    double* rhs_coarse = new double[coarse_size*mgstruct.n_vector];
+    zero<double>(rhs_coarse, coarse_size*mgstruct.n_vector);
+    restrict(rhs_coarse, rhs, &mgstruct);
+    
+    double* lhs_coarse = new double[coarse_size*mgstruct.n_vector];
+    zero<double>(lhs_coarse, coarse_size*mgstruct.n_vector);
+    
+    invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_size*mgstruct.n_vector, 10000, 1e-6, coarse_square_laplacian, (void*)&mgstruct);
+    
+    
+    if (invif.success == true)
+    {
+     printf("Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+    }
+    else // failed, maybe.
+    {
+     printf("Potential error! Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+     printf("This may be because the max iterations was reached.\n");
+    }
+
+
+    printf("Computing [check] = A [lhs] as a confirmation.\n");
+
+    // Check and make sure we get the right answer.
+    double* A_lhs_coarse = new double[coarse_size*mgstruct.n_vector];
+    zero<double>(A_lhs_coarse, coarse_size*mgstruct.n_vector);
+    
+    coarse_square_laplacian(A_lhs_coarse, lhs_coarse, (void*)&mgstruct);
+
+    for (i = 0; i < coarse_size*mgstruct.n_vector; i++)
+    {
+      explicit_resid += (A_lhs_coarse[i] - rhs_coarse[i])*(A_lhs_coarse[i] - rhs_coarse[i]);
+    }
+    explicit_resid = sqrt(explicit_resid);
+
+    printf("[check] should equal [rhs]. The residual is %15.20e.\n", explicit_resid);
+    
+    double* pro_lhs_coarse = new double[N*N];
+    zero<double>(pro_lhs_coarse, N*N);
+    prolong(pro_lhs_coarse, lhs_coarse, &mgstruct); 
+    double* pro_rhs_coarse = new double[N*N];
+    zero<double>(pro_rhs_coarse, N*N);
+    square_laplacian(pro_rhs_coarse, pro_lhs_coarse, NULL);
+    
+    // Try a direct solve.
+    cout << "\nSolve fine system.\n";
+    
+    invif = minv_vector_cg(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, (void*)&mgstruct);
+    
+    if (invif.success == true)
+    {
+     printf("Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+    }
+    else // failed, maybe.
+    {
+     printf("Potential error! Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+     printf("This may be because the max iterations was reached.\n");
+    }
+    
+    // Compare PAP solution to real solution. 
+    cout << "\nCompare solutions.\n";
+    double comparison = 0;
+    double resid_comparison = 0;
+    for (i = 0; i < N*N; i++)
+    {
+        comparison += (pro_lhs_coarse[i]-lhs[i])*(pro_lhs_coarse[i]-lhs[i]);
+        resid_comparison += (pro_rhs_coarse[i]-rhs[i])*(pro_rhs_coarse[i]-rhs[i]);
+    }
+    comparison = sqrt(explicit_resid);
+    printf("The solutions deviate by %15.20e.\n", comparison);
+    printf("The projected residual has a rel res of %15.20e.\n", sqrt(resid_comparison)/bnorm);
+    
+    delete[] rhs_coarse; 
+    delete[] lhs_coarse;
+    delete[] A_lhs_coarse; 
+    delete[] pro_lhs_coarse; 
+    delete[] pro_rhs_coarse; 
+    
+
+    // Let's actually test a multigrid solve!
+    cout << "\nTest MG solve.\n";
+    
+    // Block normalize the null vectors.
+    block_normalize(&mgstruct); 
+    
+    // Set up the MG preconditioner. 
+    mg_precond_struct_real mgprecond;
+    
+    mgprecond.n_pre_smooth = 6; // 3 MinRes smoother steps before coarsening.
+    mgprecond.n_post_smooth = 6; // 3 MinRes smoother steps after refining.
+    mgprecond.in_solve_type = CG; // What inner solver? MINRES, CG, or GCR.
+    mgprecond.n_step = 10000; // max number of steps to use for inner solver.
+    mgprecond.rel_res = 1e-1; // Maximum relative residual for inner solver.
+    mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
+    mgprecond.matrix_vector = coarse_square_laplacian; // Function which applies the coarse operator. 
+    mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
+    
+    // Well, maybe this will work?
+    zero<double>(lhs, N*N);
+    invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, mg_preconditioner, (void*)&mgprecond); /**/
+    
+    if (invif.success == true)
+    {
+     printf("Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+    }
+    else // failed, maybe.
+    {
+     printf("Potential error! Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+     printf("This may be because the max iterations was reached.\n");
+    }
+
+
+    printf("Computing [check] = A [lhs] as a confirmation.\n");
+
+    // Check and make sure we get the right answer.
+    square_laplacian(check, lhs, NULL);
+
+    for (i = 0; i < N*N; i++)
+    {
+      explicit_resid += (rhs[i] - check[i])*(rhs[i] - check[i]);
+    }
+    explicit_resid = sqrt(explicit_resid);
+
+    printf("[check] should equal [rhs]. The residual is %15.20e.\n", explicit_resid);
+
+    // Free the lattice.
+    delete[] lattice;
+    delete[] lhs;
+    delete[] rhs;
+    delete[] check;
+    
+    // Clean up!
     for (i = 0; i < mgstruct.n_vector; i++)
     {
         delete[] mgstruct.projectors[i];
     }
     delete[] mgstruct.projectors; 
-
-
-    
-    // Let's actually test a multigrid solve!
-    
-    
     
     return 0; 
         
@@ -678,8 +825,13 @@ void coarse_square_laplacian(double* lhs, double* rhs, void* extra_data)
     
     // lhs and rhs are of size coarse_size. mgstruct.matrix_vector expects
     // fine_size. 
-    int fine_size = N*N;
-    int coarse_size = fine_size*mgstruct.n_vector/(mgstruct.blocksize_x*mgstruct.blocksize_y); 
+    int x_fine = N;
+    int y_fine = N;
+    int fine_size = x_fine*y_fine;
+    int x_coarse = x_fine/mgstruct.blocksize_x; // how many coarse sites are there in the x dir?
+    int y_coarse = y_fine/mgstruct.blocksize_y; // how many coarse sites are there in the y dir?
+    int coarse_size = x_coarse*y_coarse; 
+    int coarse_length = coarse_size*mgstruct.n_vector;
     
     // Okay... how the hell are we going to do this. 
     double* Px; // Holds prolonged current solution.
@@ -697,7 +849,7 @@ void coarse_square_laplacian(double* lhs, double* rhs, void* extra_data)
     (*mgstruct.matrix_vector)(APx, Px, mgstruct.matrix_extra_data);
     
     // Restrict. 
-    zero<double>(lhs, coarse_size);
+    zero<double>(lhs, coarse_length);
     restrict(lhs, APx, &mgstruct); 
     
     delete[] Px;
@@ -705,33 +857,113 @@ void coarse_square_laplacian(double* lhs, double* rhs, void* extra_data)
     
 }
 
-struct mg_precond_struct_real
-{
-    // How many MinRes pre-smooth steps?
-    int n_pre_smooth;
-    
-    // How many MinRes post-smooth steps?
-    int n_post_smooth;
-    
-    // What inner solver should we use?
-    inner_solver in_solve_type; // MINRES, CG, or GCR
-    int n_step; // Max steps for inner solver?
-    double rel_res; // Rel_res for inner solver?
-    
-    // What's the mg_info?
-    mg_operator_struct_real* mgstruct; 
-    
-    // What's matrix function are we dealing with?
-    void (*matrix_vector)(double*, double*, void*);
-    void* matrix_extra_data; 
-};
-
 // MG preconditioner!! (Man, I'm excited!
 void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
 {
+    cout << "Entered mg_preconditioner.\n";
     mg_precond_struct_real* mgprecond = (mg_precond_struct_real*)extra_data; 
     
+    // Standard defines.
+    int x_fine = N;
+    int y_fine = N;
+    int fine_size = x_fine*y_fine;
+    int x_coarse = x_fine/mgprecond->mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
+    int y_coarse = y_fine/mgprecond->mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int coarse_size = x_coarse*y_coarse; 
+    int coarse_length = coarse_size*mgprecond->mgstruct->n_vector; 
+    
+    // Store inversion info.
+    inversion_info invif;
+    
     // GET EXCITED! First off, let's do some pre-smoothing. 
+    double* rhs_presmooth = new double[fine_size];
+    zero<double>(rhs_presmooth, fine_size);
+    if (mgprecond->n_pre_smooth > 0)
+    {
+        invif = minv_vector_minres(rhs_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+        printf("Presmooth: Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+    }
+    else
+    {
+        copy<double>(rhs_presmooth, rhs, fine_size);
+    }
+    
+    // Allocate the coarse rhs, lhs. 
+    double* rhs_coarse = new double[coarse_length];
+    double* lhs_coarse = new double[coarse_length];
+    zero<double>(rhs_coarse, coarse_length);
+    zero<double>(lhs_coarse, coarse_length);
+    
+    // We need to restrict A*(rhs_smooth) - rhs.
+    double* tmp1 = new double[fine_size];
+    double* tmp2 = new double[fine_size];
+    // tmp1 = A*rhs_smooth
+    (*mgprecond->mgstruct->matrix_vector)(tmp1, rhs_presmooth, mgprecond->mgstruct->matrix_extra_data);
+    for (int i = 0; i < fine_size; i++)
+    {
+        tmp2[i] = rhs_presmooth[i];
+        rhs_presmooth[i] = tmp1[i] - rhs[i];
+        
+    }
+    // Now, rhs_presmooth = (A r_smooth - rhs). 
+    // tmp2 = r_smooth. 
+    
+    // Restrict the rhs to the coarse vector. 
+    restrict(rhs_coarse, rhs_presmooth, mgprecond->mgstruct);
+    
+    // Solve the coarse system.
+    switch (mgprecond->in_solve_type)
+    {
+        case MINRES:
+            invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
+            break;
+        case CG:
+            invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
+            break;
+        case GCR:
+            invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
+            break;
+    }
+    
+    printf("Coarse solve: Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)));
+    
+    // Project the lhs to the fine vector.
+    double* lhs_postsmooth = new double[fine_size];
+    zero<double>(lhs_postsmooth, fine_size);
+    prolong(lhs_postsmooth, lhs_coarse, mgprecond->mgstruct); 
+    
+    // We want to post-smooth, using
+    // tmp2 - lhs_smooth as the initial guess,
+    // rhs as the right hand side. 
+    for (int i = 0; i < fine_size; i++)
+    {
+        lhs[i] = tmp2[i] - lhs_postsmooth[i];
+    }
+    
+    // Almost done! Do some post-smoothing.
+    if (mgprecond->n_post_smooth > 0)
+    {
+        invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+        //invif = minv_vector_minres(lhs, lhs_postsmooth, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+        printf("Postsmooth: Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+    }
+    else
+    {
+        // We're good.
+        //copy<double>(lhs, lhs_postsmooth, fine_size);
+    }
+    
+
+    delete[] tmp1;
+    delete[] tmp2;
+    
+    // Clean up!
+    delete[] rhs_presmooth;
+    delete[] rhs_coarse;
+    delete[] lhs_coarse; 
+    delete[] lhs_postsmooth; 
+    
+    cout << "Exited mg_preconditioner.\n";
     
 }
 
