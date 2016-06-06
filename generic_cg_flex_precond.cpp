@@ -88,6 +88,8 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
     
     // Exit if new residual is small enough
     rsq = norm2sq<double>(r, size);
+    
+    printf("Rel residual: %.8e\n", sqrt(rsq)/bsqrt); fflush(stdout);
 
     if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -266,6 +268,8 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
     
     // Exit if new residual is small enough
     rsq = norm2sq<double>(r, size);
+    
+    printf("Rel residual: %.8e\n", sqrt(rsq)/bsqrt); fflush(stdout);
 
     if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);

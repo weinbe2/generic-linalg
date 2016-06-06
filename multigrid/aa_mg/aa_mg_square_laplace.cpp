@@ -10,6 +10,8 @@
 #include "generic_inverters.h"
 #include "generic_inverters_precond.h"
 #include "generic_vector.h"
+#include "mg.h"
+#include "mg_real.h"
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -33,66 +35,12 @@ using namespace std;
 // What's the Y blocksize?
 #define Y_BLOCKSIZE 2
 
+// 1 for just const vector, 2 for const + even/odd vector. 
+#define VECTOR_COUNT 1
+
 // Square laplacian function.
 void square_laplacian(double* lhs, double* rhs, void* extra_data);
 
-// General multigrid projector function!
-void coarse_square_laplacian(double* lhs, double* rhs, void* extra_data); 
-
-// Useful mg functions.
-struct mg_operator_struct_real;
-
-// Normalize the projectors based on the coarse blocksize. 
-void block_normalize(mg_operator_struct_real* mgstruct);
-
-// Prolong from the coarse lattice to the fine lattice. 
-void prolong(double* x_fine, double* x_coarse, mg_operator_struct_real* mgstruct);
-
-// Restrict a fine vector to a coarse vector using the info in mgstruct.
-void restrict(double* x_coarse, double* x_fine, mg_operator_struct_real* mgstruct);
-
-// Multigrid operator struct.
-struct mg_operator_struct_real
-{
-    int blocksize_x; // How much to block in x direction.
-    int blocksize_y; // How much to block in y direction. 
-    int n_vector; // Number of vectors. 
-    double** projectors; // Holds the projectors. First index n_vector, second size.
-    void (*matrix_vector)(double*, double*, void*);
-    void* matrix_extra_data; 
-};
-
-enum inner_solver
-{
-    MINRES = 0,
-    CG = 1,
-    GCR = 2
-};
-
-// Preconditioning struct
-struct mg_precond_struct_real
-{
-    // How many MinRes pre-smooth steps?
-    int n_pre_smooth;
-    
-    // How many MinRes post-smooth steps?
-    int n_post_smooth;
-    
-    // What inner solver should we use?
-    inner_solver in_solve_type; // MINRES, CG, or GCR
-    int n_step; // Max steps for inner solver?
-    double rel_res; // Rel_res for inner solver?
-    
-    // What's the mg_info?
-    mg_operator_struct_real* mgstruct; 
-    
-    // What's matrix function are we dealing with?
-    void (*matrix_vector)(double*, double*, void*);
-    void* matrix_extra_data; 
-};
-
-// MG preconditioner!
-void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data);
 
 int main(int argc, char** argv)
 {  
@@ -112,9 +60,11 @@ int main(int argc, char** argv)
     
     // Build an mg_struct.
     mg_operator_struct_real mgstruct;
+    mgstruct.x_fine = N;
+    mgstruct.y_fine = N; 
     mgstruct.blocksize_x = X_BLOCKSIZE;
     mgstruct.blocksize_y = Y_BLOCKSIZE;
-    mgstruct.n_vector = 1;
+    mgstruct.n_vector = VECTOR_COUNT;
     mgstruct.matrix_vector = square_laplacian;
     mgstruct.matrix_extra_data = NULL; 
     
@@ -149,13 +99,22 @@ int main(int argc, char** argv)
     
     // Create a projector.
     mgstruct.projectors = new double*[mgstruct.n_vector];
-    mgstruct.projectors[0] = new double[fine_size];
+    for (i = 0; i < mgstruct.n_vector; i++)
+    {
+        mgstruct.projectors[i] = new double[fine_size];
+    }
 
     cout << "Creating " << mgstruct.n_vector << " projector(s).\n";
     // Make a constant projector.
     for (i = 0; i < N*N; i++)
     {
         mgstruct.projectors[0][i] = 1;
+        if (mgstruct.n_vector > 1)
+        {
+            x = i % N;
+            y = i / N;
+            mgstruct.projectors[1][i] = ((x+y)%2 == 0) ? 1 : -1;
+        }
     }
     block_normalize(&mgstruct); 
     
@@ -236,7 +195,7 @@ int main(int argc, char** argv)
         zero<double>(rhs_A_coarse, coarse_size*mgstruct.n_vector); 
 
         cout << "Applying the coarse Laplace operator to coarse source.\n";
-        coarse_square_laplacian(rhs_A_coarse, rhs_coarse, (void*)&mgstruct);
+        coarse_square_op(rhs_A_coarse, rhs_coarse, (void*)&mgstruct);
 
         // Check A coarse source.
         cout << "Check A times coarse src:\n"; 
@@ -379,7 +338,7 @@ int main(int argc, char** argv)
     double* lhs_coarse = new double[coarse_size*mgstruct.n_vector];
     zero<double>(lhs_coarse, coarse_size*mgstruct.n_vector);
     
-    invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_size*mgstruct.n_vector, 10000, 1e-6, coarse_square_laplacian, (void*)&mgstruct);
+    invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_size*mgstruct.n_vector, 10000, 1e-6, coarse_square_op, (void*)&mgstruct);
     
     
     if (invif.success == true)
@@ -399,7 +358,7 @@ int main(int argc, char** argv)
     double* A_lhs_coarse = new double[coarse_size*mgstruct.n_vector];
     zero<double>(A_lhs_coarse, coarse_size*mgstruct.n_vector);
     
-    coarse_square_laplacian(A_lhs_coarse, lhs_coarse, (void*)&mgstruct);
+    coarse_square_op(A_lhs_coarse, lhs_coarse, (void*)&mgstruct);
 
     for (i = 0; i < coarse_size*mgstruct.n_vector; i++)
     {
@@ -419,7 +378,7 @@ int main(int argc, char** argv)
     // Try a direct solve.
     cout << "\nSolve fine system.\n";
     
-    invif = minv_vector_cg(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, (void*)&mgstruct);
+    invif = minv_vector_cg(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL);
     
     if (invif.success == true)
     {
@@ -466,7 +425,7 @@ int main(int argc, char** argv)
     mgprecond.n_step = 10000; // max number of steps to use for inner solver.
     mgprecond.rel_res = 1e-1; // Maximum relative residual for inner solver.
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
-    mgprecond.matrix_vector = coarse_square_laplacian; // Function which applies the coarse operator. 
+    mgprecond.matrix_vector = coarse_square_op; // Function which applies the coarse operator. 
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
     
     // Well, maybe this will work?
@@ -672,300 +631,6 @@ void square_laplacian(double* lhs, double* rhs, void* extra_data)
       lhs[i] = lhs[i]+(4+MASS)*rhs[i];
    }
        
-}
-
-// Properly normalize the P vectors.
-void block_normalize(mg_operator_struct_real* mgstruct)
-{
-    int n, i;
-    int x_fine = N;
-    int y_fine = N;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
-    
-    // Hold current sites.
-    int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
-    
-    // Build up norms in this array...
-    double* norms = new double[coarse_size];
-    
-    // Loop over every vector.
-    for (n = 0; n < mgstruct->n_vector; n++)
-    {
-        zero<double>(norms, coarse_size); 
-        // Loop over the fine size.
-        
-        for (i = 0; i < fine_size; i++)
-        {
-            // What's the current coarse site? First, find the fine site.
-            curr_x = i % x_fine;
-            curr_y = i / x_fine; 
-            
-            // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x;
-            curr_y_coarse = curr_y / mgstruct->blocksize_y; 
-            curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-            
-            // Update the norm!
-            norms[curr_coarse] += mgstruct->projectors[n][i]*mgstruct->projectors[n][i];
-        }
-        
-        // Sqrt all of the norms.
-        for (i = 0; i < coarse_size; i++)
-        {
-            norms[i] = sqrt(norms[i]);
-        }
-        
-        // Normalize the projectors.
-        for (i = 0; i < fine_size; i++)
-        {
-            // What's the current coarse site? First, find the fine site.
-            curr_x = i % x_fine;
-            curr_y = i / x_fine; 
-            
-            // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x;
-            curr_y_coarse = curr_y / mgstruct->blocksize_y; 
-            curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-            
-            // Update the norm!
-            mgstruct->projectors[n][i] /= norms[curr_coarse];
-        }
-    }
-    
-    delete[] norms; 
-}
-
-// Prolong a coarse vector to a fine vector using the info in mgstruct.
-void prolong(double* vec_fine, double* vec_coarse, mg_operator_struct_real* mgstruct)
-{
-    int n, i;
-    int x_fine = N;
-    int y_fine = N;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
-    
-    // Hold current sites.
-    int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
-    
-    zero<double>(vec_fine, fine_size); 
-    
-    // Loop over every vector.
-    for (n = 0; n < mgstruct->n_vector; n++)
-    {
-        // Loop over the fine size.
-        
-        for (i = 0; i < fine_size; i++)
-        {
-            // What's the current coarse site? First, find the fine site.
-            curr_x = i % x_fine;
-            curr_y = i / x_fine; 
-            
-            // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x;
-            curr_y_coarse = curr_y / mgstruct->blocksize_y; 
-            curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-            
-            // Update the fine with the coarse. 
-            vec_fine[i] += mgstruct->projectors[n][i]*vec_coarse[curr_coarse*mgstruct->n_vector+n];
-        }
-    }
-}
-
-// Restrict a fine vector to a coarse vector using the info in mgstruct.
-void restrict(double* vec_coarse, double* vec_fine, mg_operator_struct_real* mgstruct)
-{
-    int n, i;
-    int x_fine = N;
-    int y_fine = N;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
-    
-    // Hold current sites.
-    int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
-    
-    zero<double>(vec_coarse, mgstruct->n_vector*coarse_size); 
-    
-    // Loop over every vector.
-    for (n = 0; n < mgstruct->n_vector; n++)
-    {
-        // Loop over the fine size.
-        
-        for (i = 0; i < fine_size; i++)
-        {
-            // What's the current coarse site? First, find the fine site.
-            curr_x = i % x_fine;
-            curr_y = i / x_fine; 
-            
-            // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x;
-            curr_y_coarse = curr_y / mgstruct->blocksize_y; 
-            curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-            
-            // Update the fine with the coarse. 
-            vec_coarse[curr_coarse*mgstruct->n_vector+n] += mgstruct->projectors[n][i]*vec_fine[i];
-        }
-    }
-}
-
-// General multigrid projector function!
-void coarse_square_laplacian(double* lhs, double* rhs, void* extra_data)
-{
-    // Iterators.
-    int i, j, k, n; 
-    int tmp; 
-    
-    // Grab the mg_precond_struct.
-    mg_operator_struct_real mgstruct = *(mg_operator_struct_real*)extra_data; 
-    
-    // lhs and rhs are of size coarse_size. mgstruct.matrix_vector expects
-    // fine_size. 
-    int x_fine = N;
-    int y_fine = N;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct.blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct.blocksize_y; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
-    int coarse_length = coarse_size*mgstruct.n_vector;
-    
-    // Okay... how the hell are we going to do this. 
-    double* Px; // Holds prolonged current solution.
-    double* APx; // Holds A times prolonged current solution.
-    
-    Px = new double[fine_size];
-    APx = new double[fine_size];
-    
-    zero<double>(Px, fine_size); zero<double>(APx, fine_size); 
-    
-    // Prolong. 
-    prolong(Px, rhs, &mgstruct);
-    
-    // Apply the original matrix.
-    (*mgstruct.matrix_vector)(APx, Px, mgstruct.matrix_extra_data);
-    
-    // Restrict. 
-    zero<double>(lhs, coarse_length);
-    restrict(lhs, APx, &mgstruct); 
-    
-    delete[] Px;
-    delete[] APx; 
-    
-}
-
-// MG preconditioner!! (Man, I'm excited!
-void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
-{
-    cout << "Entered mg_preconditioner.\n";
-    mg_precond_struct_real* mgprecond = (mg_precond_struct_real*)extra_data; 
-    
-    // Standard defines.
-    int x_fine = N;
-    int y_fine = N;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgprecond->mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgprecond->mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
-    int coarse_length = coarse_size*mgprecond->mgstruct->n_vector; 
-    
-    // Store inversion info.
-    inversion_info invif;
-    
-    // GET EXCITED! First off, let's do some pre-smoothing. 
-    double* rhs_presmooth = new double[fine_size];
-    zero<double>(rhs_presmooth, fine_size);
-    if (mgprecond->n_pre_smooth > 0)
-    {
-        invif = minv_vector_minres(rhs_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
-        printf("Presmooth: Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
-    }
-    else
-    {
-        copy<double>(rhs_presmooth, rhs, fine_size);
-    }
-    
-    // Allocate the coarse rhs, lhs. 
-    double* rhs_coarse = new double[coarse_length];
-    double* lhs_coarse = new double[coarse_length];
-    zero<double>(rhs_coarse, coarse_length);
-    zero<double>(lhs_coarse, coarse_length);
-    
-    // We need to restrict A*(rhs_smooth) - rhs.
-    double* tmp1 = new double[fine_size];
-    double* tmp2 = new double[fine_size];
-    // tmp1 = A*rhs_smooth
-    (*mgprecond->mgstruct->matrix_vector)(tmp1, rhs_presmooth, mgprecond->mgstruct->matrix_extra_data);
-    for (int i = 0; i < fine_size; i++)
-    {
-        tmp2[i] = rhs_presmooth[i];
-        rhs_presmooth[i] = rhs[i] - tmp1[i];
-        
-    }
-    // Now, rhs_presmooth = (A r_smooth - rhs). 
-    // tmp2 = r_smooth. 
-    
-    // Restrict the rhs to the coarse vector. 
-    restrict(rhs_coarse, rhs_presmooth, mgprecond->mgstruct);
-    
-    // Solve the coarse system.
-    switch (mgprecond->in_solve_type)
-    {
-        case MINRES:
-            invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
-            break;
-        case CG:
-            invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
-            break;
-        case GCR:
-            invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
-            break;
-    }
-    
-    printf("Coarse solve: Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)));
-    
-    // Project the lhs to the fine vector.
-    double* lhs_postsmooth = new double[fine_size];
-    zero<double>(lhs_postsmooth, fine_size);
-    prolong(lhs_postsmooth, lhs_coarse, mgprecond->mgstruct); 
-    
-    // We want to post-smooth, using
-    // tmp2 - lhs_smooth as the initial guess,
-    // rhs as the right hand side. 
-    for (int i = 0; i < fine_size; i++)
-    {
-        lhs[i] = tmp2[i] + lhs_postsmooth[i];
-    }
-    
-    // Almost done! Do some post-smoothing.
-    if (mgprecond->n_post_smooth > 0)
-    {
-        invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
-        //invif = minv_vector_minres(lhs, lhs_postsmooth, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
-        printf("Postsmooth: Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
-    }
-    else
-    {
-        // We're good.
-        //copy<double>(lhs, lhs_postsmooth, fine_size);
-    }
-    
-
-    delete[] tmp1;
-    delete[] tmp2;
-    
-    // Clean up!
-    delete[] rhs_presmooth;
-    delete[] rhs_coarse;
-    delete[] lhs_coarse; 
-    delete[] lhs_postsmooth; 
-    
-    cout << "Exited mg_preconditioner.\n";
-    
 }
 
 
