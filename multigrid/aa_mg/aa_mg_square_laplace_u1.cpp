@@ -38,7 +38,7 @@ using namespace std;
 #define Y_BLOCKSIZE 2
 
 // 1 for just const vector, 2 for const + even/odd vector. 
-#define VECTOR_COUNT 2
+#define VECTOR_COUNT 1
 
 // Square laplacian function.
 void square_laplacian(complex<double>* lhs, complex<double>* rhs, void* extra_data);
@@ -381,7 +381,7 @@ int main(int argc, char** argv)
     // Try a direct solve.
     cout << "\nSolve fine system.\n";
     
-    invif = minv_vector_cg(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL);
+    invif = minv_vector_cg(lhs, rhs, N*N, 10000, 1e-6, square_laplacian_u1, (void*)lattice);
     
     if (invif.success == true)
     {
@@ -422,8 +422,8 @@ int main(int argc, char** argv)
     // Set up the MG preconditioner. 
     mg_precond_struct_complex mgprecond;
     
-    mgprecond.n_pre_smooth = 6; // 3 MinRes smoother steps before coarsening.
-    mgprecond.n_post_smooth = 6; // 3 MinRes smoother steps after refining.
+    mgprecond.n_pre_smooth = 6; // 6 MinRes smoother steps before coarsening.
+    mgprecond.n_post_smooth = 6; // 6 MinRes smoother steps after refining.
     mgprecond.in_solve_type = CG; // What inner solver? MINRES, CG, or GCR.
     mgprecond.n_step = 10000; // max number of steps to use for inner solver.
     mgprecond.rel_res = 1e-1; // Maximum relative residual for inner solver.
@@ -433,7 +433,7 @@ int main(int argc, char** argv)
     
     // Well, maybe this will work?
     zero<double>(lhs, N*N);
-    invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, mg_preconditioner, (void*)&mgprecond); /**/
+    invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian_u1, (void*)lattice, mg_preconditioner, (void*)&mgprecond); /**/
     
     if (invif.success == true)
     {
