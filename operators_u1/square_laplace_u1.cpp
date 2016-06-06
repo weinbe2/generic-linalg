@@ -7,6 +7,7 @@
 #include <sstream>
 #include <complex>
 
+
 #include "generic_inverters.h"
 #include "generic_inverters_precond.h"
 #include "generic_vector.h"
@@ -17,7 +18,7 @@ using namespace std;
 #define N 16
 
 // Define pi.
-#define PI 3.141592653589793
+#define PI 3.14159265358979323846
 
 // Define mass.
 #define MASS 0.1*0.1
@@ -28,32 +29,6 @@ void square_laplacian(complex<double>* lhs, complex<double>* rhs, void* extra_da
 // Square laplacian w/ u1. 
 void square_laplacian_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
-// Load complex gauge field from file. 
-// Based on Rich Brower's u1 gauge routines. 
-// Reads in a U1 phase lattice from file, returns complex fields. 
-// Rich's code has 'y' as the fast direction. Need to transpose!
-void read_lattice_u1(complex<double>* gauge_field, string input_file)
-{
-   double phase_tmp;   
-   fstream in_file;
-   
-   in_file.open(input_file,ios::in); 
-   for(int x =0;x< N;x++)
-   {
-      for(int y =0;y< N;y++)
-      {
-         for(int mu=0; mu<2; mu++)
-         {
-            in_file >> phase_tmp;
-            gauge_field[y*2*N+x*2+mu] = polar(1.0,phase_tmp);
-            //cout << polar(1.0, phase_tmp) << "\n";
-         }
-      }
-   }
-   in_file.close(); 
-   
-   return;
-}
 
 int main(int argc, char** argv)
 {  
@@ -67,7 +42,7 @@ int main(int argc, char** argv)
    // Initialize the gauge field. Indexing: index = y*2*N + x*2 + mu.
    lattice = new complex<double>[N*N*2]; 
    // Load lattice
-   read_lattice_u1(lattice, "./cfg/phase16b16.dat"); 
+   read_gauge_u1(lattice, N, N, "./cfg/phase16b16.dat"); 
     
    // Unit gauge.
    //for (i=0; i < N*N; i++) { lattice[2*i] = lattice[2*i+1] = 1.0; }
