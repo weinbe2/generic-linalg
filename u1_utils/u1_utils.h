@@ -4,6 +4,7 @@
 
 #include <complex>
 #include <string>
+#include <random>
 using std::complex;
 using std::string;
 
