@@ -89,6 +89,8 @@ int main(int argc, char** argv)
     int y_fine = N;
     int fine_size = x_fine*y_fine;
     
+    cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << fine_size << "\n";
+    
     // Initialize the lattice. Indexing: index = y*N + x.
     lattice = new complex<double>[2*fine_size];
     lhs = new complex<double>[fine_size];
@@ -101,7 +103,7 @@ int main(int argc, char** argv)
     zero<double>(check, fine_size);
     
     // Create a free lattice.
-    cout << "Creating a gauge field.\n";
+    cout << "[GAUGE]: Creating a gauge field.\n";
     unit_gauge_u1(lattice, x_fine, y_fine);
     
 #ifdef TEST_RANDOM_GAUGE
@@ -109,14 +111,14 @@ int main(int argc, char** argv)
     complex<double>* gauge_trans = new complex<double>[fine_size];
     rand_trans_u1(gauge_trans, x_fine, y_fine, generator);
     apply_gauge_trans_u1(lattice, gauge_trans, x_fine, y_fine);
-    cout << "Performed a random gauge rotation.\n";
+    cout << "[GAUGE]: Performed a random gauge rotation.\n";
 #endif
 #ifdef TEST_RANDOM_FIELD
     gauss_gauge_u1(lattice, x_fine, y_fine, generator, BETA);
-    cout << "Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+    cout << "[GAUGE]: Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
 #endif
     
-    cout << "The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
+    cout << "[GAUGE]: The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
     
     // Build an mg_struct.
     mg_operator_struct_complex mgstruct;
@@ -127,6 +129,8 @@ int main(int argc, char** argv)
     mgstruct.n_vector = VECTOR_COUNT;
     mgstruct.matrix_vector = square_laplacian_u1;
     mgstruct.matrix_extra_data = (void*)lattice; 
+    
+    cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << VECTOR_COUNT << "\n";
     
     // Describe the coarse lattice. 
     int x_coarse = x_fine/mgstruct.blocksize_x; // how many coarse sites are there in the x dir?
@@ -151,7 +155,7 @@ int main(int argc, char** argv)
     }
     
 
-    cout << "Creating " << mgstruct.n_vector << " projector(s).\n";
+    cout << "[MG]: Creating " << mgstruct.n_vector << " projector(s).\n";
 #ifndef GEN_NULL_VECTOR
     // Make a constant projector.
     for (i = 0; i < N*N; i++)
@@ -183,7 +187,7 @@ int main(int argc, char** argv)
     
     
 #ifdef PRINT_NULL_VECTOR
-    cout << "Check projector:\n"; 
+    cout << "[MG]: Check projector:\n"; 
     for (int n = 0; n < mgstruct.n_vector; n++)
     {
         cout << "Vector " << n << "\n";
@@ -257,7 +261,7 @@ int main(int argc, char** argv)
 #endif // PRINT_NULL_VECTOR
     
 #endif // generate null vector. 
-    cout << "Performing block orthonormalize of null vectors...\n";
+    cout << "[MG]: Performing block orthonormalize of null vectors...\n";
     block_orthonormalize(&mgstruct); 
     
     #ifdef PRINT_NULL_VECTOR
@@ -536,7 +540,7 @@ int main(int argc, char** argv)
 #endif // COARSE_ONLY
     
     // Try a direct solve.
-    cout << "\nSolve fine system.\n";
+    cout << "\n[ORIG]: Solve fine system.\n";
     
     invif = minv_vector_cg(lhs, rhs, N*N, 10000, 1e-6, square_laplacian_u1, (void*)lattice);
     
