@@ -80,7 +80,7 @@ int main(int argc, char** argv)
    // 7: "extra data": can set this to not-null to pass in gauge fields, etc.
    
    //invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice); 
-   //invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice); 
+   invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice); 
    //invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice); 
    //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice);
    //invif = minv_vector_minres(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice); 
@@ -126,7 +126,7 @@ int main(int argc, char** argv)
    invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&mps); /**/
     
    // Restarted Minres preconditioner to flex cg. 
-   minres_precond_struct_complex mps; 
+   /*minres_precond_struct_complex mps; 
    mps.n_step = 10000; // Make rel_res the dominant factor. 
    mps.rel_res = 0.8; 
    mps.matrix_vector = square_laplacian; 

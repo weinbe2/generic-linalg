@@ -3,6 +3,7 @@
 // Header file for templated vector operations.
 
 #include <complex>
+#include <random>
 
 // Zeroes a vector.
 template<typename T> inline void zero(T* v1, int size)
@@ -25,6 +26,35 @@ template <typename T> inline void zero(std::complex<T>* v1, int size)
     v1[i] = 0.0;
   }
   
+}
+
+// Random gaussian vector.
+template<typename T> inline void gaussian(T* v1, int size, std::mt19937 &generator)
+{
+    // Generate a normal distribution.
+    std::normal_distribution<> dist(0.0, 1.0);
+    int i;
+    
+    for (i = 0; i < size; i++)
+    {
+        v1[i] = static_cast<T>(dist(generator));
+    }
+}
+
+// Random gaussian vector, random in real and imag.
+template <typename T> inline void gaussian(std::complex<T>* v1, int size, std::mt19937 &generator)
+{
+    // Generate a normal distribution.
+    std::normal_distribution<> dist(0.0, 1.0);
+
+    // Initialize.
+    int i;
+
+    T tmp = dist(generator);
+    for (i = 0; i < size; i++)
+    {
+        v1[i] = tmp; //std::complex<T>(static_cast<T>(dist(generator)), static_cast<T>(dist(generator)));
+    }
 }
 
 // Copy v2 into v1.
@@ -111,3 +141,64 @@ inline T norm2sq(std::complex<T>* v1, int size)
   return res;
 }
 
+template <typename T>
+inline void normalize(T* v1, int size)
+{
+    int i;
+    T res = static_cast<T>(0.0);
+    
+    res = 1.0/sqrt(norm2sq<T>(v1, size));
+    if (res > 0.0)
+    {
+        for (i = 0; i < size; i++)
+        {
+            v1[i] *= res;
+        }
+    }
+}
+
+template <typename T>
+inline void normalize(std::complex<T>* v1, int size)
+{
+    int i;
+    T res = static_cast<T>(0.0);
+    
+    res = 1.0/sqrt(norm2sq<T>(v1, size));
+    if (res > 0.0)
+    {
+        for (i = 0; i < size; i++)
+        {
+            v1[i] *= res;
+        }
+    }
+}
+
+// Make vector v1 orthogonal to vector v2. 
+template <typename T>
+inline void orthogonal(T* v1, T* v2, int size)
+{
+    int i;
+    T alpha; 
+    
+    alpha = -dot<T>(v2, v1, size)/norm2sq<T>(v2, size);
+    
+    for (i = 0; i < size; i++)
+    {
+        v1[i] = v1[i] + alpha*v2[i];
+    }
+}
+
+// Make vector v1 orthogonal to vector v2. 
+template <typename T>
+inline void orthogonal(std::complex<T>* v1, std::complex<T>* v2, int size)
+{
+    int i;
+    std::complex<T> alpha; 
+    
+    alpha = -dot<T>(v2, v1, size)/norm2sq<T>(v2, size);
+    
+    for (i = 0; i < size; i++)
+    {
+        v1[i] = v1[i] + alpha*v2[i];
+    }
+}

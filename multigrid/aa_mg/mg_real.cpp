@@ -122,6 +122,100 @@ void block_normalize(mg_operator_struct_real* mgstruct)
     delete[] norms; 
 }
 
+// Properly orthonormalize the P vectors.
+void block_orthonormalize(mg_operator_struct_real* mgstruct)
+{
+    int n, m, i;
+    int x_fine = mgstruct->x_fine;
+    int y_fine = mgstruct->y_fine;
+    int fine_size = x_fine*y_fine;
+    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
+    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int coarse_size = x_coarse*y_coarse; 
+    
+    // Hold current sites.
+    int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
+    
+    // Perform a modified gram schmidt. First make the vectors
+    // block orthogonal, then call "block_normalize" to normalize
+    // each vector. 
+    
+    if (mgstruct->n_vector > 1)
+    {
+        // Build up norms in this array...
+        double** norms = new double*[mgstruct->n_vector];
+        double** dot_prod = new double*[mgstruct->n_vector];
+        for (n = 0; n < mgstruct->n_vector; n++)
+        {
+            norms[n] = new double[coarse_size];
+            dot_prod[n] = new double[coarse_size];
+        }
+
+        // Loop over every vector.
+        for (n = 1; n < mgstruct->n_vector; n++)
+        {
+            zero<double>(norms[n-1], coarse_size);
+            for (m = 0; m < n; m++)
+            {
+                zero<double>(dot_prod[m], coarse_size);
+            }
+
+            // Loop over the fine size.
+
+            for (i = 0; i < fine_size; i++)
+            {
+                // What's the current coarse site? First, find the fine site.
+                curr_x = i % x_fine;
+                curr_y = i / x_fine; 
+
+                // Now, find the coarse site. 
+                curr_x_coarse = curr_x / mgstruct->blocksize_x;
+                curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+                curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
+
+                // Update the norm of the previous vector,
+                // Compute new dot products. 
+                norms[n-1][curr_coarse] += mgstruct->projectors[n-1][i]*mgstruct->projectors[n-1][i];
+                for (m = 0; m < n; m++)
+                {
+                    dot_prod[m][curr_coarse] += mgstruct->projectors[m][i]*mgstruct->projectors[n][i];
+                }     
+
+            }
+
+            // Normalize the projectors.
+            for (i = 0; i < fine_size; i++)
+            {
+                // What's the current coarse site? First, find the fine site.
+                curr_x = i % x_fine;
+                curr_y = i / x_fine; 
+
+                // Now, find the coarse site. 
+                curr_x_coarse = curr_x / mgstruct->blocksize_x;
+                curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+                curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
+
+                // Project off previous vectors.
+                for (m = 0; m < n; m++)
+                {
+                    mgstruct->projectors[n][i] -= dot_prod[m][curr_coarse]/norms[m][curr_coarse]*mgstruct->projectors[m][i];
+                }
+            }
+        }
+
+        for (n = 0; n < mgstruct->n_vector; n++)
+        {
+            delete[] norms[n];
+            delete[] dot_prod[n];
+        }
+        delete[] norms; 
+        delete[] dot_prod;
+    }
+    
+    block_normalize(mgstruct); 
+}
+
+
 // Prolong a coarse vector to a fine vector using the info in mgstruct.
 void prolong(double* vec_fine, double* vec_coarse, mg_operator_struct_real* mgstruct)
 {
@@ -202,7 +296,7 @@ void restrict(double* vec_coarse, double* vec_fine, mg_operator_struct_real* mgs
 // MG preconditioner!! (Man, I'm excited!
 void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
 {
-    cout << "Entered mg_preconditioner.\n";
+    cout << "[MG]: Entered mg_preconditioner.\n";
     mg_precond_struct_real* mgprecond = (mg_precond_struct_real*)extra_data; 
     
     // Standard defines.
@@ -224,7 +318,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     if (mgprecond->n_pre_smooth > 0)
     {
         invif = minv_vector_minres(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
-        printf("Presmooth: Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+        printf("[L1 Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq), invif.name.c_str());
     }
     else
     {
@@ -264,7 +358,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
             invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
             break;
     }
-    printf("Coarse solve: Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)));
+    printf("[L2]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
     
     // Project the lhs to the fine vector.
     // 5. lhs_postsmooth = prolong(lhs_coarse)
@@ -285,7 +379,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     {
         invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
         //invif = minv_vector_minres(lhs, lhs_postsmooth, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
-        printf("Postsmooth: Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+        printf("[L1 Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq), invif.name.c_str());
     }
     
     // Clean up!
@@ -296,7 +390,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     delete[] lhs_coarse; 
     delete[] lhs_postsmooth; 
     
-    cout << "Exited mg_preconditioner.\n";
+    cout << "[MG]: Exited mg_preconditioner.\n";
     
 }
 

@@ -13,6 +13,9 @@ struct mg_operator_struct_complex;
 // Normalize the projectors based on the coarse blocksize. 
 void block_normalize(mg_operator_struct_complex* mgstruct);
 
+// Orthonormalize the projectors based on the coarse blocksize.
+void block_orthonormalize(mg_operator_struct_complex* mgstruct);
+
 // Prolong from the coarse lattice to the fine lattice. 
 void prolong(complex<double>* x_fine, complex<double>* x_coarse, mg_operator_struct_complex* mgstruct);
 

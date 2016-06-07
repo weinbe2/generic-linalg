@@ -22,10 +22,13 @@
 // Do two vector restrict/prolong?
 //#define PDAGP_2TEST
 
+// Try solving just the coarse solver. 
+//#define COARSE_ONLY
+
 using namespace std; 
 
 // For now, define the length in a direction.
-#define N 64
+#define N 128
 
 // Define pi.
 #define PI 3.141592653589793
@@ -33,16 +36,33 @@ using namespace std;
 // Define mass.
 #define MASS 0.01*0.01
 
+// standard deviation of angle for random gauge field.
+#define BETA 100.0
+
 // What's the X blocksize?
 #define X_BLOCKSIZE 2
 // What's the Y blocksize?
 #define Y_BLOCKSIZE 2
 
-// 1 for just const vector, 2 for const + even/odd vector. 
+// Print null vectors?
+//#define PRINT_NULL_VECTOR
+
+// Do null vector generation? Currently uses BiCGStab
+#define GEN_NULL_VECTOR
+
+// How many BiCGStab iterations do we use?
+#define GEN_NULL_VECTOR_STEP 10000
+#define GEN_NULL_VECTOR_REL_RESID 1e-8
+
+// 1 for just const vector, 2 for const + even/odd vector. Specifies
+// the number to generate if GEN_NULL_VECTOR is defined
 #define VECTOR_COUNT 1
 
 // Are we testing a random gauge rotation?
-#define TEST_RANDOM_GAUGE
+//#define TEST_RANDOM_GAUGE
+
+// Are we testing a random field?
+#define TEST_RANDOM_FIELD
 
 // Square laplacian function.
 void square_laplacian(complex<double>* lhs, complex<double>* rhs, void* extra_data);
@@ -81,6 +101,7 @@ int main(int argc, char** argv)
     zero<double>(check, fine_size);
     
     // Create a free lattice.
+    cout << "Creating a gauge field.\n";
     unit_gauge_u1(lattice, x_fine, y_fine);
     
 #ifdef TEST_RANDOM_GAUGE
@@ -88,7 +109,14 @@ int main(int argc, char** argv)
     complex<double>* gauge_trans = new complex<double>[fine_size];
     rand_trans_u1(gauge_trans, x_fine, y_fine, generator);
     apply_gauge_trans_u1(lattice, gauge_trans, x_fine, y_fine);
+    cout << "Performed a random gauge rotation.\n";
 #endif
+#ifdef TEST_RANDOM_FIELD
+    gauss_gauge_u1(lattice, x_fine, y_fine, generator, BETA);
+    cout << "Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+#endif
+    
+    cout << "The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
     
     // Build an mg_struct.
     mg_operator_struct_complex mgstruct;
@@ -121,27 +149,132 @@ int main(int argc, char** argv)
     {
         mgstruct.projectors[i] = new complex<double>[fine_size];
     }
+    
 
     cout << "Creating " << mgstruct.n_vector << " projector(s).\n";
+#ifndef GEN_NULL_VECTOR
     // Make a constant projector.
     for (i = 0; i < N*N; i++)
     {
+        
         mgstruct.projectors[0][i] = 1;
 #ifdef TEST_RANDOM_GAUGE
         mgstruct.projectors[0][i] *= conj(gauge_trans[i]);
 #endif
+        
         if (mgstruct.n_vector > 1)
         {
             x = i % N;
             y = i / N;
             mgstruct.projectors[1][i] = ((x+y)%2 == 0) ? complex<double>(0.0,1.0) : complex<double>(0.0,-1.0);
         }
+        // For block orthonormalize test.
+        /*if (mgstruct.n_vector > 1)
+        {
+            x = i % N;
+            y = i / N;
+            mgstruct.projectors[1][i] = (x%2 == 0) ? 1 : -0.5;
+        }*/
     }
-    block_normalize(&mgstruct); 
     
 #ifdef TEST_RANDOM_GAUGE
     delete[] gauge_trans;
 #endif
+    
+    
+#ifdef PRINT_NULL_VECTOR
+    cout << "Check projector:\n"; 
+    for (int n = 0; n < mgstruct.n_vector; n++)
+    {
+        cout << "Vector " << n << "\n";
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+            }
+            cout << "\n";
+        }
+    }
+#endif // PRINT_NULL_VECTOR
+
+#else // generate null vector
+    
+    // We generate null vectors by solving Ax = 0, with a
+    // gaussian initial guess.
+    // For sanity with the residual, we really solve Ax = -Ax_0,
+    // where x has a zero initial guess, x_0 is a random vector.
+    complex<double>* rand_guess = new complex<double>[fine_size];
+    complex<double>* Arand_guess = new complex<double>[fine_size];
+    
+    for (i = 0; i < mgstruct.n_vector; i++)
+    {
+        gaussian<double>(rand_guess, fine_size, generator);
+        
+        zero<double>(Arand_guess, fine_size); 
+        square_laplacian_u1(Arand_guess, rand_guess, (void*)lattice);
+        for (j = 0; j < fine_size; j++)
+        {
+           Arand_guess[j] = -Arand_guess[j]; 
+        }
+        zero<double>(mgstruct.projectors[i], fine_size);
+        
+        minv_vector_gcr(mgstruct.projectors[i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_laplacian_u1, (void*)lattice); 
+        
+        for (j = 0; j < fine_size; j++)
+        {
+            mgstruct.projectors[i][j] += rand_guess[j];
+        }
+        
+        normalize(mgstruct.projectors[i], fine_size); 
+    }
+    
+    // This causes a segfault related to the RNG when
+    // the vector is initialized.
+    delete[] rand_guess; 
+    delete[] Arand_guess; 
+    
+    // Normalize projectors.
+    for (i = 0; i < mgstruct.n_vector; i++)
+    {
+        normalize(mgstruct.projectors[i], fine_size);
+    }
+    
+#ifdef PRINT_NULL_VECTOR
+    cout << "Check projector:\n"; 
+    for (int n = 0; n < mgstruct.n_vector; n++)
+    {
+        cout << "Vector " << n << "\n";
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+            }
+            cout << "\n";
+        }
+    }
+#endif // PRINT_NULL_VECTOR
+    
+#endif // generate null vector. 
+    cout << "Performing block orthonormalize of null vectors...\n";
+    block_orthonormalize(&mgstruct); 
+    
+    #ifdef PRINT_NULL_VECTOR
+    cout << "\nCheck projector:\n"; 
+    for (int n = 0; n < mgstruct.n_vector; n++)
+    {
+        cout << "Vector " << n << "\n";
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+            }
+            cout << "\n";
+        }
+    }
+#endif // PRINT_NULL_VECTOR
     
 #ifdef PDAGP_TEST
     {
@@ -354,6 +487,7 @@ int main(int argc, char** argv)
     
 #endif
     
+#ifdef COARSE_ONLY
     cout << "Solving coarse system only.\n";
     complex<double>* rhs_coarse = new complex<double>[coarse_size*mgstruct.n_vector];
     zero<double>(rhs_coarse, coarse_size*mgstruct.n_vector);
@@ -399,6 +533,8 @@ int main(int argc, char** argv)
     zero<double>(pro_rhs_coarse, N*N);
     square_laplacian(pro_rhs_coarse, pro_lhs_coarse, NULL);
     
+#endif // COARSE_ONLY
+    
     // Try a direct solve.
     cout << "\nSolve fine system.\n";
     
@@ -406,14 +542,15 @@ int main(int argc, char** argv)
     
     if (invif.success == true)
     {
-     printf("Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/bnorm);
+     printf("[ORIG]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
     }
     else // failed, maybe.
     {
-     printf("Potential error! Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/bnorm);
-     printf("This may be because the max iterations was reached.\n");
+     printf("[ORIG]: Iterations %d RelRes %.8e Err Y Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
+     printf("[ORIG]: This may be because the max iterations was reached.\n");
     }
     
+#ifdef COARSE_ONLY
     // Compare PAP solution to real solution. 
     cout << "\nCompare solutions.\n";
     double comparison = 0;
@@ -432,10 +569,10 @@ int main(int argc, char** argv)
     delete[] A_lhs_coarse; 
     delete[] pro_lhs_coarse; 
     delete[] pro_rhs_coarse; 
-    
+#endif // COARSE_ONLY 
 
     // Let's actually test a multigrid solve!
-    cout << "\nTest MG solve.\n";
+    cout << "\n[MG]: Test MG solve.\n";
     
     // Block normalize the null vectors.
     block_normalize(&mgstruct); 
@@ -458,19 +595,19 @@ int main(int argc, char** argv)
     
     if (invif.success == true)
     {
-     printf("Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/bnorm);
+     printf("[L1]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
     }
     else // failed, maybe.
     {
-     printf("Potential error! Algorithm %s took %d iterations to reach a relative residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq)/bnorm);
-     printf("This may be because the max iterations was reached.\n");
+     printf("[L1]: Iterations %d RelRes %.8e Err Y Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
+     printf("[L1]: This may be because the max iterations was reached.\n");
     }
 
 
-    printf("Computing [check] = A [lhs] as a confirmation.\n");
+    printf("[MG]: Computing [check] = A [lhs] as a confirmation.\n");
 
     // Check and make sure we get the right answer.
-    square_laplacian(check, lhs, NULL);
+    square_laplacian_u1(check, lhs, (void*)lattice);
 
     explicit_resid = 0.0;
     for (i = 0; i < N*N; i++)
@@ -479,7 +616,7 @@ int main(int argc, char** argv)
     }
     explicit_resid = sqrt(explicit_resid)/bnorm;
 
-    printf("[check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
+    printf("[MG]: [check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
 
     // Free the lattice.
     delete[] lattice;

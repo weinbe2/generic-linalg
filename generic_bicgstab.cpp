@@ -185,12 +185,6 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   p = new complex<double>[size];
   s = new complex<double>[size];
   t = new complex<double>[size];
-  //r = (double*)malloc(size*sizeof(double));
-  //r0 = (double*)malloc(size*sizeof(double));
-  //v = (double*)malloc(size*sizeof(double));
-  //p = (double*)malloc(size*sizeof(double));
-  //s = (double*)malloc(size*sizeof(double));
-  //t = (double*)malloc(size*sizeof(double));
 
   // Initialize values.
   rsq = 0.0; ssq = 0.0; bsqrt = 0.0; truersq = 0.0;
@@ -290,7 +284,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   }
   
   (*matrix_vector)(v,phi,extra_info);
-  for(i=0; i < size; i++) truersq += pow(abs(v[i] - phi0[i]),2);
+  for(i=0; i < size; i++) truersq += real(conj(v[i] - phi0[i])*(v[i] - phi0[i]));
   
   // Free all the things!
   delete[] r;
@@ -299,13 +293,6 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   delete[] p;
   delete[] s;
   delete[] t;
-  //free(r);
-  //free(r0);
-  //free(v);
-  //free(p);
-  //free(s);
-  //free(t);
-
 
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
   invif.resSq = truersq;

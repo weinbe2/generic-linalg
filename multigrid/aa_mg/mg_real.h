@@ -13,6 +13,9 @@ struct mg_operator_struct_real;
 // Normalize the projectors based on the coarse blocksize. 
 void block_normalize(mg_operator_struct_real* mgstruct);
 
+// Orthonormalize the projectors based on the coarse blocksize.
+void block_orthonormalize(mg_operator_struct_real* mgstruct);
+
 // Prolong from the coarse lattice to the fine lattice. 
 void prolong(double* x_fine, double* x_coarse, mg_operator_struct_real* mgstruct);
 

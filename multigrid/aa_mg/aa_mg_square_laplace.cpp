@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <complex>
+#include <random>
 
 #include "generic_inverters.h"
 #include "generic_inverters_precond.h"
@@ -35,8 +36,19 @@ using namespace std;
 // What's the Y blocksize?
 #define Y_BLOCKSIZE 2
 
-// 1 for just const vector, 2 for const + even/odd vector. 
-#define VECTOR_COUNT 1
+// Print null vectors?
+//#define PRINT_NULL_VECTOR
+
+// Do null vector generation? Currently uses BiCGStab
+#define GEN_NULL_VECTOR
+
+// How many BiCGStab iterations do we use?
+#define GEN_NULL_VECTOR_STEP 10000
+#define GEN_NULL_VECTOR_REL_RESID 1e-8
+
+// 1 for just const vector, 2 for const + even/odd vector. Specifies
+// the number to generate if GEN_NULL_VECTOR is defined
+#define VECTOR_COUNT 2
 
 // Square laplacian function.
 void square_laplacian(double* lhs, double* rhs, void* extra_data);
@@ -105,6 +117,7 @@ int main(int argc, char** argv)
     }
 
     cout << "Creating " << mgstruct.n_vector << " projector(s).\n";
+#ifndef GEN_NULL_VECTOR
     // Make a constant projector.
     for (i = 0; i < N*N; i++)
     {
@@ -115,8 +128,109 @@ int main(int argc, char** argv)
             y = i / N;
             mgstruct.projectors[1][i] = ((x+y)%2 == 0) ? 1 : -1;
         }
+        // For block orthonormalize test.
+        /*if (mgstruct.n_vector > 1)
+        {
+            x = i % N;
+            y = i / N;
+            mgstruct.projectors[1][i] = (x%2 == 0) ? 1 : -0.5;
+        }*/
     }
-    block_normalize(&mgstruct); 
+    
+#ifdef PRINT_NULL_VECTOR
+    cout << "Check projector:\n"; 
+    for (int n = 0; n < mgstruct.n_vector; n++)
+    {
+        cout << "Vector " << n << "\n";
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+            }
+            cout << "\n";
+        }
+    }
+#endif // PRINT_NULL_VECTOR
+
+#else // generate null vector
+    // Create an RNG. 
+    std::mt19937 generator (1337u); // 1337u is the seed.
+    
+    // We generate null vectors by solving Ax = 0, with a
+    // gaussian initial guess.
+    // For sanity with the residual, we really solve Ax = -Ax_0,
+    // where x has a zero initial guess, x_0 is a random vector.
+    double* rand_guess = new double[fine_size];
+    double* Arand_guess = new double[fine_size];
+    
+    for (i = 0; i < mgstruct.n_vector; i++)
+    {
+        // Use mgstruct.projectors[i] has a temporary holder.
+        gaussian<double>(rand_guess, fine_size, generator);
+        
+        zero<double>(Arand_guess, fine_size); 
+        square_laplacian(Arand_guess, rand_guess, NULL);
+        for (j = 0; j < fine_size; j++)
+        {
+           Arand_guess[j] = -Arand_guess[j]; 
+        }
+        zero<double>(mgstruct.projectors[i], fine_size);
+        
+        minv_vector_bicgstab(mgstruct.projectors[i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_laplacian, NULL); 
+        for (j = 0; j < fine_size; j++)
+        {
+            mgstruct.projectors[i][j] += rand_guess[j];
+        }
+        
+        normalize(mgstruct.projectors[i], fine_size); 
+    }
+    
+    delete[] rand_guess; 
+    delete[] Arand_guess; 
+    
+    // Normalize projectors.
+    for (i = 0; i < mgstruct.n_vector; i++)
+    {
+        normalize(mgstruct.projectors[i], fine_size);
+    }
+    
+#ifdef PRINT_NULL_VECTOR
+    cout << "Check projector:\n"; 
+    for (int n = 0; n < mgstruct.n_vector; n++)
+    {
+        cout << "Vector " << n << "\n";
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+            }
+            cout << "\n";
+        }
+    }
+#endif // PRINT_NULL_VECTOR
+    
+#endif // generate null vector. 
+    cout << "Performing block orthonormalize of null vectors...\n";
+    block_orthonormalize(&mgstruct); 
+    
+    #ifdef PRINT_NULL_VECTOR
+    cout << "\nCheck projector:\n"; 
+    for (int n = 0; n < mgstruct.n_vector; n++)
+    {
+        cout << "Vector " << n << "\n";
+        for (int y = 0; y < y_fine; y++)
+        {
+            for (int x = 0; x < x_fine; x++)
+            {
+                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+            }
+            cout << "\n";
+        }
+    }
+#endif // PRINT_NULL_VECTOR
+    
     
 #ifdef PDAGP_TEST
     {
