@@ -239,6 +239,17 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
                 }     
 
             }
+            
+            cout << "\nn = " << n << "\n";
+            for (i = 0; i < coarse_size; i++)
+            {
+                cout << norms[n-1][i] << " ";
+                for (m = 0; m < n; m++)
+                {
+                    cout << dot_prod[m][i] << " ";
+                }
+                cout << "\n";
+            }
 
             // Normalize the projectors.
             for (i = 0; i < fine_size; i++)

@@ -23,7 +23,7 @@
 //#define PDAGP_2TEST
 
 // Try solving just the coarse solver. 
-//#define COARSE_ONLY
+#define COARSE_ONLY
 
 using namespace std; 
 
@@ -42,14 +42,14 @@ using namespace std;
 #define Y_BLOCKSIZE 2
 
 // Print null vectors?
-//#define PRINT_NULL_VECTOR
+#define PRINT_NULL_VECTOR
 
 // Do null vector generation? Currently uses BiCGStab
 #define GEN_NULL_VECTOR
 
 // How many GCR iterations do we use?
 #define GEN_NULL_VECTOR_STEP 10000
-#define GEN_NULL_VECTOR_REL_RESID 1e-8
+#define GEN_NULL_VECTOR_REL_RESID 1e-4
 
 // Should we aggregate even/odd null vectors? (See below.)
 #define AGGREGATE_EO 
@@ -158,8 +158,8 @@ int main(int argc, char** argv)
 
 
     // Set a point on the rhs.
-    //rhs[x_fine/2+(y_fine/2)*x_fine] = 1.0;
-    gaussian<double>(rhs, fine_size, generator);
+    rhs[x_fine/2+(y_fine/2)*x_fine] = 1.0;
+    //gaussian<double>(rhs, fine_size, generator);
 
     // Get norm for rhs.
     bnorm = sqrt(norm2sq<double>(rhs, fine_size));
@@ -301,14 +301,17 @@ int main(int argc, char** argv)
     {
         for (i = 0; i < fine_size; i++)
         {
-            x = i % N;
-            y = i / N;
+            x = i % x_fine;
+            y = i / y_fine;
             if ((x+y)%2 == 1)
             {
                 mgstruct.projectors[n+mgstruct.n_vector/2][i] = mgstruct.projectors[n][i];
                 mgstruct.projectors[n][i] = 0.0;
             }
         }
+        normalize(mgstruct.projectors[n], fine_size);
+        normalize(mgstruct.projectors[n+mgstruct.n_vector/2], fine_size);
+        
     }
 #endif // defined GEN_NULL_VECTOR && defined AGGREGATE_EO
     
@@ -329,10 +332,13 @@ int main(int argc, char** argv)
 #endif // PRINT_NULL_VECTOR
     
 #endif // generate null vector. 
+    
     cout << "[MG]: Performing block orthonormalize of null vectors...\n";
     block_orthonormalize(&mgstruct); 
     
-    #ifdef PRINT_NULL_VECTOR
+    return 0; 
+    
+#ifdef PRINT_NULL_VECTOR
     cout << "\nCheck projector:\n"; 
     for (int n = 0; n < mgstruct.n_vector; n++)
     {
@@ -346,6 +352,8 @@ int main(int argc, char** argv)
             cout << "\n";
         }
     }
+    
+    
 #endif // PRINT_NULL_VECTOR
     
 #ifdef PDAGP_TEST
@@ -560,29 +568,33 @@ int main(int argc, char** argv)
 #endif
     
 #ifdef COARSE_ONLY
-    cout << "Solving coarse system only.\n";
+    cout << "[COARSE]: Solving coarse system only.\n";
     complex<double>* rhs_coarse = new complex<double>[coarse_size*mgstruct.n_vector];
     zero<double>(rhs_coarse, coarse_size*mgstruct.n_vector);
     restrict(rhs_coarse, rhs, &mgstruct);
     
+    cout << "[COARSE]: Norm of coarse rhs " << sqrt(norm2sq<double>(rhs_coarse, coarse_size*mgstruct.n_vector)) << ".\n";
+    
     complex<double>* lhs_coarse = new complex<double>[coarse_size*mgstruct.n_vector];
     zero<double>(lhs_coarse, coarse_size*mgstruct.n_vector);
     
-    invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_size*mgstruct.n_vector, 10000, 1e-6, coarse_square_laplace, (void*)&mgstruct);
+    invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_size*mgstruct.n_vector, 10000, 1e-6, coarse_square_staggered, (void*)&mgstruct);
     
     
     if (invif.success == true)
     {
-     printf("Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
+     printf("[COARSE]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
     }
     else // failed, maybe.
     {
-     printf("Potential error! Algorithm %s took %d iterations to reach a residual of %.8e.\n", invif.name.c_str(), invif.iter, sqrt(invif.resSq));
-     printf("This may be because the max iterations was reached.\n");
+     printf("[COARSE]: Iterations %d RelRes %.8e Err Y Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
+     printf("[COARSE]: This may be because the max iterations was reached.\n");
     }
 
+    
+    
 
-    printf("Computing [check] = A [lhs] as a confirmation.\n");
+    printf("[COARSE]: Computing [check] = A [lhs] as a confirmation.\n");
 
     // Check and make sure we get the right answer.
     complex<double>* A_lhs_coarse = new complex<double>[coarse_size*mgstruct.n_vector];
@@ -596,14 +608,14 @@ int main(int argc, char** argv)
     }
     explicit_resid = sqrt(explicit_resid);
 
-    printf("[check] should equal [rhs]. The residual is %15.20e.\n", explicit_resid);
+    printf("[COARSE]: [check] should equal [rhs]. The residual is %15.20e.\n", explicit_resid);
     
     complex<double>* pro_lhs_coarse = new complex<double>[N*N];
     zero<double>(pro_lhs_coarse, N*N);
     prolong(pro_lhs_coarse, lhs_coarse, &mgstruct); 
     complex<double>* pro_rhs_coarse = new complex<double>[N*N];
     zero<double>(pro_rhs_coarse, N*N);
-    square_laplacian(pro_rhs_coarse, pro_lhs_coarse, NULL);
+    square_staggered_u1(pro_rhs_coarse, pro_lhs_coarse, (void*)lattice);
     
 #endif // COARSE_ONLY
     
@@ -639,7 +651,7 @@ int main(int argc, char** argv)
     
 #ifdef COARSE_ONLY
     // Compare PAP solution to real solution. 
-    cout << "\nCompare solutions.\n";
+    cout << "\n[COARSE]: Compare solutions.\n";
     double comparison = 0;
     double resid_comparison = 0;
     for (i = 0; i < N*N; i++)
@@ -648,8 +660,8 @@ int main(int argc, char** argv)
         resid_comparison += real(conj(pro_rhs_coarse[i]-rhs[i])*(pro_rhs_coarse[i]-rhs[i]));
     }
     comparison = sqrt(explicit_resid);
-    printf("The solutions deviate by %15.20e.\n", comparison);
-    printf("The projected residual has a rel res of %15.20e.\n", sqrt(resid_comparison)/bnorm);
+    printf("[COARSE]: The solutions deviate by %15.20e.\n", comparison);
+    printf("[COARSE]: The projected residual has a rel res of %15.20e.\n", sqrt(resid_comparison)/bnorm);
     
     delete[] rhs_coarse; 
     delete[] lhs_coarse;
@@ -657,6 +669,8 @@ int main(int argc, char** argv)
     delete[] pro_lhs_coarse; 
     delete[] pro_rhs_coarse; 
 #endif // COARSE_ONLY 
+    
+    return 0; 
 
     // Let's actually test a multigrid solve!
     cout << "\n[MG]: Test MG solve.\n";
