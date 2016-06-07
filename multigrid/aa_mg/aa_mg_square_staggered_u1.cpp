@@ -264,6 +264,8 @@ int main(int argc, char** argv)
             mgstruct.projectors[i][j] += rand_guess[j];
         }
         
+        //minv_vector_gcr(mgstruct.projectors[i], rand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)lattice); 
+        
         normalize(mgstruct.projectors[i], fine_size); 
     }
     

@@ -50,10 +50,9 @@ template <typename T> inline void gaussian(std::complex<T>* v1, int size, std::m
     // Initialize.
     int i;
 
-    T tmp = dist(generator);
     for (i = 0; i < size; i++)
     {
-        v1[i] = tmp; //std::complex<T>(static_cast<T>(dist(generator)), static_cast<T>(dist(generator)));
+        v1[i] = std::complex<T>(static_cast<T>(dist(generator)), static_cast<T>(dist(generator)));
     }
 }
 
