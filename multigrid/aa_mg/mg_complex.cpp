@@ -58,6 +58,63 @@ void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* ext
     
 }
 
+// General multigrid projector function!
+void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Iterators.
+    int i, j, k, n; 
+    int tmp; 
+    
+    // Grab the mg_precond_struct.
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
+    
+    // lhs and rhs are of size coarse_size. mgstruct.matrix_vector expects
+    // fine_size. 
+    int x_fine = mgstruct->x_fine;
+    int y_fine = mgstruct->y_fine;
+    int fine_size = x_fine*y_fine;
+    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
+    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int coarse_size = x_coarse*y_coarse; 
+    int coarse_length = coarse_size*mgstruct->n_vector;
+    
+    // Okay... how the hell are we going to do this. 
+    complex<double>* Px; // Holds prolonged current solution.
+    complex<double>* APx; // Holds A times prolonged current solution.
+    
+    Px = new complex<double>[fine_size];
+    APx = new complex<double>[fine_size];
+    
+    zero<double>(Px, fine_size); zero<double>(APx, fine_size); 
+    
+    // Prolong. 
+    prolong(Px, rhs, mgstruct);
+    
+    // Apply the original matrix.
+    (*mgstruct->matrix_vector)(APx, Px, mgstruct->matrix_extra_data);
+    
+    // Apply gamma_5.
+    for (i = 0; i < fine_size; i++)
+    {
+        int x = fine_size % mgstruct->x_fine;
+        int y = fine_size / mgstruct->x_fine; 
+        
+        if ((x+y)%2 == 1)
+        {
+            APx[i] = -APx[i];
+        }
+    }
+    
+    // Restrict. 
+    zero<double>(lhs, coarse_length);
+    restrict(lhs, APx, mgstruct); 
+    
+    delete[] Px;
+    delete[] APx; 
+    
+}
+
+
 // Properly normalize the P vectors.
 void block_normalize(mg_operator_struct_complex* mgstruct)
 {

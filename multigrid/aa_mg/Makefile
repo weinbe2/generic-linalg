@@ -7,7 +7,7 @@ C_SOURCES =  ../../generic_cg.cpp ../../generic_bicgstab.cpp ../../generic_gcr.c
 C_OBJS    = generic_bicgstab.o generic_cg.o generic_gcr.o generic_gmres.o generic_gelim.o generic_sor.o generic_minres.o generic_precond.o generic_cg_precond.o generic_cg_flex_precond.o generic_gcr_var_precond.o u1_utils.o mg_real.o mg_complex.o
 C_INCLUDES  = generic_inverters.h generic_vector.h mg.h mg_real.h mg_complex.h
 C_LIBS    = -lm
-EXAMPLES = aa_mg_square_laplace aa_mg_square_laplace_u1
+EXAMPLES = aa_mg_square_laplace aa_mg_square_laplace_u1 aa_mg_square_staggered_u1
 
 
 CCX = g++
@@ -26,9 +26,12 @@ all: $(EXAMPLES)
 	$(CCX) -c  $(CXXFLAGS) $(C_SOURCES)
 
 aa_mg_square_laplace : aa_mg_square_laplace.o $(C_OBJS)
-	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
-	
+	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)	
+
 aa_mg_square_laplace_u1 : aa_mg_square_laplace_u1.o $(C_OBJS)
+	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
+
+aa_mg_square_staggered_u1 : aa_mg_square_staggered_u1.o $(C_OBJS)
 	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
 
 #============================================================
