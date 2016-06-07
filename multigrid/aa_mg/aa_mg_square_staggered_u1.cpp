@@ -28,7 +28,7 @@
 using namespace std; 
 
 // For now, define the length in a direction.
-#define N 8
+#define N 64
 
 // Define pi.
 #define PI 3.141592653589793
@@ -36,26 +36,33 @@ using namespace std;
 // Define mass.
 #define MASS 0.1
 
-// standard deviation of angle for random gauge field.
-//#define BETA 100.0
-
 // What's the X blocksize?
-#define X_BLOCKSIZE 4
+#define X_BLOCKSIZE 2
 // What's the Y blocksize?
-#define Y_BLOCKSIZE 4
+#define Y_BLOCKSIZE 2
 
 // Print null vectors?
-#define PRINT_NULL_VECTOR
+//#define PRINT_NULL_VECTOR
 
 // Do null vector generation? Currently uses BiCGStab
 #define GEN_NULL_VECTOR
 
-// How many BiCGStab iterations do we use?
-#define GEN_NULL_VECTOR_STEP 10
+// How many GCR iterations do we use?
+#define GEN_NULL_VECTOR_STEP 10000
 #define GEN_NULL_VECTOR_REL_RESID 1e-8
 
-// 1 for just const vector, 2 for const + even/odd vector. Specifies
-// the number to generate if GEN_NULL_VECTOR is defined
+// Should we aggregate even/odd null vectors? (See below.)
+#define AGGREGATE_EO 
+
+
+// If GEN_NULL_VECTOR isn't defined:
+//   1 for just const vector, 2 for const + even/odd vector, 4 for each corner
+//    of the hypercube.
+// If GEN_NULL_VECTOR is defined and AGGREGATE_EO isn't defined:
+//   Generate VECTOR_COUNT null vectors which are block orthogonalized.
+// IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
+//   Generate VECTOR_COUNT null vectors, partition into even and odd.
+//    Total number of null vectors is 2*VECTOR_COUNT. 
 #define VECTOR_COUNT 4
 
 // Are we testing a random gauge rotation?
@@ -63,6 +70,9 @@ using namespace std;
 
 // Are we testing a random field?
 //#define TEST_RANDOM_FIELD
+
+// The standard deviation of the angle of a random field is 1/sqrt(BETA)
+//#define BETA 100.0
 
 // Square staggered 2d operator w/out u1 function.
 void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data);
@@ -131,7 +141,11 @@ int main(int argc, char** argv)
     mgstruct.y_fine = N; 
     mgstruct.blocksize_x = X_BLOCKSIZE;
     mgstruct.blocksize_y = Y_BLOCKSIZE;
+#if defined GEN_NULL_VECTOR && defined AGGREGATE_EO
+    mgstruct.n_vector = 2*VECTOR_COUNT;
+#else
     mgstruct.n_vector = VECTOR_COUNT;
+#endif
     mgstruct.matrix_vector = square_staggered_u1;
     mgstruct.matrix_extra_data = (void*)lattice; 
     
@@ -144,7 +158,8 @@ int main(int argc, char** argv)
 
 
     // Set a point on the rhs.
-    rhs[x_fine/2+(y_fine/2)*x_fine] = 1.0;
+    //rhs[x_fine/2+(y_fine/2)*x_fine] = 1.0;
+    gaussian<double>(rhs, fine_size, generator);
 
     // Get norm for rhs.
     bnorm = sqrt(norm2sq<double>(rhs, fine_size));
@@ -171,7 +186,7 @@ int main(int argc, char** argv)
         {
             mgstruct.projectors[0][i] = 1;
 #ifdef TEST_RANDOM_GAUGE
-            mgstruct.projectors[0][i] *= conj(gauge_trans[i]);
+            mgstruct.projectors[0][i] *= gauge_trans[i];
 #endif
         }
     }
@@ -186,8 +201,8 @@ int main(int argc, char** argv)
             y = i / N;
             mgstruct.projectors[1][i] = ((x+y)%2 == 0) ? complex<double>(0.0,1.0) : complex<double>(0.0,-1.0);
 #ifdef TEST_RANDOM_GAUGE
-            mgstruct.projectors[0][i] *= conj(gauge_trans[i]);
-            mgstruct.projectors[1][i] *= conj(gauge_trans[i]);
+            mgstruct.projectors[0][i] *= (gauge_trans[i]);
+            mgstruct.projectors[1][i] *= (gauge_trans[i]);
 #endif
         }
     }
@@ -197,14 +212,17 @@ int main(int argc, char** argv)
         cout << "[MG]: Null vector 2 is a constant on unit corner (1,0).\n";
         cout << "[MG]: Null vector 3 is a constant on unit corner (0,1).\n";
         cout << "[MG]: Null vector 4 is a constant on unit corner (1,1).\n";
+        // Generate a normal distribution.
+        //std::normal_distribution<> dist(1.0, 0.1);
         for (i = 0; i < fine_size; i++)
         {
             x = i % N;
             y = i / N;
             mgstruct.projectors[2*(y%2)+(x%2)][i] = 1.0;
+            //mgstruct.projectors[2*(y%2)+(x%2)][i] = dist(generator);
             
 #ifdef TEST_RANDOM_GAUGE
-            mgstruct.projectors[2*(y%2)+(x%2)][i] *= conj(gauge_trans[i]);
+            mgstruct.projectors[2*(y%2)+(x%2)][i] *= (gauge_trans[i]);
 #endif
         }
     }
@@ -245,7 +263,11 @@ int main(int argc, char** argv)
     complex<double>* rand_guess = new complex<double>[fine_size];
     complex<double>* Arand_guess = new complex<double>[fine_size];
     
+#if defined GEN_NULL_VECTOR && defined AGGREGATE_EO
+    for (i = 0; i < mgstruct.n_vector/2; i++) // Because we partition into even and odd afterwards. 
+#else    
     for (i = 0; i < mgstruct.n_vector; i++)
+#endif
     {
         gaussian<double>(rand_guess, fine_size, generator);
         
@@ -274,11 +296,21 @@ int main(int argc, char** argv)
     delete[] rand_guess; 
     delete[] Arand_guess; 
     
-    // Normalize projectors.
-    /*for (i = 0; i < mgstruct.n_vector; i++)
+#if defined GEN_NULL_VECTOR && defined AGGREGATE_EO
+    for (int n = 0; n < mgstruct.n_vector/2; n++)
     {
-        normalize(mgstruct.projectors[i], fine_size);
-    }*/
+        for (i = 0; i < fine_size; i++)
+        {
+            x = i % N;
+            y = i / N;
+            if ((x+y)%2 == 1)
+            {
+                mgstruct.projectors[n+mgstruct.n_vector/2][i] = mgstruct.projectors[n][i];
+                mgstruct.projectors[n][i] = 0.0;
+            }
+        }
+    }
+#endif // defined GEN_NULL_VECTOR && defined AGGREGATE_EO
     
 #ifdef PRINT_NULL_VECTOR
     cout << "Check projector:\n"; 
@@ -777,16 +809,16 @@ void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra
       eta1 = 1 - 2*(x%2);
       
       // + e1.
-      lhs[i] = lhs[i]-conj(lattice[y*N*2+x*2])*rhs[y*N+((x+1)%N)];
+      lhs[i] = lhs[i]-lattice[y*N*2+x*2]*rhs[y*N+((x+1)%N)];
      
       // - e1.
-      lhs[i] = lhs[i]+ lattice[y*N*2+((x+N-1)%N)*2]*rhs[y*N+((x+N-1)%N)]; // The extra +N is because of the % sign convention.
+      lhs[i] = lhs[i]+ conj(lattice[y*N*2+((x+N-1)%N)*2])*rhs[y*N+((x+N-1)%N)]; // The extra +N is because of the % sign convention.
       
       // + e2.
-      lhs[i] = lhs[i]- eta1*conj(lattice[y*N*2+x*2+1])*rhs[((y+1)%N)*N+x];
+      lhs[i] = lhs[i]- eta1*lattice[y*N*2+x*2+1]*rhs[((y+1)%N)*N+x];
     
       // - e2.
-      lhs[i] = lhs[i]+ eta1*lattice[((y+N-1)%N)*N*2+x*2+1]*rhs[((y+N-1)%N)*N+x];
+      lhs[i] = lhs[i]+ eta1*conj(lattice[((y+N-1)%N)*N*2+x*2+1])*rhs[((y+N-1)%N)*N+x];
 
       // Normalization.
       lhs[i] = 0.5*lhs[i];
