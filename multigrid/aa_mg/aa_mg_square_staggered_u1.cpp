@@ -25,16 +25,19 @@
 // Try solving just the coarse solver. 
 //#define COARSE_ONLY
 
+// Try solving just the fine solver.
+//#define FINE_ONLY
+
 using namespace std; 
 
 // For now, define the length in a direction.
-#define N 64
+#define N 32
 
 // Define pi.
 #define PI 3.141592653589793
 
 // Define mass.
-#define MASS 0.01
+#define MASS 0.00001
 
 // What's the X blocksize?
 #define X_BLOCKSIZE 4
@@ -52,11 +55,11 @@ using namespace std;
 #define GEN_NULL_VECTOR_REL_RESID 1e-4
 
 // Should we aggregate even/odd null vectors? (See below.)
-//#define AGGREGATE_EO 
+#define AGGREGATE_EO 
 
 //#define AGGREGATE_FOUR
 
-#define AGGREGATE_EOCONJ
+//#define AGGREGATE_EOCONJ
 
 // If GEN_NULL_VECTOR isn't defined:
 //   1 for just const vector, 2 for const + even/odd vector, 4 for each corner
@@ -72,7 +75,7 @@ using namespace std;
 // IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
 //   Generate VECTOR_COUNT null vectors, partition into corners of hypercube.
 //    Total number of null vectors is 4*VECTOR_COUNT. 
-#define VECTOR_COUNT 1
+#define VECTOR_COUNT 2
 
 // Are we testing a random gauge rotation?
 //#define TEST_RANDOM_GAUGE
@@ -81,7 +84,7 @@ using namespace std;
 #define TEST_RANDOM_FIELD
 
 // The standard deviation of the angle of a random field is 1/sqrt(BETA)
-#define BETA 1.0
+#define BETA 3.0
 
 // Square staggered 2d operator w/out u1 function.
 void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data);
@@ -117,10 +120,10 @@ int main(int argc, char** argv)
     
     // Inverter information.
     double outer_precision = 1e-6; 
-    int outer_restart = 16; 
+    int outer_restart = 32; 
     double inner_precision = 1e-1;
-    int pre_smooth = 12;
-    int post_smooth = 12;
+    int pre_smooth = 24;
+    int post_smooth = 24;
     
     cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << fine_size << "\n";
     
@@ -693,6 +696,7 @@ int main(int argc, char** argv)
     
 #endif // COARSE_ONLY
     
+#ifdef FINE_ONLY
     // Try a direct solve.
     cout << "\n[ORIG]: Solve fine system.\n";
     
@@ -722,6 +726,8 @@ int main(int argc, char** argv)
     explicit_resid = sqrt(explicit_resid)/bnorm;
 
     printf("[ORIG]: [check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
+    
+#endif // COARSE_ONLY
     
 #ifdef COARSE_ONLY
     // Compare PAP solution to real solution. 
