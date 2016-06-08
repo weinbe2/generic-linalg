@@ -23,7 +23,7 @@
 //#define PDAGP_2TEST
 
 // Try solving just the coarse solver. 
-#define COARSE_ONLY
+//#define COARSE_ONLY
 
 using namespace std; 
 
@@ -34,26 +34,29 @@ using namespace std;
 #define PI 3.141592653589793
 
 // Define mass.
-#define MASS 0.1
+#define MASS 0.01
 
 // What's the X blocksize?
-#define X_BLOCKSIZE 2
+#define X_BLOCKSIZE 4
 // What's the Y blocksize?
-#define Y_BLOCKSIZE 2
+#define Y_BLOCKSIZE 4
 
 // Print null vectors?
-#define PRINT_NULL_VECTOR
+//#define PRINT_NULL_VECTOR
 
 // Do null vector generation? Currently uses BiCGStab
 #define GEN_NULL_VECTOR
 
 // How many GCR iterations do we use?
-#define GEN_NULL_VECTOR_STEP 10000
+#define GEN_NULL_VECTOR_STEP 100
 #define GEN_NULL_VECTOR_REL_RESID 1e-4
 
 // Should we aggregate even/odd null vectors? (See below.)
-#define AGGREGATE_EO 
+//#define AGGREGATE_EO 
 
+//#define AGGREGATE_FOUR
+
+#define AGGREGATE_EOCONJ
 
 // If GEN_NULL_VECTOR isn't defined:
 //   1 for just const vector, 2 for const + even/odd vector, 4 for each corner
@@ -63,16 +66,22 @@ using namespace std;
 // IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
 //   Generate VECTOR_COUNT null vectors, partition into even and odd.
 //    Total number of null vectors is 2*VECTOR_COUNT. 
-#define VECTOR_COUNT 4
+// IF GEN_NULL_VECTOR is defined and AGGREGATE_EOCONJ is defined:
+//   Generate VECTOR_COUNT null vectors, partition into even and odd, duplicate complex conj.
+//    Total number of null vectors is 4*VECTOR_COUNT. 
+// IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
+//   Generate VECTOR_COUNT null vectors, partition into corners of hypercube.
+//    Total number of null vectors is 4*VECTOR_COUNT. 
+#define VECTOR_COUNT 1
 
 // Are we testing a random gauge rotation?
 //#define TEST_RANDOM_GAUGE
 
 // Are we testing a random field?
-//#define TEST_RANDOM_FIELD
+#define TEST_RANDOM_FIELD
 
 // The standard deviation of the angle of a random field is 1/sqrt(BETA)
-//#define BETA 100.0
+#define BETA 1.0
 
 // Square staggered 2d operator w/out u1 function.
 void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data);
@@ -80,16 +89,23 @@ void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_da
 // Square staggered 2d operator w/ u1 function.
 void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);  
 
+struct staggered_u1_op
+{
+    complex<double> *lattice;
+    double mass;
+};
+
 int main(int argc, char** argv)
 {  
     // Declare some variables.
-    cout << setiosflags(ios::fixed) << setprecision(6);
+    cout << setiosflags(ios::scientific) << setprecision(6);
     int i, j, x, y;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     double explicit_resid = 0.0;
     double bnorm = 0.0;
     inversion_info invif;
+    staggered_u1_op stagif;
     
     // Create an RNG. 
     std::mt19937 generator (1337u); // 1337u is the seed. 
@@ -100,9 +116,11 @@ int main(int argc, char** argv)
     int fine_size = x_fine*y_fine;
     
     // Inverter information.
-    double outer_precision = 1e-8; 
+    double outer_precision = 1e-6; 
     int outer_restart = 16; 
     double inner_precision = 1e-1;
+    int pre_smooth = 12;
+    int post_smooth = 12;
     
     cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << fine_size << "\n";
     
@@ -116,6 +134,10 @@ int main(int argc, char** argv)
     zero<double>(rhs, fine_size);
     zero<double>(lhs, fine_size);
     zero<double>(check, fine_size);
+    
+    // Fill stagif.
+    stagif.lattice = lattice;
+    stagif.mass = MASS; 
     
     // Create a free lattice.
     cout << "[GAUGE]: Creating a gauge field.\n";
@@ -141,13 +163,15 @@ int main(int argc, char** argv)
     mgstruct.y_fine = N; 
     mgstruct.blocksize_x = X_BLOCKSIZE;
     mgstruct.blocksize_y = Y_BLOCKSIZE;
-#if defined GEN_NULL_VECTOR && defined AGGREGATE_EO
+#if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
+    mgstruct.n_vector = 4*VECTOR_COUNT;
+#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
     mgstruct.n_vector = 2*VECTOR_COUNT;
 #else
     mgstruct.n_vector = VECTOR_COUNT;
 #endif
     mgstruct.matrix_vector = square_staggered_u1;
-    mgstruct.matrix_extra_data = (void*)lattice; 
+    mgstruct.matrix_extra_data = (void*)&stagif; 
     
     cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << VECTOR_COUNT << "\n";
     
@@ -213,13 +237,13 @@ int main(int argc, char** argv)
         cout << "[MG]: Null vector 3 is a constant on unit corner (0,1).\n";
         cout << "[MG]: Null vector 4 is a constant on unit corner (1,1).\n";
         // Generate a normal distribution.
-        //std::normal_distribution<> dist(1.0, 0.1);
+        std::normal_distribution<> dist(1.0, 0.1);
         for (i = 0; i < fine_size; i++)
         {
             x = i % N;
             y = i / N;
             mgstruct.projectors[2*(y%2)+(x%2)][i] = 1.0;
-            //mgstruct.projectors[2*(y%2)+(x%2)][i] = dist(generator);
+            mgstruct.projectors[2*(y%2)+(x%2)][i] = dist(generator);
             
 #ifdef TEST_RANDOM_GAUGE
             mgstruct.projectors[2*(y%2)+(x%2)][i] *= (gauge_trans[i]);
@@ -263,7 +287,10 @@ int main(int argc, char** argv)
     complex<double>* rand_guess = new complex<double>[fine_size];
     complex<double>* Arand_guess = new complex<double>[fine_size];
     
-#if defined GEN_NULL_VECTOR && defined AGGREGATE_EO
+    stagif.mass = 0.0;
+#if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
+    for (i = 0; i < mgstruct.n_vector/4; i++) // Because we partition fourfold afterwards.
+#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
     for (i = 0; i < mgstruct.n_vector/2; i++) // Because we partition into even and odd afterwards. 
 #else    
     for (i = 0; i < mgstruct.n_vector; i++)
@@ -272,31 +299,80 @@ int main(int argc, char** argv)
         gaussian<double>(rand_guess, fine_size, generator);
         
         zero<double>(Arand_guess, fine_size); 
-        square_staggered_u1(Arand_guess, rand_guess, (void*)lattice);
+        square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
         for (j = 0; j < fine_size; j++)
         {
            Arand_guess[j] = -Arand_guess[j]; 
         }
         zero<double>(mgstruct.projectors[i], fine_size);
         
-        minv_vector_gcr(mgstruct.projectors[i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)lattice); 
+        minv_vector_gcr(mgstruct.projectors[i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
         
         for (j = 0; j < fine_size; j++)
         {
             mgstruct.projectors[i][j] += rand_guess[j];
         }
         
-        //minv_vector_gcr(mgstruct.projectors[i], rand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)lattice); 
+        //minv_vector_gcr(mgstruct.projectors[i], rand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
         
         normalize(mgstruct.projectors[i], fine_size); 
     }
+    stagif.mass = MASS; 
     
     // This causes a segfault related to the RNG when
     // the vector is initialized.
     delete[] rand_guess; 
     delete[] Arand_guess; 
-    
-#if defined GEN_NULL_VECTOR && defined AGGREGATE_EO
+
+#if defined GEN_NULL_VECTOR && defined AGGREGATE_FOUR
+    for (int n = 0; n < mgstruct.n_vector/4; n++)
+    {
+        for (i = 0; i < fine_size; i++)
+        {
+            x = i % x_fine;
+            y = i / y_fine;
+            if (x%2 == 1 && y%2 == 0)
+            {
+                mgstruct.projectors[n+mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
+                mgstruct.projectors[n][i] = 0.0;
+            }
+            else if (x%2 == 0 && y%2 == 1)
+            {
+                mgstruct.projectors[n+2*mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
+                mgstruct.projectors[n][i] = 0.0;
+            }
+            else if (x%2 == 1 && y%2 == 1)
+            {
+                mgstruct.projectors[n+3*mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
+                mgstruct.projectors[n][i] = 0.0;
+            }
+        }
+        normalize(mgstruct.projectors[n], fine_size);
+        normalize(mgstruct.projectors[n+mgstruct.n_vector/2], fine_size);
+        
+    }
+#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EOCONJ
+    for (int n = 0; n < mgstruct.n_vector/4; n++)
+    {
+        for (i = 0; i < fine_size; i++)
+        {
+            x = i % x_fine;
+            y = i / y_fine;
+            if ((x+y)%2 == 1)
+            {
+                mgstruct.projectors[n+mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
+                mgstruct.projectors[n][i] = 0.0;
+            }
+        }
+        normalize(mgstruct.projectors[n], fine_size);
+        normalize(mgstruct.projectors[n+mgstruct.n_vector/4], fine_size);
+        copy<double>(mgstruct.projectors[n+2*mgstruct.n_vector/4], mgstruct.projectors[n], fine_size);
+        copy<double>(mgstruct.projectors[n+3*mgstruct.n_vector/4], mgstruct.projectors[n+mgstruct.n_vector/4], fine_size);
+        conj(mgstruct.projectors[n+2*mgstruct.n_vector/4], fine_size);
+        conj(mgstruct.projectors[n+3*mgstruct.n_vector/4], fine_size);
+        
+    }
+#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
     for (int n = 0; n < mgstruct.n_vector/2; n++)
     {
         for (i = 0; i < fine_size; i++)
@@ -335,8 +411,6 @@ int main(int argc, char** argv)
     
     cout << "[MG]: Performing block orthonormalize of null vectors...\n";
     block_orthonormalize(&mgstruct); 
-    
-    return 0; 
     
 #ifdef PRINT_NULL_VECTOR
     cout << "\nCheck projector:\n"; 
@@ -578,7 +652,7 @@ int main(int argc, char** argv)
     complex<double>* lhs_coarse = new complex<double>[coarse_size*mgstruct.n_vector];
     zero<double>(lhs_coarse, coarse_size*mgstruct.n_vector);
     
-    invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_size*mgstruct.n_vector, 10000, 1e-6, coarse_square_staggered, (void*)&mgstruct);
+    invif = minv_vector_gcr_restart(lhs_coarse, rhs_coarse, coarse_size*mgstruct.n_vector, 10000, 1e-6, 16, coarse_square_staggered, (void*)&mgstruct);
     
     
     if (invif.success == true)
@@ -615,14 +689,14 @@ int main(int argc, char** argv)
     prolong(pro_lhs_coarse, lhs_coarse, &mgstruct); 
     complex<double>* pro_rhs_coarse = new complex<double>[N*N];
     zero<double>(pro_rhs_coarse, N*N);
-    square_staggered_u1(pro_rhs_coarse, pro_lhs_coarse, (void*)lattice);
+    square_staggered_u1(pro_rhs_coarse, pro_lhs_coarse, (void*)&stagif);
     
 #endif // COARSE_ONLY
     
     // Try a direct solve.
     cout << "\n[ORIG]: Solve fine system.\n";
     
-    invif = minv_vector_gcr_restart(lhs, rhs, N*N, 100000, outer_precision, outer_restart, square_staggered_u1, (void*)lattice);
+    invif = minv_vector_gcr_restart(lhs, rhs, N*N, 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
     
     if (invif.success == true)
     {
@@ -638,7 +712,7 @@ int main(int argc, char** argv)
 
     // Check and make sure we get the right answer.
     zero<double>(check, fine_size);
-    square_staggered_u1(check, lhs, (void*)lattice);
+    square_staggered_u1(check, lhs, (void*)&stagif);
 
     explicit_resid = 0.0;
     for (i = 0; i < N*N; i++)
@@ -669,8 +743,6 @@ int main(int argc, char** argv)
     delete[] pro_lhs_coarse; 
     delete[] pro_rhs_coarse; 
 #endif // COARSE_ONLY 
-    
-    return 0; 
 
     // Let's actually test a multigrid solve!
     cout << "\n[MG]: Test MG solve.\n";
@@ -681,8 +753,8 @@ int main(int argc, char** argv)
     // Set up the MG preconditioner. 
     mg_precond_struct_complex mgprecond;
     
-    mgprecond.n_pre_smooth = 6; // 6 MinRes smoother steps before coarsening.
-    mgprecond.n_post_smooth = 6; // 6 MinRes smoother steps after refining.
+    mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
+    mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
     mgprecond.in_solve_type = GCR; // What inner solver? MINRES, CG, or GCR.
     mgprecond.n_step = 10000; // max number of steps to use for inner solver.
     mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
@@ -692,7 +764,7 @@ int main(int argc, char** argv)
     
     // Well, maybe this will work?
     zero<double>(lhs, N*N);
-    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)lattice, mg_preconditioner, (void*)&mgprecond); /**/
+    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); /**/
     
     if (invif.success == true)
     {
@@ -708,7 +780,7 @@ int main(int argc, char** argv)
     printf("[MG]: Computing [check] = A [lhs] as a confirmation.\n");
 
     // Check and make sure we get the right answer.
-    square_staggered_u1(check, lhs, (void*)lattice);
+    square_staggered_u1(check, lhs, (void*)&stagif);
 
     explicit_resid = 0.0;
     for (i = 0; i < N*N; i++)
@@ -748,6 +820,9 @@ void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_da
    int i;
    int x,y;
    double eta1;
+   staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+   complex<double>* lattice = stagif->lattice;
+   double mass = stagif->mass; 
 
    // For a 2D square lattice, the stencil is:
    //   1 |  0 -eta1  0 |
@@ -784,7 +859,7 @@ void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_da
 
       // 0
       // Added mass term here.
-      lhs[i] = lhs[i]+ MASS*rhs[i];
+      lhs[i] = lhs[i]+ mass*rhs[i];
    }
        
 }
@@ -801,8 +876,9 @@ void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra
    int i;
    int x,y;
    double eta1; 
-    
-   complex<double>* lattice = (complex<double>*)extra_data; 
+   staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+   complex<double>* lattice = stagif->lattice;
+   double mass = stagif->mass; 
 
    // For a 2D square lattice, the stencil is:
    //   1 |  0 -eta1  0 |
@@ -839,7 +915,13 @@ void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra
 
       // 0
       // Added mass term here.
-      lhs[i] = lhs[i]+ MASS*rhs[i];
+      lhs[i] = lhs[i]+ mass*rhs[i];
+       
+       // Apply a gamma5.
+      /*if ((x+y)%2 == 1)
+      {
+          lhs[i] = -lhs[i];
+      }*/
    }
        
 }

@@ -136,32 +136,20 @@ void block_orthonormalize(mg_operator_struct_real* mgstruct)
     // Hold current sites.
     int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
     
-    // Perform a modified gram schmidt. First make the vectors
-    // block orthogonal, then call "block_normalize" to normalize
-    // each vector. 
+    // Perform a modified gram schmidt. 
     
     if (mgstruct->n_vector > 1)
     {
         // Build up norms in this array...
-        double** norms = new double*[mgstruct->n_vector];
-        double** dot_prod = new double*[mgstruct->n_vector];
-        for (n = 0; n < mgstruct->n_vector; n++)
-        {
-            norms[n] = new double[coarse_size];
-            dot_prod[n] = new double[coarse_size];
-        }
+        double* norms = new double[coarse_size];
+        double* dot_prod = new double[coarse_size];
 
         // Loop over every vector.
         for (n = 1; n < mgstruct->n_vector; n++)
         {
-            zero<double>(norms[n-1], coarse_size);
-            for (m = 0; m < n; m++)
-            {
-                zero<double>(dot_prod[m], coarse_size);
-            }
+            zero<double>(norms, coarse_size);
 
-            // Loop over the fine size.
-
+            // Get the new norm.
             for (i = 0; i < fine_size; i++)
             {
                 // What's the current coarse site? First, find the fine site.
@@ -175,12 +163,13 @@ void block_orthonormalize(mg_operator_struct_real* mgstruct)
 
                 // Update the norm of the previous vector,
                 // Compute new dot products. 
-                norms[n-1][curr_coarse] += mgstruct->projectors[n-1][i]*mgstruct->projectors[n-1][i];
-                for (m = 0; m < n; m++)
-                {
-                    dot_prod[m][curr_coarse] += mgstruct->projectors[m][i]*mgstruct->projectors[n][i];
-                }     
-
+                norms[curr_coarse] += mgstruct->projectors[n-1][i]*mgstruct->projectors[n-1][i];
+            }
+            
+            // Sqrt all of the norms.
+            for (i = 0; i < coarse_size; i++)
+            {
+                norms[i] = sqrt(norms[i]);
             }
 
             // Normalize the projectors.
@@ -195,19 +184,61 @@ void block_orthonormalize(mg_operator_struct_real* mgstruct)
                 curr_y_coarse = curr_y / mgstruct->blocksize_y; 
                 curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
 
-                // Project off previous vectors.
-                for (m = 0; m < n; m++)
+                // Update the norm!
+                mgstruct->projectors[n-1][i] /= norms[curr_coarse];
+            }
+            
+            for (m = 0; m < n; m++)
+            {
+                // Zero out the dot product. 
+                
+                zero<double>(dot_prod, coarse_size);
+                // Pull off one piece at a time.
+                for (i = 0; i < fine_size; i++)
                 {
-                    mgstruct->projectors[n][i] -= dot_prod[m][curr_coarse]/norms[m][curr_coarse]*mgstruct->projectors[m][i];
+                    // What's the current coarse site? First, find the fine site.
+                    curr_x = i % x_fine;
+                    curr_y = i / x_fine; 
+
+                    // Now, find the coarse site. 
+                    curr_x_coarse = curr_x / mgstruct->blocksize_x;
+                    curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+                    curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
+
+                    dot_prod[curr_coarse] += mgstruct->projectors[m][i]*mgstruct->projectors[n][i];
+                }
+
+            
+                /*cout << "\nn = " << n << "\n";
+                for (i = 0; i < coarse_size; i++)
+                {
+                    cout << norms[n-1][i] << " ";
+                    for (m = 0; m < n; m++)
+                    {
+                        cout << dot_prod[m][i] << " ";
+                    }
+                    cout << "\n";
+                }*/
+                
+
+                // Normalize the projectors.
+                for (i = 0; i < fine_size; i++)
+                {
+                    // What's the current coarse site? First, find the fine site.
+                    curr_x = i % x_fine;
+                    curr_y = i / x_fine; 
+
+                    // Now, find the coarse site. 
+                    curr_x_coarse = curr_x / mgstruct->blocksize_x;
+                    curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+                    curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
+
+                    // Project off previous vector.
+                    mgstruct->projectors[n][i] -= dot_prod[curr_coarse]*mgstruct->projectors[m][i];
                 }
             }
         }
 
-        for (n = 0; n < mgstruct->n_vector; n++)
-        {
-            delete[] norms[n];
-            delete[] dot_prod[n];
-        }
         delete[] norms; 
         delete[] dot_prod;
     }

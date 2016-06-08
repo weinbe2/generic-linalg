@@ -172,6 +172,23 @@ inline void normalize(std::complex<T>* v1, int size)
     }
 }
 
+template <typename T>
+inline void conj(T* v1, int size)
+{
+    return; // Trivial, it's real.
+}
+
+template <typename T>
+inline void conj(std::complex<T>* v1, int size)
+{
+    int i;
+    
+    for (i = 0; i < size; i++)
+    {
+        v1[i] = conj(v1[i]);
+    }
+}
+
 // Make vector v1 orthogonal to vector v2. 
 template <typename T>
 inline void orthogonal(T* v1, T* v2, int size)
@@ -201,3 +218,5 @@ inline void orthogonal(std::complex<T>* v1, std::complex<T>* v2, int size)
         v1[i] = v1[i] + alpha*v2[i];
     }
 }
+
+

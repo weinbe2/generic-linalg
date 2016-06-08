@@ -23,7 +23,7 @@
 using namespace std; 
 
 // For now, define the length in a direction.
-#define N 64
+#define N 8
 
 // Define pi.
 #define PI 3.141592653589793
@@ -122,19 +122,19 @@ int main(int argc, char** argv)
     for (i = 0; i < N*N; i++)
     {
         mgstruct.projectors[0][i] = 1;
-        if (mgstruct.n_vector > 1)
-        {
-            x = i % N;
-            y = i / N;
-            mgstruct.projectors[1][i] = ((x+y)%2 == 0) ? 1 : -1;
-        }
-        // For block orthonormalize test.
         /*if (mgstruct.n_vector > 1)
         {
             x = i % N;
             y = i / N;
-            mgstruct.projectors[1][i] = (x%2 == 0) ? 1 : -0.5;
+            mgstruct.projectors[1][i] = ((x+y)%2 == 0) ? 1 : -1;
         }*/
+        // For block orthonormalize test.
+        if (mgstruct.n_vector > 1)
+        {
+            x = i % N;
+            y = i / N;
+            mgstruct.projectors[1][i] = (x%2 == 0) ? 1 : -0.5;
+        }
     }
     
 #ifdef PRINT_NULL_VECTOR
