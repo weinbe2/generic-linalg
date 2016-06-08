@@ -406,7 +406,15 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     zero<double>(z_presmooth, fine_size);
     if (mgprecond->n_pre_smooth > 0)
     {
-        invif = minv_vector_gcr(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+        switch (mgprecond->in_smooth_type)
+        {
+            case MINRES:
+                invif = minv_vector_minres(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                break;
+            case GCR:
+                invif = minv_vector_gcr(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                break; 
+        }
         printf("[L1 Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq), invif.name.c_str());
     }
     else
@@ -480,7 +488,15 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     // 7. Post smooth.
     if (mgprecond->n_post_smooth > 0)
     {
-        invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+        switch (mgprecond->in_smooth_type)
+        {
+            case MINRES:
+                invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                break;
+            case GCR:
+                invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                break;
+        }
         //invif = minv_vector_minres(lhs, lhs_postsmooth, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
         printf("[L1 Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq), invif.name.c_str());
     }

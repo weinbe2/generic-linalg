@@ -41,6 +41,9 @@ struct mg_operator_struct_complex
 // Preconditioning struct
 struct mg_precond_struct_complex
 {
+    // What inner smoother?
+    inner_solver in_smooth_type; // MINRES or GCR
+    
     // How many MinRes pre-smooth steps?
     int n_pre_smooth;
     

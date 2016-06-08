@@ -40,12 +40,12 @@ using namespace std;
 #define PI 3.141592653589793
 
 // Define mass.
-#define MASS 0.00001
+#define MASS 0.01
 
 // What's the X blocksize?
-#define X_BLOCKSIZE 8
+#define X_BLOCKSIZE 4
 // What's the Y blocksize?
-#define Y_BLOCKSIZE 8
+#define Y_BLOCKSIZE 4
 
 // Print null vectors?
 //#define PRINT_NULL_VECTOR
@@ -78,7 +78,7 @@ using namespace std;
 // IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
 //   Generate VECTOR_COUNT null vectors, partition into corners of hypercube.
 //    Total number of null vectors is 4*VECTOR_COUNT. 
-#define VECTOR_COUNT 4
+#define VECTOR_COUNT 2
 
 // Are we testing a random gauge rotation?
 //#define TEST_RANDOM_GAUGE
@@ -88,9 +88,11 @@ using namespace std;
 
 // Are we loading a gauge field?
 #define LOAD_GAUGE_FIELD
+// Is it a heatbath field?
+#define HEATBATH
 
 // The standard deviation of the angle of a random field is 1/sqrt(BETA)
-#define BETA 3.0
+#define BETA 6.0
 
 // Square staggered 2d operator w/out u1 function.
 void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data);
@@ -127,7 +129,9 @@ int main(int argc, char** argv)
     // Inverter information.
     double outer_precision = 1e-6; 
     int outer_restart = 32; 
+    inner_solver in_solve = GCR; 
     double inner_precision = 1e-3;
+    inner_solver in_smooth = GCR; 
     int pre_smooth = 3;
     int post_smooth = 3;
     
@@ -168,13 +172,20 @@ int main(int argc, char** argv)
     {
         if (abs(BETA - 3.0) < 1e-8)
         {
+#ifdef HEATBATH
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b30_heatbath.dat");
+#else
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b30.dat");
+#endif
             cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 6.0) < 1e-8)
         {
-            printf("Did it!\n"); fflush(stdout);
+#ifdef HEATBATH
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60_heatbath.dat");
+#else
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60.dat");
+#endif
             cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
         }
         else
@@ -186,12 +197,20 @@ int main(int argc, char** argv)
     {
         if (abs(BETA - 3.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b30.dat");
+#ifdef HEATBATH
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60_heatbath.dat");
+#else
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60.dat");
+#endif
             cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 6.0) < 1e-8)
         {
+#ifdef HEATBATH
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b60_heatbath.dat");
+#else
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b60.dat");
+#endif
             cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
         }
         else
@@ -807,9 +826,10 @@ int main(int argc, char** argv)
     // Set up the MG preconditioner. 
     mg_precond_struct_complex mgprecond;
     
+    mgprecond.in_smooth_type = in_smooth; // What inner smoother? MINRES or GCR.
     mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
     mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
-    mgprecond.in_solve_type = GCR; // What inner solver? NONE, MINRES, CG, or GCR.
+    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, or GCR.
     mgprecond.n_step = 10000; // max number of steps to use for inner solver.
     mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
