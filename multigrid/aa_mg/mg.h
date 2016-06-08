@@ -4,9 +4,10 @@
 
 enum inner_solver
 {
-    MINRES = 0,
-    CG = 1,
-    GCR = 2
+    NONE = 0,
+    MINRES = 1,
+    CG = 2,
+    GCR = 3
 };
 
 #endif // MG

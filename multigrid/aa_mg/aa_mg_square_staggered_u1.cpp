@@ -28,6 +28,9 @@
 // Try solving just the fine solver.
 //#define FINE_ONLY
 
+// Try solving with the MG solver.
+#define MG_ONLY
+
 using namespace std; 
 
 // For now, define the length in a direction.
@@ -51,7 +54,7 @@ using namespace std;
 #define GEN_NULL_VECTOR
 
 // How many GCR iterations do we use?
-#define GEN_NULL_VECTOR_STEP 100
+#define GEN_NULL_VECTOR_STEP 1000
 #define GEN_NULL_VECTOR_REL_RESID 1e-4
 
 // Should we aggregate even/odd null vectors? (See below.)
@@ -81,7 +84,10 @@ using namespace std;
 //#define TEST_RANDOM_GAUGE
 
 // Are we testing a random field?
-#define TEST_RANDOM_FIELD
+//#define TEST_RANDOM_FIELD
+
+// Are we loading a gauge field?
+#define LOAD_GAUGE_FIELD
 
 // The standard deviation of the angle of a random field is 1/sqrt(BETA)
 #define BETA 3.0
@@ -157,6 +163,47 @@ int main(int argc, char** argv)
     gauss_gauge_u1(lattice, x_fine, y_fine, generator, BETA);
     cout << "[GAUGE]: Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
 #endif
+#ifdef LOAD_GAUGE_FIELD
+    if (N == 32)
+    {
+        if (abs(BETA - 3.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b30.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 6.0) < 1e-8)
+        {
+            printf("Did it!\n"); fflush(stdout);
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+        }
+        else
+        {
+            cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
+        }
+    }
+    else if (N == 64)
+    {
+        if (abs(BETA - 3.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b30.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 6.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b60.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+        }
+        else
+        {
+            cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
+        }
+    }
+    else
+    {
+        cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
+    }
+#endif // LOAD_GAUGE_FIELD
     
     cout << "[GAUGE]: The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
     
@@ -750,6 +797,7 @@ int main(int argc, char** argv)
     delete[] pro_rhs_coarse; 
 #endif // COARSE_ONLY 
 
+#ifdef MG_ONLY
     // Let's actually test a multigrid solve!
     cout << "\n[MG]: Test MG solve.\n";
     
@@ -761,7 +809,7 @@ int main(int argc, char** argv)
     
     mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
     mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
-    mgprecond.in_solve_type = GCR; // What inner solver? MINRES, CG, or GCR.
+    mgprecond.in_solve_type = GCR; // What inner solver? NONE, MINRES, CG, or GCR.
     mgprecond.n_step = 10000; // max number of steps to use for inner solver.
     mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
@@ -796,7 +844,8 @@ int main(int argc, char** argv)
     explicit_resid = sqrt(explicit_resid)/bnorm;
 
     printf("[MG]: [check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
-
+#endif // MG_ONLY
+    
     // Free the lattice.
     delete[] lattice;
     delete[] lhs;
