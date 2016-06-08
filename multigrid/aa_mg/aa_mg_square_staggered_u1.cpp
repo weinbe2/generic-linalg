@@ -43,9 +43,9 @@ using namespace std;
 #define MASS 0.00001
 
 // What's the X blocksize?
-#define X_BLOCKSIZE 4
+#define X_BLOCKSIZE 8
 // What's the Y blocksize?
-#define Y_BLOCKSIZE 4
+#define Y_BLOCKSIZE 8
 
 // Print null vectors?
 //#define PRINT_NULL_VECTOR
@@ -78,7 +78,7 @@ using namespace std;
 // IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
 //   Generate VECTOR_COUNT null vectors, partition into corners of hypercube.
 //    Total number of null vectors is 4*VECTOR_COUNT. 
-#define VECTOR_COUNT 2
+#define VECTOR_COUNT 4
 
 // Are we testing a random gauge rotation?
 //#define TEST_RANDOM_GAUGE
@@ -127,9 +127,9 @@ int main(int argc, char** argv)
     // Inverter information.
     double outer_precision = 1e-6; 
     int outer_restart = 32; 
-    double inner_precision = 1e-1;
-    int pre_smooth = 24;
-    int post_smooth = 24;
+    double inner_precision = 1e-3;
+    int pre_smooth = 3;
+    int post_smooth = 3;
     
     cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << fine_size << "\n";
     
