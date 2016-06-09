@@ -34,7 +34,7 @@
 using namespace std; 
 
 // For now, define the length in a direction.
-#define N 32
+//#define N 32
 
 // Define pi.
 #define PI 3.141592653589793
@@ -104,6 +104,8 @@ struct staggered_u1_op
 {
     complex<double> *lattice;
     double mass;
+    int x_fine;
+    int y_fine; 
 };
 
 int main(int argc, char** argv)
@@ -122,8 +124,9 @@ int main(int argc, char** argv)
     std::mt19937 generator (1337u); // 1337u is the seed. 
     
     // Describe the fine lattice. 
-    int x_fine = N;
-    int y_fine = N;
+    int square_size = 32; // For a square lattice.
+    int x_fine = square_size;
+    int y_fine = square_size;
     int fine_size = x_fine*y_fine;
     
     // Inverter information.
@@ -151,6 +154,8 @@ int main(int argc, char** argv)
     // Fill stagif.
     stagif.lattice = lattice;
     stagif.mass = MASS; 
+    stagif.x_fine = x_fine;
+    stagif.y_fine = y_fine; 
     
     // Create a free lattice.
     cout << "[GAUGE]: Creating a gauge field.\n";
@@ -168,7 +173,7 @@ int main(int argc, char** argv)
     cout << "[GAUGE]: Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
 #endif
 #ifdef LOAD_GAUGE_FIELD
-    if (N == 32)
+    if (x_fine == 32 && y_fine == 32)
     {
         if (abs(BETA - 3.0) < 1e-8)
         {
@@ -193,7 +198,7 @@ int main(int argc, char** argv)
             cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
         }
     }
-    else if (N == 64)
+    else if (x_fine == 64 && y_fine == 64)
     {
         if (abs(BETA - 3.0) < 1e-8)
         {
@@ -228,8 +233,8 @@ int main(int argc, char** argv)
     
     // Build an mg_struct.
     mg_operator_struct_complex mgstruct;
-    mgstruct.x_fine = N;
-    mgstruct.y_fine = N; 
+    mgstruct.x_fine = x_fine;
+    mgstruct.y_fine = y_fine; 
     mgstruct.blocksize_x = X_BLOCKSIZE;
     mgstruct.blocksize_y = Y_BLOCKSIZE;
 #if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
@@ -244,11 +249,6 @@ int main(int argc, char** argv)
     
     cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << VECTOR_COUNT << "\n";
     
-    // Describe the coarse lattice. 
-    int x_coarse = x_fine/mgstruct.blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct.blocksize_y; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
-
 
     // Set a point on the rhs.
     rhs[x_fine/2+(y_fine/2)*x_fine] = 1.0;
@@ -502,6 +502,12 @@ int main(int argc, char** argv)
 #ifdef PDAGP_TEST
     {
         // Begin PdagP test.
+        
+        // Describe the coarse lattice. 
+        int x_coarse = x_fine/mgstruct.blocksize_x; // how many coarse sites are there in the x dir?
+        int y_coarse = y_fine/mgstruct.blocksize_y; // how many coarse sites are there in the y dir?
+        int coarse_size = x_coarse*y_coarse; 
+
 
         // Print the fine rhs.
         cout << "Check fine point src:\n"; 
@@ -837,8 +843,8 @@ int main(int argc, char** argv)
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
     
     // Well, maybe this will work?
-    zero<double>(lhs, N*N);
-    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); /**/
+    zero<double>(lhs, fine_size);
+    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); /**/
     
     if (invif.success == true)
     {
@@ -857,7 +863,7 @@ int main(int argc, char** argv)
     square_staggered_u1(check, lhs, (void*)&stagif);
 
     explicit_resid = 0.0;
-    for (i = 0; i < N*N; i++)
+    for (i = 0; i < fine_size; i++)
     {
       explicit_resid += real(conj(rhs[i] - check[i])*(rhs[i] - check[i]));
     }
@@ -891,52 +897,53 @@ int main(int argc, char** argv)
 // Apsi[x][y] = m psi[x,y] - U[y][x,x+1] 
 void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
-   // Declare variables.
-   int i;
-   int x,y;
-   double eta1;
-   staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
-   complex<double>* lattice = stagif->lattice;
-   double mass = stagif->mass; 
+    // Declare variables.
+    int i;
+    int x,y;
+    double eta1;
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    double mass = stagif->mass; 
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
 
-   // For a 2D square lattice, the stencil is:
-   //   1 |  0 -eta1  0 |
-   //   - | +1    0  -1 |  , where eta1 = (-1)^x
-   //   2 |  0 +eta1  0 |
-   //
-   // e2 = yhat
-   // ^
-   // | 
-   // |-> e1 = xhat
+    // For a 2D square lattice, the stencil is:
+    //   1 |  0 -eta1  0 |
+    //   - | +1    0  -1 |  , where eta1 = (-1)^x
+    //   2 |  0 +eta1  0 |
+    //
+    // e2 = yhat
+    // ^
+    // | 
+    // |-> e1 = xhat
 
-   // Apply the stencil.
-   for (i = 0; i < N*N; i++)
-   {
-      lhs[i] = 0.0;
-      x = i%N; // integer mod.
-      y = i/N; // integer divide.
-      eta1 = 1 - 2*(x%2);
-      
-      // + e1.
-      lhs[i] = lhs[i]-rhs[y*N+((x+1)%N)];
-     
-      // - e1.
-      lhs[i] = lhs[i]+ rhs[y*N+((x+N-1)%N)]; // The extra +N is because of the % sign convention.
-      
-      // + e2.
-      lhs[i] = lhs[i]- eta1*rhs[((y+1)%N)*N+x];
-    
-      // - e2.
-      lhs[i] = lhs[i]+ eta1*rhs[((y+N-1)%N)*N+x];
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        eta1 = 1 - 2*(x%2);
 
-      // Normalization.
-      lhs[i] = 0.5*lhs[i];
+        // + e1.
+        lhs[i] = lhs[i]-rhs[y*x_fine+((x+1)%x_fine)];
 
-      // 0
-      // Added mass term here.
-      lhs[i] = lhs[i]+ mass*rhs[i];
-   }
-       
+        // - e1.
+        lhs[i] = lhs[i]+ rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+        // + e2.
+        lhs[i] = lhs[i]- eta1*rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]+ eta1*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+        // 0
+        // Added mass term here.
+        lhs[i] = lhs[i]+ mass*rhs[i];
+    }
+
 }
 
 // Square lattice.
@@ -947,57 +954,59 @@ void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_da
 // Apsi[x][y] = m psi[x,y] - U[y][x,x+1] 
 void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
-   // Declare variables.
-   int i;
-   int x,y;
-   double eta1; 
-   staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
-   complex<double>* lattice = stagif->lattice;
-   double mass = stagif->mass; 
+    // Declare variables.
+    int i;
+    int x,y;
+    double eta1; 
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* lattice = stagif->lattice;
+    double mass = stagif->mass; 
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
 
-   // For a 2D square lattice, the stencil is:
-   //   1 |  0 -eta1  0 |
-   //   - | +1    0  -1 |  , where eta1 = (-1)^x
-   //   2 |  0 +eta1  0 |
-   //
-   // e2 = yhat
-   // ^
-   // | 
-   // |-> e1 = xhat
+    // For a 2D square lattice, the stencil is:
+    //   1 |  0 -eta1  0 |
+    //   - | +1    0  -1 |  , where eta1 = (-1)^x
+    //   2 |  0 +eta1  0 |
+    //
+    // e2 = yhat
+    // ^
+    // | 
+    // |-> e1 = xhat
 
-   // Apply the stencil.
-   for (i = 0; i < N*N; i++)
-   {
-      lhs[i] = 0.0;
-      x = i%N; // integer mod.
-      y = i/N; // integer divide.
-      eta1 = 1 - 2*(x%2);
-      
-      // + e1.
-      lhs[i] = lhs[i]-lattice[y*N*2+x*2]*rhs[y*N+((x+1)%N)];
-     
-      // - e1.
-      lhs[i] = lhs[i]+ conj(lattice[y*N*2+((x+N-1)%N)*2])*rhs[y*N+((x+N-1)%N)]; // The extra +N is because of the % sign convention.
-      
-      // + e2.
-      lhs[i] = lhs[i]- eta1*lattice[y*N*2+x*2+1]*rhs[((y+1)%N)*N+x];
-    
-      // - e2.
-      lhs[i] = lhs[i]+ eta1*conj(lattice[((y+N-1)%N)*N*2+x*2+1])*rhs[((y+N-1)%N)*N+x];
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        eta1 = 1 - 2*(x%2);
 
-      // Normalization.
-      lhs[i] = 0.5*lhs[i];
+        // + e1.
+        lhs[i] = lhs[i]-lattice[y*x_fine*2+x*2]*rhs[y*x_fine+((x+1)%x_fine)];
 
-      // 0
-      // Added mass term here.
-      lhs[i] = lhs[i]+ mass*rhs[i];
-       
-       // Apply a gamma5.
-      /*if ((x+y)%2 == 1)
-      {
-          lhs[i] = -lhs[i];
-      }*/
-   }
-       
+        // - e1.
+        lhs[i] = lhs[i]+ conj(lattice[y*x_fine*2+((x+x_fine-1)%x_fine)*2])*rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+        // + e2.
+        lhs[i] = lhs[i]- eta1*lattice[y*x_fine*2+x*2+1]*rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]+ eta1*conj(lattice[((y+y_fine-1)%y_fine)*x_fine*2+x*2+1])*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+        // 0
+        // Added mass term here.
+        lhs[i] = lhs[i]+ mass*rhs[i];
+
+        // Apply a gamma5.
+        /*if ((x+y)%2 == 1)
+        {
+            lhs[i] = -lhs[i];
+        }*/
+    }
+
 }
 
