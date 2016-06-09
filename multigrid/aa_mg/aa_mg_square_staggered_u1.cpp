@@ -38,7 +38,7 @@ using namespace std;
 
 // How many GCR iterations do we use?
 #define GEN_NULL_VECTOR_STEP 1000
-#define GEN_NULL_VECTOR_REL_RESID 1e-4
+#define GEN_NULL_VECTOR_REL_RESID 1e-1
 
 //#define AGGREGATE_FOUR
 
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
     std::mt19937 generator (1337u); // 1337u is the seed. 
     
     // Describe the fine lattice. 
-    int square_size = 32; // For a square lattice.
+    int square_size = 16; // For a square lattice.
     int x_fine = square_size;
     int y_fine = square_size;
     int fine_size = x_fine*y_fine;
@@ -276,6 +276,20 @@ int main(int argc, char** argv)
     
     cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << n_null_vector << "\n";
     
+    
+    // Build the mg inverter structure.
+    // Set up the MG preconditioner. 
+    mg_precond_struct_complex mgprecond;
+
+    mgprecond.in_smooth_type = in_smooth; // What inner smoother? MINRES or GCR.
+    mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
+    mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
+    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, or GCR.
+    mgprecond.n_step = 10000; // max number of steps to use for inner solver.
+    mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
+    mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
+    mgprecond.matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
+    mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
 
     // Set a point on the rhs.
     rhs[x_fine/2+(y_fine/2)*x_fine] = 1.0;
@@ -401,6 +415,8 @@ int main(int argc, char** argv)
 
     if (!(my_test == TOP_LEVEL_ONLY || my_test == SMOOTHER_ONLY))
     {
+        // Generate top level!
+        
         // We generate null vectors by solving Ax = 0, with a
         // gaussian initial guess.
         // For sanity with the residual, we really solve Ax = -Ax_0,
@@ -437,7 +453,6 @@ int main(int argc, char** argv)
 
             normalize(mgstruct.null_vectors[0][i], fine_size); 
         }
-        stagif.mass = MASS; 
 
         // This causes a segfault related to the RNG when
         // the vector is initialized.
@@ -529,12 +544,112 @@ int main(int argc, char** argv)
             }
         }
 #endif // PRINT_NULL_VECTOR
+        
+        cout << "[MG]: Performing block orthonormalize of null vectors...\n";
+        block_orthonormalize(&mgstruct); 
+        
+        // Do we need to generate more levels?
+        if (mgstruct.n_refine > 1)
+        {
+            for (int n = 1; n < mgstruct.n_refine; n++)
+            {
+                level_down(&mgstruct);
+                cout << "curr_fine_size: " << mgstruct.curr_fine_size << "\n";
+                
+                // Let's give it a whirl?!
+                // We generate null vectors by solving Ax = 0, with a
+                // gaussian initial guess.
+                // For sanity with the residual, we really solve Ax = -Ax_0,
+                // where x has a zero initial guess, x_0 is a random vector.
+                complex<double>* c_rand_guess = new complex<double>[mgstruct.curr_fine_size];
+                complex<double>* c_Arand_guess = new complex<double>[mgstruct.curr_fine_size];
+
+                // Generate null vectors with the current level. 
+                for (i = 0; i < mgstruct.n_vector/(mgstruct.eo+1); i++)
+                {
+                    gaussian<double>(c_rand_guess, mgstruct.curr_fine_size, generator);
+
+                    zero<double>(c_Arand_guess, mgstruct.curr_fine_size); 
+                    fine_square_staggered(c_Arand_guess, c_rand_guess, (void*)&mgstruct);
+                    
+                    for (j = 0; j < mgstruct.curr_fine_size; j++)
+                    {
+                       c_Arand_guess[j] = -c_Arand_guess[j]; 
+                    }
+                    
+                    zero<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
+                    
+                    // Invert!
+                    minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, fine_square_staggered, &mgstruct);
+                    
+
+                    for (j = 0; j < mgstruct.curr_fine_size; j++)
+                    {
+                        mgstruct.null_vectors[mgstruct.curr_level][i][j] += c_rand_guess[j];
+                    }
+
+
+                    normalize(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size); 
+                }
+
+                delete[] c_rand_guess; 
+                delete[] c_Arand_guess; 
+                
+                // Aggregate even/odd if we need to!
+                if (mgstruct.eo == 1)
+                {
+                    for (int n = 0; n < mgstruct.n_vector/2; n++)
+                    {
+                        for (i = 0; i < mgstruct.curr_fine_size; i++)
+                        {
+                            int c = i % mgstruct.n_vector; // What color index do we have?
+                                                           // 0 to mgstruct.n_vector/2-1 is even, else is odd.
+                            if (c >= mgstruct.n_vector/2)
+                            {
+                                mgstruct.null_vectors[mgstruct.curr_level][n+mgstruct.n_vector/2][i] = mgstruct.null_vectors[mgstruct.curr_level][n][i];
+                                mgstruct.null_vectors[mgstruct.curr_level][n][i] = 0.0;
+                            }
+                        }
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][n], mgstruct.curr_fine_size);
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][n+mgstruct.n_vector/2], mgstruct.curr_fine_size);
+
+                    }
+                }
+                
+                // Print vector.
+                cout << "\n\nPrinting null vectors:\n"; 
+                for (int n = 0; n < mgstruct.n_vector; n++)
+                {
+                    cout << "\nVector " << n << "\n";
+                    for (int y = 0; y < mgstruct.curr_y_fine; y++)
+                    {
+                        for (int x = 0; x < mgstruct.curr_x_fine; x++)
+                        {
+                            cout << "(";
+                            for (int c = 0; c < mgstruct.n_vector; c++)
+                            {
+                                cout << mgstruct.null_vectors[mgstruct.curr_level][n][y*mgstruct.curr_x_fine*mgstruct.curr_dof_fine+x*mgstruct.curr_dof_fine+c] << ",";
+                            }
+                            cout << ") ";
+                        }
+                        cout << "\n";
+                    }
+                }
+            }
+            
+            // Un-pop to the finest level.
+            for (i = 1; i < mgstruct.n_refine; i++)
+            {
+                level_up(&mgstruct);
+            }
+        }
+        
+        // Reset the mass.
+        stagif.mass = MASS; 
+        
     } // end skipping generation if we're only doing a top level or smoother test. 
     
 #endif // generate null vector. 
-    
-    cout << "[MG]: Performing block orthonormalize of null vectors...\n";
-    block_orthonormalize(&mgstruct); 
     
 #ifdef PRINT_NULL_VECTOR
     cout << "\nCheck projector:\n"; 
@@ -550,8 +665,6 @@ int main(int argc, char** argv)
             cout << "\n";
         }
     }
-    
-    
 #endif // PRINT_NULL_VECTOR
     
 #ifdef PDAGP_TEST
@@ -886,18 +999,7 @@ int main(int argc, char** argv)
         // Block normalize the null vectors.
         block_normalize(&mgstruct); 
 
-        // Set up the MG preconditioner. 
-        mg_precond_struct_complex mgprecond;
-
-        mgprecond.in_smooth_type = in_smooth; // What inner smoother? MINRES or GCR.
-        mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
-        mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
-        mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, or GCR.
-        mgprecond.n_step = 10000; // max number of steps to use for inner solver.
-        mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
-        mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
-        mgprecond.matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
-        mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
+        
 
         // Well, maybe this will work?
         zero<double>(lhs, fine_size);

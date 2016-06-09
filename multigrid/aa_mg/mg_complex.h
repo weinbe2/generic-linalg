@@ -7,8 +7,11 @@
 // General multigrid projector function!
 void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
 
-// General multigrid projector function!
+// Apply the current coarse operator. 
 void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
+
+// Apply the current fine operator.
+void fine_square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
 
 // Useful mg functions.
 struct mg_operator_struct_complex;
