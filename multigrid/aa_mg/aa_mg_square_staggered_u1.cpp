@@ -25,12 +25,6 @@
 // Try solving just the coarse solver. 
 //#define COARSE_ONLY
 
-// Try solving just the fine solver.
-//#define FINE_ONLY
-
-// Try solving with the MG solver.
-#define MG_ONLY
-
 using namespace std; 
 
 // Define pi.
@@ -64,6 +58,14 @@ using namespace std;
 // Is it a heatbath field?
 #define HEATBATH
 
+// What type of test should we do?
+enum mg_test_types
+{
+    TOP_LEVEL_ONLY = 0, // only test the top level solver.
+    SMOOTHER_ONLY = 1,  // Top level + smoother
+    TWO_LEVEL = 2       // Two level MG (incl. smoother)
+};
+
 // Square staggered 2d operator w/out u1 function.
 void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
@@ -90,6 +92,9 @@ int main(int argc, char** argv)
     inversion_info invif;
     staggered_u1_op stagif;
     
+    // What test are we performing?
+    mg_test_types my_test = TWO_LEVEL;
+    
     // Create an RNG. 
     std::mt19937 generator (1337u); // 1337u is the seed. 
     
@@ -100,12 +105,16 @@ int main(int argc, char** argv)
     int fine_size = x_fine*y_fine;
     
     // Describe the staggered fermions.
-    double MASS = 0.1;
+    double MASS = 0.01;
     
     // Inverter information.
     double outer_precision = 1e-6; 
     int outer_restart = 32; 
     inner_solver in_solve = GCR; 
+    if (my_test == SMOOTHER_ONLY)
+    {
+        in_solve = NONE; 
+    }
     
     // Multigrid info.
     double X_BLOCKSIZE = 4; 
@@ -269,7 +278,7 @@ int main(int argc, char** argv)
     
 
     cout << "[MG]: Creating " << mgstruct.n_vector << " projector(s).\n";
-#ifndef GEN_NULL_VECTOR
+    #ifndef GEN_NULL_VECTOR
     // Make a constant projector.
     if (mgstruct.n_vector == 1)
     {
@@ -348,132 +357,138 @@ int main(int argc, char** argv)
 
 #else // generate null vector
     
-    // We generate null vectors by solving Ax = 0, with a
-    // gaussian initial guess.
-    // For sanity with the residual, we really solve Ax = -Ax_0,
-    // where x has a zero initial guess, x_0 is a random vector.
-    complex<double>* rand_guess = new complex<double>[fine_size];
-    complex<double>* Arand_guess = new complex<double>[fine_size];
-    
-    stagif.mass = 0.0;
-#if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
-    for (i = 0; i < mgstruct.n_vector/4; i++) // Because we partition fourfold afterwards.
-#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
-    for (i = 0; i < mgstruct.n_vector/2; i++) // Because we partition into even and odd afterwards. 
-#else    
-    for (i = 0; i < mgstruct.n_vector; i++)
-#endif
+    // Skip this depending on our test!
+
+    if (!(my_test == TOP_LEVEL_ONLY || my_test == SMOOTHER_ONLY))
     {
-        gaussian<double>(rand_guess, fine_size, generator);
-        
-        zero<double>(Arand_guess, fine_size); 
-        square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
-        for (j = 0; j < fine_size; j++)
-        {
-           Arand_guess[j] = -Arand_guess[j]; 
-        }
-        zero<double>(mgstruct.projectors[i], fine_size);
-        
-        minv_vector_gcr(mgstruct.projectors[i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
-        
-        for (j = 0; j < fine_size; j++)
-        {
-            mgstruct.projectors[i][j] += rand_guess[j];
-        }
-        
-        //minv_vector_gcr(mgstruct.projectors[i], rand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
-        
-        normalize(mgstruct.projectors[i], fine_size); 
-    }
-    stagif.mass = MASS; 
+        // We generate null vectors by solving Ax = 0, with a
+        // gaussian initial guess.
+        // For sanity with the residual, we really solve Ax = -Ax_0,
+        // where x has a zero initial guess, x_0 is a random vector.
+        complex<double>* rand_guess = new complex<double>[fine_size];
+        complex<double>* Arand_guess = new complex<double>[fine_size];
     
-    // This causes a segfault related to the RNG when
-    // the vector is initialized.
-    delete[] rand_guess; 
-    delete[] Arand_guess; 
+        // Temporarily set the mass to zero for the null vector generation. 
+        stagif.mass = 0.0;
+#if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
+        for (i = 0; i < mgstruct.n_vector/4; i++) // Because we partition fourfold afterwards.
+#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
+        for (i = 0; i < mgstruct.n_vector/2; i++) // Because we partition into even and odd afterwards. 
+#else    
+        for (i = 0; i < mgstruct.n_vector; i++)
+#endif
+        {
+            gaussian<double>(rand_guess, fine_size, generator);
+
+            zero<double>(Arand_guess, fine_size); 
+            square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
+            for (j = 0; j < fine_size; j++)
+            {
+               Arand_guess[j] = -Arand_guess[j]; 
+            }
+            zero<double>(mgstruct.projectors[i], fine_size);
+
+            minv_vector_gcr(mgstruct.projectors[i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
+
+            for (j = 0; j < fine_size; j++)
+            {
+                mgstruct.projectors[i][j] += rand_guess[j];
+            }
+
+            //minv_vector_gcr(mgstruct.projectors[i], rand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
+
+            normalize(mgstruct.projectors[i], fine_size); 
+        }
+        stagif.mass = MASS; 
+
+        // This causes a segfault related to the RNG when
+        // the vector is initialized.
+        delete[] rand_guess; 
+        delete[] Arand_guess; 
 
 #if defined GEN_NULL_VECTOR && defined AGGREGATE_FOUR
-    for (int n = 0; n < mgstruct.n_vector/4; n++)
-    {
-        for (i = 0; i < fine_size; i++)
+        for (int n = 0; n < mgstruct.n_vector/4; n++)
         {
-            x = i % x_fine;
-            y = i / y_fine;
-            if (x%2 == 1 && y%2 == 0)
+            for (i = 0; i < fine_size; i++)
             {
-                mgstruct.projectors[n+mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
-                mgstruct.projectors[n][i] = 0.0;
+                x = i % x_fine;
+                y = i / y_fine;
+                if (x%2 == 1 && y%2 == 0)
+                {
+                    mgstruct.projectors[n+mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
+                    mgstruct.projectors[n][i] = 0.0;
+                }
+                else if (x%2 == 0 && y%2 == 1)
+                {
+                    mgstruct.projectors[n+2*mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
+                    mgstruct.projectors[n][i] = 0.0;
+                }
+                else if (x%2 == 1 && y%2 == 1)
+                {
+                    mgstruct.projectors[n+3*mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
+                    mgstruct.projectors[n][i] = 0.0;
+                }
             }
-            else if (x%2 == 0 && y%2 == 1)
-            {
-                mgstruct.projectors[n+2*mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
-                mgstruct.projectors[n][i] = 0.0;
-            }
-            else if (x%2 == 1 && y%2 == 1)
-            {
-                mgstruct.projectors[n+3*mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
-                mgstruct.projectors[n][i] = 0.0;
-            }
+            normalize(mgstruct.projectors[n], fine_size);
+            normalize(mgstruct.projectors[n+mgstruct.n_vector/2], fine_size);
+
         }
-        normalize(mgstruct.projectors[n], fine_size);
-        normalize(mgstruct.projectors[n+mgstruct.n_vector/2], fine_size);
-        
-    }
 #elif defined GEN_NULL_VECTOR && defined AGGREGATE_EOCONJ
-    for (int n = 0; n < mgstruct.n_vector/4; n++)
-    {
-        for (i = 0; i < fine_size; i++)
+        for (int n = 0; n < mgstruct.n_vector/4; n++)
         {
-            x = i % x_fine;
-            y = i / y_fine;
-            if ((x+y)%2 == 1)
+            for (i = 0; i < fine_size; i++)
             {
-                mgstruct.projectors[n+mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
-                mgstruct.projectors[n][i] = 0.0;
+                x = i % x_fine;
+                y = i / y_fine;
+                if ((x+y)%2 == 1)
+                {
+                    mgstruct.projectors[n+mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
+                    mgstruct.projectors[n][i] = 0.0;
+                }
             }
+            normalize(mgstruct.projectors[n], fine_size);
+            normalize(mgstruct.projectors[n+mgstruct.n_vector/4], fine_size);
+            copy<double>(mgstruct.projectors[n+2*mgstruct.n_vector/4], mgstruct.projectors[n], fine_size);
+            copy<double>(mgstruct.projectors[n+3*mgstruct.n_vector/4], mgstruct.projectors[n+mgstruct.n_vector/4], fine_size);
+            conj(mgstruct.projectors[n+2*mgstruct.n_vector/4], fine_size);
+            conj(mgstruct.projectors[n+3*mgstruct.n_vector/4], fine_size);
+
         }
-        normalize(mgstruct.projectors[n], fine_size);
-        normalize(mgstruct.projectors[n+mgstruct.n_vector/4], fine_size);
-        copy<double>(mgstruct.projectors[n+2*mgstruct.n_vector/4], mgstruct.projectors[n], fine_size);
-        copy<double>(mgstruct.projectors[n+3*mgstruct.n_vector/4], mgstruct.projectors[n+mgstruct.n_vector/4], fine_size);
-        conj(mgstruct.projectors[n+2*mgstruct.n_vector/4], fine_size);
-        conj(mgstruct.projectors[n+3*mgstruct.n_vector/4], fine_size);
-        
-    }
 #elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
-    for (int n = 0; n < mgstruct.n_vector/2; n++)
-    {
-        for (i = 0; i < fine_size; i++)
+        for (int n = 0; n < mgstruct.n_vector/2; n++)
         {
-            x = i % x_fine;
-            y = i / y_fine;
-            if ((x+y)%2 == 1)
+            for (i = 0; i < fine_size; i++)
             {
-                mgstruct.projectors[n+mgstruct.n_vector/2][i] = mgstruct.projectors[n][i];
-                mgstruct.projectors[n][i] = 0.0;
+                x = i % x_fine;
+                y = i / y_fine;
+                if ((x+y)%2 == 1)
+                {
+                    mgstruct.projectors[n+mgstruct.n_vector/2][i] = mgstruct.projectors[n][i];
+                    mgstruct.projectors[n][i] = 0.0;
+                }
             }
+            normalize(mgstruct.projectors[n], fine_size);
+            normalize(mgstruct.projectors[n+mgstruct.n_vector/2], fine_size);
+
         }
-        normalize(mgstruct.projectors[n], fine_size);
-        normalize(mgstruct.projectors[n+mgstruct.n_vector/2], fine_size);
-        
-    }
 #endif // defined GEN_NULL_VECTOR && defined AGGREGATE_EO
     
 #ifdef PRINT_NULL_VECTOR
-    cout << "Check projector:\n"; 
-    for (int n = 0; n < mgstruct.n_vector; n++)
-    {
-        cout << "Vector " << n << "\n";
-        for (int y = 0; y < y_fine; y++)
+        cout << "Check projector:\n"; 
+        for (int n = 0; n < mgstruct.n_vector; n++)
         {
-            for (int x = 0; x < x_fine; x++)
+            cout << "Vector " << n << "\n";
+            for (int y = 0; y < y_fine; y++)
             {
-                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                for (int x = 0; x < x_fine; x++)
+                {
+                    cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                }
+                cout << "\n";
             }
-            cout << "\n";
         }
-    }
 #endif // PRINT_NULL_VECTOR
+    } // end skipping generation if we're only doing a top level or smoother test. 
     
 #endif // generate null vector. 
     
@@ -767,45 +782,46 @@ int main(int argc, char** argv)
     
 #endif // COARSE_ONLY
     
-#ifdef FINE_ONLY
-    // Try a direct solve.
-    cout << "\n[ORIG]: Solve fine system.\n";
-    
-    invif = minv_vector_gcr_restart(lhs, rhs, N*N, 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
-    
-    if (invif.success == true)
+    if (my_test == TOP_LEVEL_ONLY)
     {
-     printf("[ORIG]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
-    }
-    else // failed, maybe.
-    {
-     printf("[ORIG]: Iterations %d RelRes %.8e Err Y Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
-     printf("[ORIG]: This may be because the max iterations was reached.\n");
-    }
-    
-    printf("[ORIG]: Computing [check] = A [lhs] as a confirmation.\n");
+        // Try a direct solve.
+        cout << "\n[ORIG]: Solve fine system.\n";
 
-    // Check and make sure we get the right answer.
-    zero<double>(check, fine_size);
-    square_staggered_u1(check, lhs, (void*)&stagif);
+        invif = minv_vector_gcr_restart(lhs, rhs, fine_size, 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
 
-    explicit_resid = 0.0;
-    for (i = 0; i < N*N; i++)
-    {
-      explicit_resid += real(conj(rhs[i] - check[i])*(rhs[i] - check[i]));
-    }
-    explicit_resid = sqrt(explicit_resid)/bnorm;
+        if (invif.success == true)
+        {
+         printf("[ORIG]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
+        }
+        else // failed, maybe.
+        {
+         printf("[ORIG]: Iterations %d RelRes %.8e Err Y Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
+         printf("[ORIG]: This may be because the max iterations was reached.\n");
+        }
 
-    printf("[ORIG]: [check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
-    
-#endif // COARSE_ONLY
+        printf("[ORIG]: Computing [check] = A [lhs] as a confirmation.\n");
+
+        // Check and make sure we get the right answer.
+        zero<double>(check, fine_size);
+        square_staggered_u1(check, lhs, (void*)&stagif);
+
+        explicit_resid = 0.0;
+        for (i = 0; i < fine_size; i++)
+        {
+          explicit_resid += real(conj(rhs[i] - check[i])*(rhs[i] - check[i]));
+        }
+        explicit_resid = sqrt(explicit_resid)/bnorm;
+
+        printf("[ORIG]: [check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
+
+    } // TOP_LEVEL_ONLY
     
 #ifdef COARSE_ONLY
     // Compare PAP solution to real solution. 
     cout << "\n[COARSE]: Compare solutions.\n";
     double comparison = 0;
     double resid_comparison = 0;
-    for (i = 0; i < N*N; i++)
+    for (i = 0; i < fine_size; i++)
     {
         comparison += real(conj(pro_lhs_coarse[i]-lhs[i])*(pro_lhs_coarse[i]-lhs[i]));
         resid_comparison += real(conj(pro_rhs_coarse[i]-rhs[i])*(pro_rhs_coarse[i]-rhs[i]));
@@ -821,55 +837,56 @@ int main(int argc, char** argv)
     delete[] pro_rhs_coarse; 
 #endif // COARSE_ONLY 
 
-#ifdef MG_ONLY
-    // Let's actually test a multigrid solve!
-    cout << "\n[MG]: Test MG solve.\n";
-    
-    // Block normalize the null vectors.
-    block_normalize(&mgstruct); 
-    
-    // Set up the MG preconditioner. 
-    mg_precond_struct_complex mgprecond;
-    
-    mgprecond.in_smooth_type = in_smooth; // What inner smoother? MINRES or GCR.
-    mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
-    mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
-    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, or GCR.
-    mgprecond.n_step = 10000; // max number of steps to use for inner solver.
-    mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
-    mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
-    mgprecond.matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
-    mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
-    
-    // Well, maybe this will work?
-    zero<double>(lhs, fine_size);
-    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); /**/
-    
-    if (invif.success == true)
+    if (my_test == SMOOTHER_ONLY || my_test == TWO_LEVEL)
     {
-     printf("[L1]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
-    }
-    else // failed, maybe.
-    {
-     printf("[L1]: Iterations %d RelRes %.8e Err Y Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
-     printf("[L1]: This may be because the max iterations was reached.\n");
-    }
+        // Let's actually test a multigrid solve!
+        cout << "\n[MG]: Test MG solve.\n";
+
+        // Block normalize the null vectors.
+        block_normalize(&mgstruct); 
+
+        // Set up the MG preconditioner. 
+        mg_precond_struct_complex mgprecond;
+
+        mgprecond.in_smooth_type = in_smooth; // What inner smoother? MINRES or GCR.
+        mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
+        mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
+        mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, or GCR.
+        mgprecond.n_step = 10000; // max number of steps to use for inner solver.
+        mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
+        mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
+        mgprecond.matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
+        mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
+
+        // Well, maybe this will work?
+        zero<double>(lhs, fine_size);
+        invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); /**/
+
+        if (invif.success == true)
+        {
+            printf("[L1]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
+        }
+        else // failed, maybe.
+        {
+            printf("[L1]: Iterations %d RelRes %.8e Err Y Algorithm %s\n", invif.iter, sqrt(invif.resSq)/bnorm, invif.name.c_str());
+            printf("[L1]: This may be because the max iterations was reached.\n");
+        }
 
 
-    printf("[MG]: Computing [check] = A [lhs] as a confirmation.\n");
+        printf("[MG]: Computing [check] = A [lhs] as a confirmation.\n");
 
-    // Check and make sure we get the right answer.
-    square_staggered_u1(check, lhs, (void*)&stagif);
+        // Check and make sure we get the right answer.
+        square_staggered_u1(check, lhs, (void*)&stagif);
 
-    explicit_resid = 0.0;
-    for (i = 0; i < fine_size; i++)
-    {
-      explicit_resid += real(conj(rhs[i] - check[i])*(rhs[i] - check[i]));
-    }
-    explicit_resid = sqrt(explicit_resid)/bnorm;
+        explicit_resid = 0.0;
+        for (i = 0; i < fine_size; i++)
+        {
+            explicit_resid += real(conj(rhs[i] - check[i])*(rhs[i] - check[i]));
+        }
+        explicit_resid = sqrt(explicit_resid)/bnorm;
 
-    printf("[MG]: [check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
-#endif // MG_ONLY
+        printf("[MG]: [check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
+    } // SMOOTHER_ONLY or TWO_LEVEL
     
     // Free the lattice.
     delete[] lattice;
