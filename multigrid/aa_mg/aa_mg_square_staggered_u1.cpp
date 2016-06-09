@@ -40,9 +40,6 @@ using namespace std;
 #define GEN_NULL_VECTOR_STEP 1000
 #define GEN_NULL_VECTOR_REL_RESID 1e-4
 
-// Should we aggregate even/odd null vectors? (See below.)
-#define AGGREGATE_EO 
-
 //#define AGGREGATE_FOUR
 
 //#define AGGREGATE_EOCONJ
@@ -61,9 +58,11 @@ using namespace std;
 // What type of test should we do?
 enum mg_test_types
 {
-    TOP_LEVEL_ONLY = 0, // only test the top level solver.
-    SMOOTHER_ONLY = 1,  // Top level + smoother
-    TWO_LEVEL = 2       // Two level MG (incl. smoother)
+    TOP_LEVEL_ONLY = 0,       // only test the top level solver.
+    SMOOTHER_ONLY = 1,        // Top level + smoother
+    TWO_LEVEL = 2,            // Two level MG 
+    TWO_LEVEL_P_SMOOTHER = 3, // Two level MG + smoother
+    THREE_LEVEL = 4           // Three level MG
 };
 
 // Square staggered 2d operator w/out u1 function.
@@ -120,6 +119,7 @@ int main(int argc, char** argv)
     int n_refine = 2; // 1 = two level V cycle, 2 = three level V cycle, etc. 
     int X_BLOCKSIZE = 4; 
     int Y_BLOCKSIZE = 4;
+    int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation. 
     double inner_precision = 1e-3;
     inner_solver in_smooth = GCR; 
     int pre_smooth = 3;
@@ -255,12 +255,9 @@ int main(int argc, char** argv)
 #if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
     mgstruct.n_vector = 4*n_null_vector;
     mgstruct.eo = 1;
-#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
-    mgstruct.n_vector = 2*n_null_vector;
-    mgstruct.eo = 1;
-#else
-    mgstruct.n_vector = n_null_vector;
-    mgstruct.eo = 0;
+#elif defined GEN_NULL_VECTOR
+    mgstruct.eo = eo;
+    mgstruct.n_vector = (eo+1)*n_null_vector;
 #endif
     mgstruct.matrix_vector = square_staggered_u1;
     mgstruct.matrix_extra_data = (void*)&stagif; 
@@ -321,7 +318,7 @@ int main(int argc, char** argv)
     }
 
     cout << "[MG]: Creating " << mgstruct.n_vector << " projector(s).\n";
-    #ifndef GEN_NULL_VECTOR
+#ifndef GEN_NULL_VECTOR
     // Make a constant projector.
     if (mgstruct.n_vector == 1)
     {
@@ -415,10 +412,8 @@ int main(int argc, char** argv)
         stagif.mass = 0.0;
 #if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
         for (i = 0; i < mgstruct.n_vector/4; i++) // Because we partition fourfold afterwards.
-#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
-        for (i = 0; i < mgstruct.n_vector/2; i++) // Because we partition into even and odd afterwards. 
-#else    
-        for (i = 0; i < mgstruct.n_vector; i++)
+#else // GEN_NULL_VECTOR is defined.
+        for (i = 0; i < mgstruct.n_vector/(mgstruct.eo+1); i++)
 #endif
         {
             gaussian<double>(rand_guess, fine_size, generator);
@@ -497,24 +492,27 @@ int main(int argc, char** argv)
             conj(mgstruct.null_vectors[0][n+3*mgstruct.n_vector/4], fine_size);
 
         }
-#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
-        for (int n = 0; n < mgstruct.n_vector/2; n++)
+#else // even/odd
+        if (mgstruct.eo == 1)
         {
-            for (i = 0; i < fine_size; i++)
+            for (int n = 0; n < mgstruct.n_vector/2; n++)
             {
-                x = i % x_fine;
-                y = i / y_fine;
-                if ((x+y)%2 == 1)
+                for (i = 0; i < fine_size; i++)
                 {
-                    mgstruct.null_vectors[0][n+mgstruct.n_vector/2][i] = mgstruct.null_vectors[0][n][i];
-                    mgstruct.null_vectors[0][n][i] = 0.0;
+                    x = i % x_fine;
+                    y = i / y_fine;
+                    if ((x+y)%2 == 1)
+                    {
+                        mgstruct.null_vectors[0][n+mgstruct.n_vector/2][i] = mgstruct.null_vectors[0][n][i];
+                        mgstruct.null_vectors[0][n][i] = 0.0;
+                    }
                 }
-            }
-            normalize(mgstruct.null_vectors[0][n], fine_size);
-            normalize(mgstruct.null_vectors[0][n+mgstruct.n_vector/2], fine_size);
+                normalize(mgstruct.null_vectors[0][n], fine_size);
+                normalize(mgstruct.null_vectors[0][n+mgstruct.n_vector/2], fine_size);
 
+            }
         }
-#endif // defined GEN_NULL_VECTOR && defined AGGREGATE_EO
+#endif // defined GEN_NULL_VECTOR && defined AGGREGATE_FOUR
     
 #ifdef PRINT_NULL_VECTOR
         cout << "Check projector:\n"; 
