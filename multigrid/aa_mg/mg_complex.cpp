@@ -16,11 +16,7 @@ using namespace std;
 
 // General multigrid projector function!
 void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data)
-{
-    // Iterators.
-    int i, j, k, n; 
-    int tmp; 
-    
+{   
     // Grab the mg_precond_struct.
     mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
     
@@ -61,10 +57,6 @@ void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* ext
 // General multigrid projector function!
 void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
-    // Iterators.
-    int i, j, k, n; 
-    int tmp; 
-    
     // Grab the mg_precond_struct.
     mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
     
@@ -312,8 +304,7 @@ void prolong(complex<double>* vec_fine, complex<double>* vec_coarse, mg_operator
     int y_fine = mgstruct->y_fine;
     int fine_size = x_fine*y_fine;
     int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
+    //int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
     
     // Hold current sites.
     int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
@@ -404,10 +395,15 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     // 1. z_presmooth = smoothed rhs. 
     complex<double>* z_presmooth = new complex<double>[fine_size];
     zero<double>(z_presmooth, fine_size);
-    if (mgprecond->n_pre_smooth > 0)
+    if (mgprecond->n_pre_smooth > 0 && mgprecond->in_smooth_type != NONE)
     {
         switch (mgprecond->in_smooth_type)
         {
+            case NONE: // can't reach here, anyway.
+                break;
+            case CG:
+                invif = minv_vector_minres(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                break;
             case MINRES:
                 invif = minv_vector_minres(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
                 break;
@@ -447,6 +443,8 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         zero<double>(lhs_coarse, coarse_length);
         switch (mgprecond->in_solve_type)
         {
+            case NONE: // The code can't reach here, anyway.
+                break;
             case MINRES:
                 invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
                 break;
@@ -486,10 +484,15 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     
     // Almost done! Do some post-smoothing.
     // 7. Post smooth.
-    if (mgprecond->n_post_smooth > 0)
+    if (mgprecond->n_post_smooth > 0 && mgprecond->in_smooth_type != NONE)
     {
         switch (mgprecond->in_smooth_type)
         {
+            case NONE: // Can't reach here, anyway.
+                break;
+            case CG:
+                invif = minv_vector_cg(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                break;
             case MINRES:
                 invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
                 break;

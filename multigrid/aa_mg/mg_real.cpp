@@ -17,10 +17,6 @@ using namespace std;
 // General multigrid projector function!
 void coarse_square_laplace(double* lhs, double* rhs, void* extra_data)
 {
-    // Iterators.
-    int i, j, k, n; 
-    int tmp; 
-    
     // Grab the mg_precond_struct.
     mg_operator_struct_real* mgstruct = (mg_operator_struct_real*)extra_data; 
     
@@ -255,9 +251,8 @@ void prolong(double* vec_fine, double* vec_coarse, mg_operator_struct_real* mgst
     int y_fine = mgstruct->y_fine;
     int fine_size = x_fine*y_fine;
     int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
-    
+    //int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+
     // Hold current sites.
     int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
     
@@ -356,52 +351,66 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
         copy<double>(z_presmooth, rhs, fine_size);
     }
     
-    // Compute updated residual. 
-    // 2. r_pre = rhs - A z_presmooth
-    double* Az_presmooth = new double[fine_size];
-    zero<double>(Az_presmooth, fine_size);
-    (*mgprecond->mgstruct->matrix_vector)(Az_presmooth, z_presmooth, mgprecond->mgstruct->matrix_extra_data);
-    
-    double* r_presmooth = new double[fine_size];
-    for (int i = 0; i < fine_size; i++)
+    if (mgprecond->in_solve_type != NONE)
     {
-        r_presmooth[i] = rhs[i] - Az_presmooth[i];
+        // Compute updated residual. 
+        // 2. r_pre = rhs - A z_presmooth
+        double* Az_presmooth = new double[fine_size];
+        zero<double>(Az_presmooth, fine_size);
+        (*mgprecond->mgstruct->matrix_vector)(Az_presmooth, z_presmooth, mgprecond->mgstruct->matrix_extra_data);
+
+        double* r_presmooth = new double[fine_size];
+        for (int i = 0; i < fine_size; i++)
+        {
+            r_presmooth[i] = rhs[i] - Az_presmooth[i];
+        }
+
+        // Restrict r_presmooth. 
+        // 3. rhs_coarse = restrict(r_presmooth)
+        double* rhs_coarse = new double[coarse_length];
+        zero<double>(rhs_coarse, coarse_length); 
+        restrict(rhs_coarse, r_presmooth, mgprecond->mgstruct);
+
+        // 4. Perform coarse solve.
+        double* lhs_coarse = new double[coarse_length];
+        zero<double>(lhs_coarse, coarse_length);
+        switch (mgprecond->in_solve_type)
+        {
+            case NONE: // The code can't reach here, anyway.
+                break;
+            case MINRES:
+                invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
+                break;
+            case CG:
+                invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
+                break;
+            case GCR:
+                invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
+                break;
+        }
+        printf("[L2]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
+
+        // Project the lhs to the fine vector.
+        // 5. lhs_postsmooth = prolong(lhs_coarse)
+        double* lhs_postsmooth = new double[fine_size];
+        zero<double>(lhs_postsmooth, fine_size);
+        prolong(lhs_postsmooth, lhs_coarse, mgprecond->mgstruct); 
+
+        // Update the solution. 
+        // 6. lhs = initial smooth (z_presmooth) + coarse solve (lhs_postsmooth)
+        for (int i = 0; i < fine_size; i++)
+        {
+            lhs[i] = z_presmooth[i] + lhs_postsmooth[i];
+        }
+        delete[] Az_presmooth;
+        delete[] r_presmooth; 
+        delete[] rhs_coarse;
+        delete[] lhs_coarse; 
+        delete[] lhs_postsmooth;
     }
-    
-    // Restrict r_presmooth. 
-    // 3. rhs_coarse = restrict(r_presmooth)
-    double* rhs_coarse = new double[coarse_length];
-    zero<double>(rhs_coarse, coarse_length); 
-    restrict(rhs_coarse, r_presmooth, mgprecond->mgstruct);
-    
-    // 4. Perform coarse solve.
-    double* lhs_coarse = new double[coarse_length];
-    zero<double>(lhs_coarse, coarse_length);
-    switch (mgprecond->in_solve_type)
+    else // no inner solver
     {
-        case MINRES:
-            invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
-            break;
-        case CG:
-            invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
-            break;
-        case GCR:
-            invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
-            break;
-    }
-    printf("[L2]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
-    
-    // Project the lhs to the fine vector.
-    // 5. lhs_postsmooth = prolong(lhs_coarse)
-    double* lhs_postsmooth = new double[fine_size];
-    zero<double>(lhs_postsmooth, fine_size);
-    prolong(lhs_postsmooth, lhs_coarse, mgprecond->mgstruct); 
-    
-    // Update the solution. 
-    // 6. lhs = initial smooth (z_presmooth) + coarse solve (lhs_postsmooth)
-    for (int i = 0; i < fine_size; i++)
-    {
-        lhs[i] = z_presmooth[i] + lhs_postsmooth[i];
+        copy<double>(lhs, z_presmooth, fine_size); 
     }
     
     // Almost done! Do some post-smoothing.
@@ -414,12 +423,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     }
     
     // Clean up!
-    delete[] z_presmooth;
-    delete[] Az_presmooth;
-    delete[] r_presmooth; 
-    delete[] rhs_coarse;
-    delete[] lhs_coarse; 
-    delete[] lhs_postsmooth; 
+    delete[] z_presmooth; 
     
     cout << "[MG]: Exited mg_preconditioner.\n";
     

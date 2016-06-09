@@ -53,22 +53,6 @@ using namespace std;
 
 //#define AGGREGATE_EOCONJ
 
-// If GEN_NULL_VECTOR isn't defined:
-//   1 for just const vector, 2 for const + even/odd vector, 4 for each corner
-//    of the hypercube.
-// If GEN_NULL_VECTOR is defined and AGGREGATE_EO isn't defined:
-//   Generate VECTOR_COUNT null vectors which are block orthogonalized.
-// IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
-//   Generate VECTOR_COUNT null vectors, partition into even and odd.
-//    Total number of null vectors is 2*VECTOR_COUNT. 
-// IF GEN_NULL_VECTOR is defined and AGGREGATE_EOCONJ is defined:
-//   Generate VECTOR_COUNT null vectors, partition into even and odd, duplicate complex conj.
-//    Total number of null vectors is 4*VECTOR_COUNT. 
-// IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
-//   Generate VECTOR_COUNT null vectors, partition into corners of hypercube.
-//    Total number of null vectors is 4*VECTOR_COUNT. 
-#define VECTOR_COUNT 2
-
 // Are we testing a random gauge rotation?
 //#define TEST_RANDOM_GAUGE
 
@@ -130,6 +114,24 @@ int main(int argc, char** argv)
     inner_solver in_smooth = GCR; 
     int pre_smooth = 3;
     int post_smooth = 3;
+    
+    // Null vector generation
+    
+// If GEN_NULL_VECTOR isn't defined:
+//   1 for just const vector, 2 for const + even/odd vector, 4 for each corner
+//    of the hypercube.
+// If GEN_NULL_VECTOR is defined and AGGREGATE_EO isn't defined:
+//   Generate VECTOR_COUNT null vectors which are block orthogonalized.
+// IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
+//   Generate VECTOR_COUNT null vectors, partition into even and odd.
+//    Total number of null vectors is 2*VECTOR_COUNT. 
+// IF GEN_NULL_VECTOR is defined and AGGREGATE_EOCONJ is defined:
+//   Generate VECTOR_COUNT null vectors, partition into even and odd, duplicate complex conj.
+//    Total number of null vectors is 4*VECTOR_COUNT. 
+// IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
+//   Generate VECTOR_COUNT null vectors, partition into corners of hypercube.
+//    Total number of null vectors is 4*VECTOR_COUNT. 
+    int n_null_vector = 2; 
     
     // Gauge field information.
     double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
@@ -235,16 +237,16 @@ int main(int argc, char** argv)
     mgstruct.blocksize_x = X_BLOCKSIZE;
     mgstruct.blocksize_y = Y_BLOCKSIZE;
 #if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
-    mgstruct.n_vector = 4*VECTOR_COUNT;
+    mgstruct.n_vector = 4*n_null_vector;
 #elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
-    mgstruct.n_vector = 2*VECTOR_COUNT;
+    mgstruct.n_vector = 2*n_null_vector;
 #else
-    mgstruct.n_vector = VECTOR_COUNT;
+    mgstruct.n_vector = n_null_vector;
 #endif
     mgstruct.matrix_vector = square_staggered_u1;
     mgstruct.matrix_extra_data = (void*)&stagif; 
     
-    cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << VECTOR_COUNT << "\n";
+    cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << n_null_vector << "\n";
     
 
     // Set a point on the rhs.
