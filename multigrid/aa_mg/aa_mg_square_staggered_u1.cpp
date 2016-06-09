@@ -33,19 +33,8 @@
 
 using namespace std; 
 
-// For now, define the length in a direction.
-//#define N 32
-
 // Define pi.
 #define PI 3.141592653589793
-
-// Define mass.
-#define MASS 0.01
-
-// What's the X blocksize?
-#define X_BLOCKSIZE 4
-// What's the Y blocksize?
-#define Y_BLOCKSIZE 4
 
 // Print null vectors?
 //#define PRINT_NULL_VECTOR
@@ -126,17 +115,24 @@ int main(int argc, char** argv)
     int y_fine = square_size;
     int fine_size = x_fine*y_fine;
     
+    // Describe the staggered fermions.
+    double MASS = 0.1;
+    
     // Inverter information.
     double outer_precision = 1e-6; 
     int outer_restart = 32; 
     inner_solver in_solve = GCR; 
+    
+    // Multigrid info.
+    double X_BLOCKSIZE = 4; 
+    double Y_BLOCKSIZE = 4;
     double inner_precision = 1e-3;
     inner_solver in_smooth = GCR; 
     int pre_smooth = 3;
     int post_smooth = 3;
     
     // Gauge field information.
-    const double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
+    double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
                        // For heatbath gauge field, corresponds to non-compact beta.
     
     cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << fine_size << "\n";
