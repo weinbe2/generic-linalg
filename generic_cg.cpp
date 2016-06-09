@@ -24,7 +24,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
 
   // Initialize vectors.
   double *r, *p, *Ap;
-  double alpha, beta, denom, rsq, rsqNew, bsqrt, truersq;
+  double alpha, beta, rsq, rsqNew, bsqrt, truersq;
   int k,i;
   inversion_info invif;
 

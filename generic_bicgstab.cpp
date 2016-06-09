@@ -25,7 +25,7 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
   // Initialize vectors.
   double *r, *r0, *v, *p, *s, *t; 
   double rho, rhoNew, alpha, beta, omega, tmp; 
-  double rsq, ssq, bsqrt, truersq, ts, tt; 
+  double ssq, bsqrt, truersq, ts, tt; 
   int k,i;
   inversion_info invif;
 
@@ -44,7 +44,7 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
   //t = (double*)malloc(size*sizeof(double));
 
   // Initialize values.
-  rsq = 0.0; ssq = 0.0; bsqrt = 0.0; truersq = 0.0;
+  ssq = 0.0; bsqrt = 0.0; truersq = 0.0;
 
   // Take advantage of initial guess in phi.
   (*matrix_vector)(v, phi, extra_info);
@@ -174,7 +174,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   // Initialize vectors.
   complex<double> *r, *r0, *v, *p, *s, *t; 
   complex<double> rho, rhoNew, alpha, beta, omega, tmp, ts; 
-  double rsq, ssq, bsqrt, truersq, tt; 
+  double ssq, bsqrt, truersq, tt; 
   int k,i;
   inversion_info invif;
 
@@ -187,7 +187,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   t = new complex<double>[size];
 
   // Initialize values.
-  rsq = 0.0; ssq = 0.0; bsqrt = 0.0; truersq = 0.0;
+  ssq = 0.0; bsqrt = 0.0; truersq = 0.0;
 
   // Take advantage of initial guess in phi.
   (*matrix_vector)(v, phi, extra_info);
