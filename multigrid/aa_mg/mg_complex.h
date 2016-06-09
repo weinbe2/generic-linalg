@@ -40,6 +40,7 @@ struct mg_operator_struct_complex
     
     int* blocksize_x; // How much to block in x direction.
     int* blocksize_y; // How much to block in y direction. 
+    int eo; // 0 if no even-odd blocking, 1 if we use even-odd blocking. 
     int n_vector; // Number of vectors. 
     complex<double>*** null_vectors; // Holds the null vectors. First index level, second n_vector, third size.
     void (*matrix_vector)(complex<double>*, complex<double>*, void*);
@@ -47,10 +48,16 @@ struct mg_operator_struct_complex
     
     // Track current state.
     int curr_level;
+    
+    int curr_dof_fine; // degrees of freedom per site. 
     int curr_x_fine;
     int curr_y_fine; 
+    int curr_fine_size; 
+    
+    int curr_dof_coarse; 
     int curr_x_coarse;
     int curr_y_coarse; 
+    int curr_coarse_size; 
 };
 
 // Preconditioning struct

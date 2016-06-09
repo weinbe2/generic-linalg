@@ -117,9 +117,9 @@ int main(int argc, char** argv)
     }
     
     // Multigrid info.
-    int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
-    double X_BLOCKSIZE = 4; 
-    double Y_BLOCKSIZE = 4;
+    int n_refine = 2; // 1 = two level V cycle, 2 = three level V cycle, etc. 
+    int X_BLOCKSIZE = 4; 
+    int Y_BLOCKSIZE = 4;
     double inner_precision = 1e-3;
     inner_solver in_smooth = GCR; 
     int pre_smooth = 3;
@@ -254,20 +254,28 @@ int main(int argc, char** argv)
     }
 #if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
     mgstruct.n_vector = 4*n_null_vector;
+    mgstruct.eo = 1;
 #elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
     mgstruct.n_vector = 2*n_null_vector;
+    mgstruct.eo = 1;
 #else
     mgstruct.n_vector = n_null_vector;
+    mgstruct.eo = 0;
 #endif
     mgstruct.matrix_vector = square_staggered_u1;
     mgstruct.matrix_extra_data = (void*)&stagif; 
     
     // Set the starting mg_struct state.
     mgstruct.curr_level = 0; // Ready to do top level -> second level.
+    mgstruct.curr_dof_fine = 1; // Top level has only one d.o.f. per site. 
     mgstruct.curr_x_fine = mgstruct.x_fine;
     mgstruct.curr_y_fine = mgstruct.y_fine;
+    mgstruct.curr_fine_size = mgstruct.curr_y_fine*mgstruct.curr_x_fine*mgstruct.curr_dof_fine;
+    
+    mgstruct.curr_dof_coarse = mgstruct.n_vector; 
     mgstruct.curr_x_coarse = mgstruct.x_fine/mgstruct.blocksize_x[0];
     mgstruct.curr_y_coarse = mgstruct.y_fine/mgstruct.blocksize_y[0];
+    mgstruct.curr_coarse_size = mgstruct.curr_y_coarse*mgstruct.curr_x_coarse*mgstruct.curr_dof_coarse;
     
     cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << n_null_vector << "\n";
     
@@ -297,11 +305,12 @@ int main(int argc, char** argv)
         for (i = 1; i < mgstruct.n_refine; i++)
         {
             level_down(&mgstruct);
+
             mgstruct.null_vectors[i] = new complex<double>*[mgstruct.n_vector];
             for (j = 0; j < mgstruct.n_vector; j++)
             {
-                mgstruct.null_vectors[i][j] = new complex<double>[mgstruct.curr_x_fine*mgstruct.curr_y_fine*mgstruct.n_vector];
-                zero<double>(mgstruct.null_vectors[i][j], fine_size);
+                mgstruct.null_vectors[i][j] = new complex<double>[mgstruct.curr_x_fine*mgstruct.curr_y_fine*mgstruct.curr_dof_fine];
+                zero<double>(mgstruct.null_vectors[i][j], mgstruct.curr_x_fine*mgstruct.curr_y_fine*mgstruct.curr_dof_fine);
             }
         }
         // Come back up!
@@ -310,7 +319,6 @@ int main(int argc, char** argv)
             level_up(&mgstruct);
         }
     }
-    
 
     cout << "[MG]: Creating " << mgstruct.n_vector << " projector(s).\n";
     #ifndef GEN_NULL_VECTOR
