@@ -91,9 +91,6 @@ using namespace std;
 // Is it a heatbath field?
 #define HEATBATH
 
-// The standard deviation of the angle of a random field is 1/sqrt(BETA)
-#define BETA 6.0
-
 // Square staggered 2d operator w/out u1 function.
 void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
@@ -138,6 +135,10 @@ int main(int argc, char** argv)
     int pre_smooth = 3;
     int post_smooth = 3;
     
+    // Gauge field information.
+    const double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
+                       // For heatbath gauge field, corresponds to non-compact beta.
+    
     cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << fine_size << "\n";
     
     // Initialize the lattice. Indexing: index = y*N + x.
@@ -157,7 +158,7 @@ int main(int argc, char** argv)
     stagif.x_fine = x_fine;
     stagif.y_fine = y_fine; 
     
-    // Create a free lattice.
+    // Describe the gauge field. 
     cout << "[GAUGE]: Creating a gauge field.\n";
     unit_gauge_u1(lattice, x_fine, y_fine);
     
@@ -182,7 +183,7 @@ int main(int argc, char** argv)
 #else
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b30.dat");
 #endif
-            cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 6.0) < 1e-8)
         {
@@ -191,7 +192,7 @@ int main(int argc, char** argv)
 #else
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60.dat");
 #endif
-            cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else
         {
@@ -207,7 +208,7 @@ int main(int argc, char** argv)
 #else
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60.dat");
 #endif
-            cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 6.0) < 1e-8)
         {
@@ -216,7 +217,7 @@ int main(int argc, char** argv)
 #else
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b60.dat");
 #endif
-            cout << "[GAUGE]: Loaded a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else
         {
