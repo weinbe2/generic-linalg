@@ -117,6 +117,7 @@ int main(int argc, char** argv)
     }
     
     // Multigrid info.
+    int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
     double X_BLOCKSIZE = 4; 
     double Y_BLOCKSIZE = 4;
     double inner_precision = 1e-3;
@@ -243,8 +244,14 @@ int main(int argc, char** argv)
     mg_operator_struct_complex mgstruct;
     mgstruct.x_fine = x_fine;
     mgstruct.y_fine = y_fine; 
-    mgstruct.blocksize_x = X_BLOCKSIZE;
-    mgstruct.blocksize_y = Y_BLOCKSIZE;
+    mgstruct.n_refine = n_refine; 
+    mgstruct.blocksize_x = new int[n_refine];
+    mgstruct.blocksize_y = new int[n_refine];
+    for (i = 0; i < n_refine; i++)
+    {
+        mgstruct.blocksize_x[i] = X_BLOCKSIZE;
+        mgstruct.blocksize_y[i] = Y_BLOCKSIZE;
+    }
 #if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
     mgstruct.n_vector = 4*n_null_vector;
 #elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
@@ -254,6 +261,13 @@ int main(int argc, char** argv)
 #endif
     mgstruct.matrix_vector = square_staggered_u1;
     mgstruct.matrix_extra_data = (void*)&stagif; 
+    
+    // Set the starting mg_struct state.
+    mgstruct.curr_level = 0; // Ready to do top level -> second level.
+    mgstruct.curr_x_fine = mgstruct.x_fine;
+    mgstruct.curr_y_fine = mgstruct.y_fine;
+    mgstruct.curr_x_coarse = mgstruct.x_fine/mgstruct.blocksize_x[0];
+    mgstruct.curr_y_coarse = mgstruct.y_fine/mgstruct.blocksize_y[0];
     
     cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << n_null_vector << "\n";
     
@@ -269,11 +283,32 @@ int main(int argc, char** argv)
     //lhs[x_fine/2+(y_fine/2)*x_fine+1] = 1.0;
     
     // Create a projector.
-    mgstruct.projectors = new complex<double>*[mgstruct.n_vector];
-    for (i = 0; i < mgstruct.n_vector; i++)
+    mgstruct.null_vectors = new complex<double>**[mgstruct.n_refine];
+    // The top level is special since there are no color indices.
+    mgstruct.null_vectors[0] = new complex<double>*[mgstruct.n_vector];
+    for (j = 0; j < mgstruct.n_vector; j++)
     {
-        mgstruct.projectors[i] = new complex<double>[fine_size];
-        zero<double>(mgstruct.projectors[i], fine_size);
+        mgstruct.null_vectors[0][j] = new complex<double>[fine_size];
+        zero<double>(mgstruct.null_vectors[0][j], fine_size);
+    }
+    // Higher levels are different.
+    if (mgstruct.n_refine > 1)
+    {
+        for (i = 1; i < mgstruct.n_refine; i++)
+        {
+            level_down(&mgstruct);
+            mgstruct.null_vectors[i] = new complex<double>*[mgstruct.n_vector];
+            for (j = 0; j < mgstruct.n_vector; j++)
+            {
+                mgstruct.null_vectors[i][j] = new complex<double>[mgstruct.curr_x_fine*mgstruct.curr_y_fine*mgstruct.n_vector];
+                zero<double>(mgstruct.null_vectors[i][j], fine_size);
+            }
+        }
+        // Come back up!
+        for (i = mgstruct.n_refine; i > 1; i--)
+        {
+            level_up(&mgstruct);
+        }
     }
     
 
@@ -285,9 +320,9 @@ int main(int argc, char** argv)
         cout << "[MG]: Null vector 1 is a constant.\n";
         for (i = 0; i < fine_size; i++)
         {
-            mgstruct.projectors[0][i] = 1;
+            mgstruct.null_vectors[0][0][i] = 1;
 #ifdef TEST_RANDOM_GAUGE
-            mgstruct.projectors[0][i] *= gauge_trans[i];
+            mgstruct.null_vectors[0][0][i] *= gauge_trans[i];
 #endif
         }
     }
@@ -297,13 +332,13 @@ int main(int argc, char** argv)
         cout << "[MG]: Null vector 2 is an even/odd phase.\n";
         for (i = 0; i < fine_size; i++)
         {
-            mgstruct.projectors[0][i] = 1;
+            mgstruct.null_vectors[0][0][i] = 1;
             x = i % N;
             y = i / N;
-            mgstruct.projectors[1][i] = ((x+y)%2 == 0) ? complex<double>(0.0,1.0) : complex<double>(0.0,-1.0);
+            mgstruct.null_vectors[0][1][i] = ((x+y)%2 == 0) ? complex<double>(0.0,1.0) : complex<double>(0.0,-1.0);
 #ifdef TEST_RANDOM_GAUGE
-            mgstruct.projectors[0][i] *= (gauge_trans[i]);
-            mgstruct.projectors[1][i] *= (gauge_trans[i]);
+            mgstruct.null_vectors[0][0][i] *= (gauge_trans[i]);
+            mgstruct.null_vectors[0][1][i] *= (gauge_trans[i]);
 #endif
         }
     }
@@ -319,11 +354,11 @@ int main(int argc, char** argv)
         {
             x = i % N;
             y = i / N;
-            mgstruct.projectors[2*(y%2)+(x%2)][i] = 1.0;
-            mgstruct.projectors[2*(y%2)+(x%2)][i] = dist(generator);
+            mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] = 1.0;
+            mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] = dist(generator);
             
 #ifdef TEST_RANDOM_GAUGE
-            mgstruct.projectors[2*(y%2)+(x%2)][i] *= (gauge_trans[i]);
+            mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] *= (gauge_trans[i]);
 #endif
         }
     }
@@ -348,7 +383,7 @@ int main(int argc, char** argv)
         {
             for (int x = 0; x < x_fine; x++)
             {
-                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                cout << mgstruct.null_vectors[0][n][x+y*x_fine] << " ";
             }
             cout << "\n";
         }
@@ -386,18 +421,18 @@ int main(int argc, char** argv)
             {
                Arand_guess[j] = -Arand_guess[j]; 
             }
-            zero<double>(mgstruct.projectors[i], fine_size);
+            zero<double>(mgstruct.null_vectors[0][i], fine_size);
 
-            minv_vector_gcr(mgstruct.projectors[i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
+            minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
 
             for (j = 0; j < fine_size; j++)
             {
-                mgstruct.projectors[i][j] += rand_guess[j];
+                mgstruct.null_vectors[0][i][j] += rand_guess[j];
             }
 
-            //minv_vector_gcr(mgstruct.projectors[i], rand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
+            //minv_vector_gcr(mgstruct.null_vectors[i], rand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
 
-            normalize(mgstruct.projectors[i], fine_size); 
+            normalize(mgstruct.null_vectors[0][i], fine_size); 
         }
         stagif.mass = MASS; 
 
@@ -415,22 +450,22 @@ int main(int argc, char** argv)
                 y = i / y_fine;
                 if (x%2 == 1 && y%2 == 0)
                 {
-                    mgstruct.projectors[n+mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
-                    mgstruct.projectors[n][i] = 0.0;
+                    mgstruct.null_vectors[0][n+mgstruct.n_vector/4][i] = mgstruct.null_vectors[0][n][i];
+                    mgstruct.null_vectors[0][n][i] = 0.0;
                 }
                 else if (x%2 == 0 && y%2 == 1)
                 {
-                    mgstruct.projectors[n+2*mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
-                    mgstruct.projectors[n][i] = 0.0;
+                    mgstruct.null_vectors[0][n+2*mgstruct.n_vector/4][i] = mgstruct.null_vectors[0][n][i];
+                    mgstruct.null_vectors[0][n][i] = 0.0;
                 }
                 else if (x%2 == 1 && y%2 == 1)
                 {
-                    mgstruct.projectors[n+3*mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
-                    mgstruct.projectors[n][i] = 0.0;
+                    mgstruct.null_vectors[0][n+3*mgstruct.n_vector/4][i] = mgstruct.null_vectors[0][n][i];
+                    mgstruct.null_vectors[0][n][i] = 0.0;
                 }
             }
-            normalize(mgstruct.projectors[n], fine_size);
-            normalize(mgstruct.projectors[n+mgstruct.n_vector/2], fine_size);
+            normalize(mgstruct.null_vectors[0][n], fine_size);
+            normalize(mgstruct.null_vectors[0][n+mgstruct.n_vector/2], fine_size);
 
         }
 #elif defined GEN_NULL_VECTOR && defined AGGREGATE_EOCONJ
@@ -442,16 +477,16 @@ int main(int argc, char** argv)
                 y = i / y_fine;
                 if ((x+y)%2 == 1)
                 {
-                    mgstruct.projectors[n+mgstruct.n_vector/4][i] = mgstruct.projectors[n][i];
-                    mgstruct.projectors[n][i] = 0.0;
+                    mgstruct.null_vectors[0][n+mgstruct.n_vector/4][i] = mgstruct.null_vectors[0][n][i];
+                    mgstruct.null_vectors[0][n][i] = 0.0;
                 }
             }
-            normalize(mgstruct.projectors[n], fine_size);
-            normalize(mgstruct.projectors[n+mgstruct.n_vector/4], fine_size);
-            copy<double>(mgstruct.projectors[n+2*mgstruct.n_vector/4], mgstruct.projectors[n], fine_size);
-            copy<double>(mgstruct.projectors[n+3*mgstruct.n_vector/4], mgstruct.projectors[n+mgstruct.n_vector/4], fine_size);
-            conj(mgstruct.projectors[n+2*mgstruct.n_vector/4], fine_size);
-            conj(mgstruct.projectors[n+3*mgstruct.n_vector/4], fine_size);
+            normalize(mgstruct.null_vectors[0][n], fine_size);
+            normalize(mgstruct.null_vectors[0][n+mgstruct.n_vector/4], fine_size);
+            copy<double>(mgstruct.null_vectors[0][n+2*mgstruct.n_vector/4], mgstruct.null_vectors[0][n], fine_size);
+            copy<double>(mgstruct.null_vectors[0][n+3*mgstruct.n_vector/4], mgstruct.null_vectors[0][n+mgstruct.n_vector/4], fine_size);
+            conj(mgstruct.null_vectors[0][n+2*mgstruct.n_vector/4], fine_size);
+            conj(mgstruct.null_vectors[0][n+3*mgstruct.n_vector/4], fine_size);
 
         }
 #elif defined GEN_NULL_VECTOR && defined AGGREGATE_EO
@@ -463,12 +498,12 @@ int main(int argc, char** argv)
                 y = i / y_fine;
                 if ((x+y)%2 == 1)
                 {
-                    mgstruct.projectors[n+mgstruct.n_vector/2][i] = mgstruct.projectors[n][i];
-                    mgstruct.projectors[n][i] = 0.0;
+                    mgstruct.null_vectors[0][n+mgstruct.n_vector/2][i] = mgstruct.null_vectors[0][n][i];
+                    mgstruct.null_vectors[0][n][i] = 0.0;
                 }
             }
-            normalize(mgstruct.projectors[n], fine_size);
-            normalize(mgstruct.projectors[n+mgstruct.n_vector/2], fine_size);
+            normalize(mgstruct.null_vectors[0][n], fine_size);
+            normalize(mgstruct.null_vectors[0][n+mgstruct.n_vector/2], fine_size);
 
         }
 #endif // defined GEN_NULL_VECTOR && defined AGGREGATE_EO
@@ -482,7 +517,7 @@ int main(int argc, char** argv)
             {
                 for (int x = 0; x < x_fine; x++)
                 {
-                    cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                    cout << mgstruct.null_vectors[0][n][x+y*x_fine] << " ";
                 }
                 cout << "\n";
             }
@@ -504,7 +539,7 @@ int main(int argc, char** argv)
         {
             for (int x = 0; x < x_fine; x++)
             {
-                cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                cout << mgstruct.null_vectors[0][n][x+y*x_fine] << " ";
             }
             cout << "\n";
         }
@@ -518,8 +553,8 @@ int main(int argc, char** argv)
         // Begin PdagP test.
         
         // Describe the coarse lattice. 
-        int x_coarse = x_fine/mgstruct.blocksize_x; // how many coarse sites are there in the x dir?
-        int y_coarse = y_fine/mgstruct.blocksize_y; // how many coarse sites are there in the y dir?
+        int x_coarse = x_fine/mgstruct.blocksize_x[0]; // how many coarse sites are there in the x dir?
+        int y_coarse = y_fine/mgstruct.blocksize_y[0]; // how many coarse sites are there in the y dir?
         int coarse_size = x_coarse*y_coarse; 
 
 
@@ -539,7 +574,7 @@ int main(int argc, char** argv)
         {
             for (int x = 0; x < x_fine; x++)
             {
-                cout << mgstruct.projectors[0][x+y*x_fine] << " ";
+                cout << mgstruct.null_vectors[0][0][x+y*x_fine] << " ";
             }
             cout << "\n";
         }
@@ -553,7 +588,7 @@ int main(int argc, char** argv)
         {
             for (int x = 0; x < x_fine; x++)
             {
-                cout << mgstruct.projectors[0][x+y*x_fine] << " ";
+                cout << mgstruct.null_vectors[0][0][x+y*x_fine] << " ";
             }
             cout << "\n";
         }
@@ -638,11 +673,11 @@ int main(int argc, char** argv)
     // Test adding a second projector.
     {
         mgstruct.n_vector = 2; 
-        complex<double>* tmp_store = mgstruct.projectors[0];
-        delete[] mgstruct.projectors;
-        mgstruct.projectors = new complex<double>*[mgstruct.n_vector];
-        mgstruct.projectors[0] = tmp_store; 
-        mgstruct.projectors[1] = new complex<double>[fine_size];
+        complex<double>* tmp_store = mgstruct.null_vectors[0];
+        delete[] mgstruct.null_vectors;
+        mgstruct.null_vectors = new complex<double>*[mgstruct.n_vector];
+        mgstruct.null_vectors[0] = tmp_store; 
+        mgstruct.null_vectors[1] = new complex<double>[fine_size];
 
         // Add an even/odd vector. 
         for (int y = 0; y < y_fine; y++)
@@ -650,9 +685,9 @@ int main(int argc, char** argv)
             for (int x = 0; x < x_fine; x++)
             {
                 if ((x+y)%2 == 0)
-                    mgstruct.projectors[1][x+y*x_fine] = complex<double>(0.0,1.0);
+                    mgstruct.null_vectors[0][1][x+y*x_fine] = complex<double>(0.0,1.0);
                 else
-                    mgstruct.projectors[1][x+y*x_fine] = complex<double>(0.0,-1.0);
+                    mgstruct.null_vectors[0][1][x+y*x_fine] = complex<double>(0.0,-1.0);
             }
         }
 
@@ -664,7 +699,7 @@ int main(int argc, char** argv)
             {
                 for (int x = 0; x < x_fine; x++)
                 {
-                    cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                    cout << mgstruct.null_vectors[n][x+y*x_fine] << " ";
                 }
                 cout << "\n";
             }
@@ -682,7 +717,7 @@ int main(int argc, char** argv)
             {
                 for (int x = 0; x < x_fine; x++)
                 {
-                    cout << mgstruct.projectors[n][x+y*x_fine] << " ";
+                    cout << mgstruct.null_vectors[0][n][x+y*x_fine] << " ";
                 }
                 cout << "\n";
             }
@@ -895,11 +930,17 @@ int main(int argc, char** argv)
     delete[] check;
     
     // Clean up!
-    for (i = 0; i < mgstruct.n_vector; i++)
+    delete[] mgstruct.blocksize_x;
+    delete[] mgstruct.blocksize_y; 
+    for (i = 0; i < mgstruct.n_refine; i++)
     {
-        delete[] mgstruct.projectors[i];
+        for (j = 0; j < mgstruct.n_vector; j++)
+        {
+            delete[] mgstruct.null_vectors[i][j];
+        }
+        delete[] mgstruct.null_vectors[i];
     }
-    delete[] mgstruct.projectors; 
+    delete[] mgstruct.null_vectors; 
     
     return 0; 
 }

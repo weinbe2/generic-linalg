@@ -25,8 +25,8 @@ void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* ext
     int x_fine = mgstruct->x_fine;
     int y_fine = mgstruct->y_fine;
     int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int x_coarse = x_fine/mgstruct->blocksize_x[0]; // how many coarse sites are there in the x dir?
+    int y_coarse = y_fine/mgstruct->blocksize_y[0]; // how many coarse sites are there in the y dir?
     int coarse_size = x_coarse*y_coarse; 
     int coarse_length = coarse_size*mgstruct->n_vector;
     
@@ -65,8 +65,8 @@ void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* e
     int x_fine = mgstruct->x_fine;
     int y_fine = mgstruct->y_fine;
     int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int x_coarse = x_fine/mgstruct->blocksize_x[0]; // how many coarse sites are there in the x dir?
+    int y_coarse = y_fine/mgstruct->blocksize_y[0]; // how many coarse sites are there in the y dir?
     int coarse_size = x_coarse*y_coarse; 
     int coarse_length = coarse_size*mgstruct->n_vector;
     
@@ -111,12 +111,15 @@ void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* e
 void block_normalize(mg_operator_struct_complex* mgstruct)
 {
     int n, i;
-    int x_fine = mgstruct->x_fine;
-    int y_fine = mgstruct->y_fine;
+    int x_fine = mgstruct->curr_x_fine;
+    int y_fine = mgstruct->curr_y_fine;
     int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int x_coarse = mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
+    int y_coarse = mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
     int coarse_size = x_coarse*y_coarse; 
+    
+    // Grab the current null vectors.
+    complex<double>** null_vectors = mgstruct->null_vectors[mgstruct->curr_level];
     
     // Hold current sites.
     int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
@@ -137,12 +140,12 @@ void block_normalize(mg_operator_struct_complex* mgstruct)
             curr_y = i / x_fine; 
             
             // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x;
-            curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+            curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
+            curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
             curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
             
             // Update the norm!
-            norms[curr_coarse] += real(conj(mgstruct->projectors[n][i])*mgstruct->projectors[n][i]);
+            norms[curr_coarse] += real(conj(null_vectors[n][i])*null_vectors[n][i]);
         }
         
         // Sqrt all of the norms.
@@ -151,7 +154,7 @@ void block_normalize(mg_operator_struct_complex* mgstruct)
             norms[i] = sqrt(norms[i]);
         }
         
-        // Normalize the projectors.
+        // Normalize the null_vectors.
         for (i = 0; i < fine_size; i++)
         {
             // What's the current coarse site? First, find the fine site.
@@ -159,12 +162,12 @@ void block_normalize(mg_operator_struct_complex* mgstruct)
             curr_y = i / x_fine; 
             
             // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x;
-            curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+            curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
+            curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
             curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
             
             // Update the norm!
-            mgstruct->projectors[n][i] /= norms[curr_coarse];
+            null_vectors[n][i] /= norms[curr_coarse];
         }
     }
     
@@ -175,12 +178,15 @@ void block_normalize(mg_operator_struct_complex* mgstruct)
 void block_orthonormalize(mg_operator_struct_complex* mgstruct)
 {
     int n, m, i;
-    int x_fine = mgstruct->x_fine;
-    int y_fine = mgstruct->y_fine;
+    int x_fine = mgstruct->curr_x_fine;
+    int y_fine = mgstruct->curr_y_fine;
     int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int x_coarse = mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
+    int y_coarse = mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
     int coarse_size = x_coarse*y_coarse; 
+    
+    // Grab the current null vectors.
+    complex<double>** null_vectors = mgstruct->null_vectors[mgstruct->curr_level];
     
     // Hold current sites.
     int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
@@ -208,13 +214,13 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
                 curr_y = i / x_fine; 
 
                 // Now, find the coarse site. 
-                curr_x_coarse = curr_x / mgstruct->blocksize_x;
-                curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+                curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
+                curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
                 curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
 
                 // Update the norm of the previous vector,
                 // Compute new dot products. 
-                norms[curr_coarse] += real(conj(mgstruct->projectors[n-1][i])*mgstruct->projectors[n-1][i]);
+                norms[curr_coarse] += real(conj(null_vectors[n-1][i])*null_vectors[n-1][i]);
             }
             
             // Sqrt all of the norms.
@@ -226,7 +232,7 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
             }
             cout << "\n";*/
 
-            // Normalize the projectors.
+            // Normalize the null_vectors.
             for (i = 0; i < fine_size; i++)
             {
                 // What's the current coarse site? First, find the fine site.
@@ -234,12 +240,12 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
                 curr_y = i / x_fine; 
 
                 // Now, find the coarse site. 
-                curr_x_coarse = curr_x / mgstruct->blocksize_x;
-                curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+                curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
+                curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
                 curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
 
                 // Update the norm!
-                mgstruct->projectors[n-1][i] /= norms[curr_coarse];
+                null_vectors[n-1][i] /= norms[curr_coarse];
             }
             
             for (m = 0; m < n; m++)
@@ -255,11 +261,11 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
                     curr_y = i / x_fine; 
 
                     // Now, find the coarse site. 
-                    curr_x_coarse = curr_x / mgstruct->blocksize_x;
-                    curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+                    curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
+                    curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
                     curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
 
-                    dot_prod[curr_coarse] += conj(mgstruct->projectors[m][i])*mgstruct->projectors[n][i];
+                    dot_prod[curr_coarse] += conj(null_vectors[m][i])*null_vectors[n][i];
                 }
 
             
@@ -271,7 +277,7 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
                 cout << "\n";*/
                 
 
-                // Normalize the projectors.
+                // Normalize the null_vectors.
                 for (i = 0; i < fine_size; i++)
                 {
                     // What's the current coarse site? First, find the fine site.
@@ -279,12 +285,12 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
                     curr_y = i / x_fine; 
 
                     // Now, find the coarse site. 
-                    curr_x_coarse = curr_x / mgstruct->blocksize_x;
-                    curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+                    curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
+                    curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
                     curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
 
                     // Project off previous vector.
-                    mgstruct->projectors[n][i] -= dot_prod[curr_coarse]*mgstruct->projectors[m][i];
+                    null_vectors[n][i] -= dot_prod[curr_coarse]*null_vectors[m][i];
                 }
             }
         }
@@ -300,11 +306,14 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
 void prolong(complex<double>* vec_fine, complex<double>* vec_coarse, mg_operator_struct_complex* mgstruct)
 {
     int n, i;
-    int x_fine = mgstruct->x_fine;
-    int y_fine = mgstruct->y_fine;
+    int x_fine = mgstruct->curr_x_fine;
+    int y_fine = mgstruct->curr_y_fine;
     int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    //int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int x_coarse = mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
+    //int y_coarse = mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
+    
+    // Grab the current null vectors.
+    complex<double>** null_vectors = mgstruct->null_vectors[mgstruct->curr_level];
     
     // Hold current sites.
     int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
@@ -323,12 +332,12 @@ void prolong(complex<double>* vec_fine, complex<double>* vec_coarse, mg_operator
             curr_y = i / x_fine; 
             
             // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x;
-            curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+            curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
+            curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
             curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
             
             // Update the fine with the coarse. 
-            vec_fine[i] += mgstruct->projectors[n][i]*vec_coarse[curr_coarse*mgstruct->n_vector+n];
+            vec_fine[i] += null_vectors[n][i]*vec_coarse[curr_coarse*mgstruct->n_vector+n];
         }
     }
 }
@@ -338,12 +347,15 @@ void prolong(complex<double>* vec_fine, complex<double>* vec_coarse, mg_operator
 void restrict(complex<double>* vec_coarse, complex<double>* vec_fine, mg_operator_struct_complex* mgstruct)
 {
     int n, i;
-    int x_fine = mgstruct->x_fine;
-    int y_fine = mgstruct->y_fine;
+    int x_fine = mgstruct->curr_x_fine;
+    int y_fine = mgstruct->curr_y_fine;
     int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int x_coarse = mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
+    int y_coarse = mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
     int coarse_size = x_coarse*y_coarse; 
+    
+    // Grab the current null vectors.
+    complex<double>** null_vectors = mgstruct->null_vectors[mgstruct->curr_level];
     
     // Hold current sites.
     int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
@@ -362,13 +374,49 @@ void restrict(complex<double>* vec_coarse, complex<double>* vec_fine, mg_operato
             curr_y = i / x_fine; 
             
             // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x;
-            curr_y_coarse = curr_y / mgstruct->blocksize_y; 
+            curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
+            curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
             curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
             
             // Update the fine with the coarse. 
-            vec_coarse[curr_coarse*mgstruct->n_vector+n] += conj(mgstruct->projectors[n][i])*vec_fine[i];
+            vec_coarse[curr_coarse*mgstruct->n_vector+n] += conj(null_vectors[n][i])*vec_fine[i];
         }
+    }
+}
+
+// Push the operator struct down a level, updating curr_* variables.
+void level_down(mg_operator_struct_complex* mgstruct)
+{
+    if (mgstruct->curr_level < mgstruct->n_refine-1) // Can't go lower than the number of refinements!
+    {
+        // Update the current fine.
+        mgstruct->curr_x_fine /= mgstruct->blocksize_x[mgstruct->curr_level];
+        mgstruct->curr_y_fine /= mgstruct->blocksize_y[mgstruct->curr_level];
+        
+        // Update the current coarse.
+        mgstruct->curr_x_coarse /= mgstruct->blocksize_x[mgstruct->curr_level+1];
+        mgstruct->curr_y_coarse /= mgstruct->blocksize_y[mgstruct->curr_level+1];
+        
+        // Update the level.
+        mgstruct->curr_level++;
+    }
+}
+
+// Pull the operator struct up a level, updating curr_* variables.
+void level_up(mg_operator_struct_complex* mgstruct)
+{
+    if (mgstruct->curr_level > 0) // Can't go lower than the number of refinements!
+    {
+        // Update the level.
+        mgstruct->curr_level--;
+        
+        // Update the current fine.
+        mgstruct->curr_x_fine *= mgstruct->blocksize_x[mgstruct->curr_level];
+        mgstruct->curr_y_fine *= mgstruct->blocksize_y[mgstruct->curr_level];
+        
+        // Update the current coarse.
+        mgstruct->curr_x_coarse *= mgstruct->blocksize_x[mgstruct->curr_level+1];
+        mgstruct->curr_y_coarse *= mgstruct->blocksize_y[mgstruct->curr_level+1];
     }
 }
 
@@ -380,11 +428,11 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     mg_precond_struct_complex* mgprecond = (mg_precond_struct_complex*)extra_data; 
     
     // Standard defines.
-    int x_fine = mgprecond->mgstruct->x_fine;
-    int y_fine = mgprecond->mgstruct->y_fine;
+    int x_fine = mgprecond->mgstruct->curr_x_fine;
+    int y_fine = mgprecond->mgstruct->curr_y_fine;
     int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgprecond->mgstruct->blocksize_x; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgprecond->mgstruct->blocksize_y; // how many coarse sites are there in the y dir?
+    int x_coarse = mgprecond->mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
+    int y_coarse = mgprecond->mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
     int coarse_size = x_coarse*y_coarse; 
     int coarse_length = coarse_size*mgprecond->mgstruct->n_vector; 
     

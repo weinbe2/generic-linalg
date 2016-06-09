@@ -25,17 +25,32 @@ void prolong(complex<double>* x_fine, complex<double>* x_coarse, mg_operator_str
 // Restrict a fine vector to a coarse vector using the info in mgstruct.
 void restrict(complex<double>* x_coarse, complex<double>* x_fine, mg_operator_struct_complex* mgstruct);
 
+// Push the operator struct down a level, updating curr_* variables.
+void level_down(mg_operator_struct_complex* mgstruct);
+
+// Pull the operator struct up a level, updating curr_* variables.
+void level_up(mg_operator_struct_complex* mgstruct);
+
 // Multigrid operator struct.
 struct mg_operator_struct_complex
 {
     int x_fine; // Fine x dimension.
     int y_fine; // Fine y dimension. 
-    int blocksize_x; // How much to block in x direction.
-    int blocksize_y; // How much to block in y direction. 
+    int n_refine; // How many refinements? 1 = two level, 2 = three level, etc. 
+    
+    int* blocksize_x; // How much to block in x direction.
+    int* blocksize_y; // How much to block in y direction. 
     int n_vector; // Number of vectors. 
-    complex<double>** projectors; // Holds the projectors. First index n_vector, second size.
+    complex<double>*** null_vectors; // Holds the null vectors. First index level, second n_vector, third size.
     void (*matrix_vector)(complex<double>*, complex<double>*, void*);
     void* matrix_extra_data; 
+    
+    // Track current state.
+    int curr_level;
+    int curr_x_fine;
+    int curr_y_fine; 
+    int curr_x_coarse;
+    int curr_y_coarse; 
 };
 
 // Preconditioning struct
