@@ -38,7 +38,7 @@ using namespace std;
 
 // How many GCR iterations do we use?
 #define GEN_NULL_VECTOR_STEP 1000
-#define GEN_NULL_VECTOR_REL_RESID 1e-1
+#define GEN_NULL_VECTOR_REL_RESID 1e-4
 
 //#define AGGREGATE_FOUR
 
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
     std::mt19937 generator (1337u); // 1337u is the seed. 
     
     // Describe the fine lattice. 
-    int square_size = 16; // For a square lattice.
+    int square_size = 32; // For a square lattice.
     int x_fine = square_size;
     int y_fine = square_size;
     int fine_size = x_fine*y_fine;
@@ -116,7 +116,7 @@ int main(int argc, char** argv)
     }
     
     // Multigrid info.
-    int n_refine = 2; // 1 = two level V cycle, 2 = three level V cycle, etc. 
+    int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
     int X_BLOCKSIZE = 4; 
     int Y_BLOCKSIZE = 4;
     int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation. 
