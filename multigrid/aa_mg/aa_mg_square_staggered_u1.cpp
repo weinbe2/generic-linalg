@@ -248,13 +248,6 @@ int main(int argc, char** argv)
     cout << "[GAUGE]: Creating a gauge field.\n";
     unit_gauge_u1(lattice, x_fine, y_fine);
     
-#ifdef TEST_RANDOM_GAUGE
-    // Generate and perform a random gauge transformation.
-    complex<double>* gauge_trans = new complex<double>[fine_size];
-    rand_trans_u1(gauge_trans, x_fine, y_fine, generator);
-    apply_gauge_trans_u1(lattice, gauge_trans, x_fine, y_fine);
-    cout << "[GAUGE]: Performed a random gauge rotation.\n";
-#endif
 #ifdef TEST_RANDOM_FIELD
     gauss_gauge_u1(lattice, x_fine, y_fine, generator, BETA);
     cout << "[GAUGE]: Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
@@ -315,6 +308,14 @@ int main(int argc, char** argv)
         cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
     }
 #endif // LOAD_GAUGE_FIELD
+    
+#ifdef TEST_RANDOM_GAUGE
+    // Generate and perform a random gauge transformation.
+    complex<double>* gauge_trans = new complex<double>[fine_size];
+    rand_trans_u1(gauge_trans, x_fine, y_fine, generator);
+    apply_gauge_trans_u1(lattice, gauge_trans, x_fine, y_fine);
+    cout << "[GAUGE]: Performed a random gauge rotation.\n";
+#endif
     
     cout << "[GAUGE]: The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
     

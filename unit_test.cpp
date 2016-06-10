@@ -185,6 +185,22 @@ int main(int argc, char** argv)
    printf("End Check MinRes.\n");
    printf("\n\n\n");
     
+   printf("Begin Check MinRes (Relaxation param 0.8).\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+   invif = minv_vector_minres(lhs, rhs, N*N, 10000, 1e-6, 0.8, square_laplacian, NULL);
+   if (invif.success == true)
+   {
+      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+   }
+   else
+   {
+      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+   }
+   explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check MinRes (Relaxation param 0.8).\n");
+   printf("\n\n\n");
+    
    printf("Begin Check Preconditioned CG (3 iter MinRes).\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
    // Prepare MinRes preconditioner.
