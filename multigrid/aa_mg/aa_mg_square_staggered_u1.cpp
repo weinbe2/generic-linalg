@@ -73,12 +73,20 @@ void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_da
 // Square staggered 2d operator w/ u1 function.
 void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);  
 
+enum op_type
+{
+    STAGGERED = 0,
+    LAPLACE = 1,
+    LAPLACE_NC2 = 2
+};
+
 struct staggered_u1_op
 {
     complex<double> *lattice;
     double mass;
     int x_fine;
     int y_fine; 
+    int Nc; // only relevant for square laplace. 
 };
 
 int main(int argc, char** argv)
@@ -94,7 +102,24 @@ int main(int argc, char** argv)
     staggered_u1_op stagif;
     
     // What operator are we using?
-    void (*op)(complex<double>*, complex<double>*, void*) = square_staggered_u1; //square_laplace;
+    op_type opt = STAGGERED;
+    string op_name;
+    void (*op)(complex<double>*, complex<double>*, void*);
+    switch (opt)
+    {
+        case STAGGERED:
+            op = square_staggered_u1;
+            op_name = "Staggered U(1)";
+            break;
+        case LAPLACE:
+            op_name = "Free Laplace";
+            op = square_laplace;
+            break;
+        case LAPLACE_NC2:
+            op_name = "Free Laplace Nc = 2";
+            op = square_laplace;
+            break;
+    }
     
     // What test are we performing?
     mg_test_types my_test = TWO_LEVEL;
@@ -106,10 +131,17 @@ int main(int argc, char** argv)
     int square_size = 32; // For a square lattice.
     int x_fine = square_size;
     int y_fine = square_size;
-    int fine_size = x_fine*y_fine;
+    int Nc = 1;  // Only value that matters for staggered
+    if (opt == LAPLACE_NC2)
+    {
+        Nc = 2;
+    }
+    int fine_size = x_fine*y_fine*Nc;
     
     // Describe the staggered fermions.
     double MASS = 0.01;
+    
+    cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
     
     // Inverter information.
     double outer_precision = 1e-6; 
@@ -128,8 +160,12 @@ int main(int argc, char** argv)
     }
     int X_BLOCKSIZE = 4; 
     int Y_BLOCKSIZE = 4;
-    int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation. 
-    double inner_precision = 1e-3;
+    int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation.
+    if (opt == LAPLACE || opt == LAPLACE_NC2)
+    {
+        eo = 0;
+    }
+    double inner_precision = 1e-4;
     inner_solver in_smooth = GCR; 
     int pre_smooth = 3;
     int post_smooth = 3;
@@ -151,6 +187,10 @@ int main(int argc, char** argv)
 //   Generate VECTOR_COUNT null vectors, partition into corners of hypercube.
 //    Total number of null vectors is 4*VECTOR_COUNT. 
     int n_null_vector = 2; 
+    if (opt == LAPLACE || opt == LAPLACE_NC2)
+    {
+        n_null_vector = Nc;
+    }
     
     // Gauge field information.
     double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
@@ -174,6 +214,7 @@ int main(int argc, char** argv)
     stagif.mass = MASS; 
     stagif.x_fine = x_fine;
     stagif.y_fine = y_fine; 
+    stagif.Nc = Nc; // Only relevant for laplace test only.
     
     // Describe the gauge field. 
     cout << "[GAUGE]: Creating a gauge field.\n";
@@ -253,6 +294,7 @@ int main(int argc, char** argv)
     mg_operator_struct_complex mgstruct;
     mgstruct.x_fine = x_fine;
     mgstruct.y_fine = y_fine; 
+    mgstruct.Nc = Nc; // only matters for square laplace.
     mgstruct.n_refine = n_refine; 
     mgstruct.blocksize_x = new int[n_refine];
     mgstruct.blocksize_y = new int[n_refine];
@@ -277,7 +319,7 @@ int main(int argc, char** argv)
     
     // Set the starting mg_struct state.
     mgstruct.curr_level = 0; // Ready to do top level -> second level.
-    mgstruct.curr_dof_fine = 1; // Top level has only one d.o.f. per site. 
+    mgstruct.curr_dof_fine = Nc; // Top level has only one d.o.f. per site. 
     mgstruct.curr_x_fine = mgstruct.x_fine;
     mgstruct.curr_y_fine = mgstruct.y_fine;
     mgstruct.curr_fine_size = mgstruct.curr_y_fine*mgstruct.curr_x_fine*mgstruct.curr_dof_fine;
@@ -306,7 +348,10 @@ int main(int argc, char** argv)
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
 
     // Set a point on the rhs.
-    rhs[x_fine/2+(y_fine/2)*x_fine] = 1.0;
+    for (i = 0; i < Nc; i++)
+    {
+        rhs[(x_fine/2+(y_fine/2)*x_fine)*Nc+i] = 1.0;
+    }
     //gaussian<double>(rhs, fine_size, generator);
 
     // Get norm for rhs.
@@ -436,6 +481,8 @@ int main(int argc, char** argv)
     {
         // Generate top level!
         
+        printf("About to generate null vector.\n"); fflush(stdout);
+        
         // We generate null vectors by solving Ax = 0, with a
         // gaussian initial guess.
         // For sanity with the residual, we really solve Ax = -Ax_0,
@@ -453,8 +500,10 @@ int main(int argc, char** argv)
         {
             gaussian<double>(rand_guess, fine_size, generator);
 
-            zero<double>(Arand_guess, fine_size); 
+            zero<double>(Arand_guess, fine_size);
+            
             (*op)(Arand_guess, rand_guess, (void*)&stagif);
+            
             //square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
             for (j = 0; j < fine_size; j++)
             {
@@ -567,6 +616,7 @@ int main(int argc, char** argv)
         
         cout << "[MG]: Performing block orthonormalize of null vectors...\n";
         block_orthonormalize(&mgstruct); 
+        
         
         // Do we need to generate more levels?
         if (mgstruct.n_refine > 1)
@@ -1089,38 +1139,38 @@ int main(int argc, char** argv)
 // Square lattice.
 // Kinetic term for a 2D laplace w/ period bc. Applies lhs = A*rhs.
 // The unit vectors are e_1 = xhat, e_2 = yhat.
-// The "extra_data" doesn't include anything.
 void square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
     // Declare variables.
     int i;
-    int x,y;
+    int x,y,c;
+    int tmp; 
     staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
     double mass = stagif->mass; 
     int x_fine = stagif->x_fine;
     int y_fine = stagif->y_fine;
-
+    int Nc = stagif->Nc; // 1 is the trivial laplace. 
+    
     // Apply the stencil.
-    for (i = 0; i < x_fine*y_fine; i++)
+    for (i = 0; i < x_fine*y_fine*Nc; i++)
     {
         lhs[i] = 0.0;
-        x = i%x_fine; // integer mod.
-        y = i/x_fine; // integer divide.
+        c = i%Nc;      // get color.
+        tmp = (i-c)/Nc;
+        x = tmp%x_fine; // integer mod.
+        y = tmp/x_fine; // integer divide.
 
         // + e1.
-        lhs[i] = lhs[i]-rhs[y*x_fine+((x+1)%x_fine)];
-
+        lhs[i] = lhs[i]-rhs[y*x_fine*Nc+((x+1)%x_fine)*Nc+c];
+        
         // - e1.
-        lhs[i] = lhs[i]- rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+        lhs[i] = lhs[i]- rhs[y*x_fine*Nc+((x+x_fine-1)%x_fine)*Nc+c]; // The extra +N is because of the % sign convention.
 
         // + e2.
-        lhs[i] = lhs[i]- rhs[((y+1)%y_fine)*x_fine+x];
+        lhs[i] = lhs[i]- rhs[((y+1)%y_fine)*x_fine*Nc+x*Nc+c];
 
         // - e2.
-        lhs[i] = lhs[i]- rhs[((y+y_fine-1)%y_fine)*x_fine+x];
-
-        // Normalization.
-        lhs[i] = lhs[i];
+        lhs[i] = lhs[i]- rhs[((y+y_fine-1)%y_fine)*x_fine*Nc+x*Nc+c];
 
         // 0
         // Added mass term here.
