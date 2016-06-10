@@ -84,7 +84,11 @@ struct mg_precond_struct_complex
     mg_operator_struct_complex* mgstruct; 
     
     // What's matrix function are we dealing with?
-    void (*matrix_vector)(complex<double>*, complex<double>*, void*);
+    // This is the fine function.
+    void (*fine_matrix_vector)(complex<double>*, complex<double>*, void*);
+    
+    // This is the coarse function. 
+    void (*coarse_matrix_vector)(complex<double>*, complex<double>*, void*);
     void* matrix_extra_data; 
 };
 

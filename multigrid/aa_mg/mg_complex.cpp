@@ -61,6 +61,66 @@ void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* e
     // Grab the mg_precond_struct.
     mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
     
+    // We need to prolong all the way up to the top.
+    int curr_level = mgstruct->curr_level+1;
+    
+    // Prepare space for everything.
+    complex<double>** Px; // holds prolonged current solutions.
+    Px = new complex<double>*[curr_level+1];
+    
+    // Copy over.
+    Px[curr_level] = new complex<double>[mgstruct->curr_coarse_size];
+    copy<double>(Px[curr_level], rhs, mgstruct->curr_coarse_size);
+    
+    for (int i = curr_level-1; i >=0; i--)
+    {
+        Px[i] = new complex<double>[mgstruct->curr_fine_size];
+        zero<double>(Px[i], mgstruct->curr_fine_size);
+        
+        // Prolong.
+        prolong(Px[i], Px[i+1], mgstruct);
+        
+        // Level up! 
+        if (i != 0)
+        {
+            level_up(mgstruct); 
+        }
+    }
+    
+    // Apply A.
+    complex<double>** APx; // holds restricted current solutions.
+    APx = new complex<double>*[curr_level+1];
+    APx[0] = new complex<double>[mgstruct->curr_fine_size];
+    
+    zero<double>(APx[0], mgstruct->curr_fine_size);
+    (*mgstruct->matrix_vector)(APx[0], Px[0], mgstruct->matrix_extra_data);
+    
+    // Bring it down.
+    for (int i = 1; i <= curr_level; i++)
+    {
+        APx[i] = new complex<double>[mgstruct->curr_coarse_size];
+        zero<double>(APx[i], mgstruct->curr_coarse_size);
+        
+        // Restrict.
+        restrict(APx[i], APx[i-1], mgstruct);
+        
+        // Level down!
+        if (i != curr_level)
+        {
+            level_down(mgstruct);
+        }
+    }
+    
+    copy<double>(lhs, APx[curr_level], mgstruct->curr_coarse_size); 
+    for (int i = 0; i < curr_level+1; i++)
+    {
+        delete[] APx[i];
+        delete[] Px[i];
+    }
+    
+    /*
+    
+    
     // lhs and rhs are of size coarse_size. mgstruct.matrix_vector expects
     // fine_size. 
     int x_fine = mgstruct->x_fine;
@@ -99,11 +159,11 @@ void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* e
     }*/
     
     // Restrict. 
-    zero<double>(lhs, coarse_length);
-    restrict(lhs, APx, mgstruct); 
+    //zero<double>(lhs, coarse_length);
+    //restrict(lhs, APx, mgstruct); 
     
-    delete[] Px;
-    delete[] APx; 
+    //delete[] Px;
+    //delete[] APx; 
     
 }
 
@@ -114,7 +174,19 @@ void fine_square_staggered(complex<double>* lhs, complex<double>* rhs, void* ext
     // Grab the mg_precond_struct.
     mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
     
-    level_up(mgstruct);
+    if (mgstruct->curr_level == 0)
+    {
+        zero<double>(lhs, mgstruct->curr_fine_size);
+        (*mgstruct->matrix_vector)(lhs, rhs, mgstruct->matrix_extra_data);
+    }
+    else
+    {
+        level_up(mgstruct);
+        coarse_square_staggered(lhs, rhs, extra_data);
+        level_down(mgstruct);
+    }
+    
+    /*
     
     // lhs and rhs are of size coarse_size. mgstruct.matrix_vector expects
     // fine_size. 
@@ -155,13 +227,13 @@ void fine_square_staggered(complex<double>* lhs, complex<double>* rhs, void* ext
     }*/
     
     // Restrict. 
-    zero<double>(lhs, coarse_length);
-    restrict(lhs, APx, mgstruct); 
+    //zero<double>(lhs, coarse_length);
+    //restrict(lhs, APx, mgstruct); 
     
-    delete[] Px;
-    delete[] APx; 
+    //delete[] Px;
+    //delete[] APx; 
     
-    level_down(mgstruct);
+    //level_down(mgstruct);
     
 }
 
@@ -169,193 +241,179 @@ void fine_square_staggered(complex<double>* lhs, complex<double>* rhs, void* ext
 // Properly normalize the P vectors.
 void block_normalize(mg_operator_struct_complex* mgstruct)
 {
-    int n, i;
-    int x_fine = mgstruct->curr_x_fine;
-    int y_fine = mgstruct->curr_y_fine;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
-    int y_coarse = mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
+    int i;
     
     // Grab the current null vectors.
     complex<double>** null_vectors = mgstruct->null_vectors[mgstruct->curr_level];
     
     // Hold current sites.
-    int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
+    int curr_x_coarse, curr_y_coarse, curr_dof_coarse; 
     
-    // Build up norms in this array...
-    double* norms = new double[coarse_size];
-    
-    // Loop over every vector.
-    for (n = 0; n < mgstruct->n_vector; n++)
+    // Loop over every coarse site and generalized color index.
+    for (i = 0; i < mgstruct->curr_coarse_size; i++)
     {
-        zero<double>(norms, coarse_size); 
-        // Loop over the fine size.
+        int tmp = i;
+        // Decompose into color, x, y.
+        curr_dof_coarse = tmp % mgstruct->curr_dof_coarse;
+        tmp = (tmp - curr_dof_coarse)/mgstruct->curr_dof_coarse;
+        curr_x_coarse = tmp % mgstruct->curr_x_coarse;
+        tmp = (tmp - curr_x_coarse)/mgstruct->curr_x_coarse;
+        curr_y_coarse = tmp;
         
-        for (i = 0; i < fine_size; i++)
+        // Convert to 'unit' corner of fine lattice.
+        int curr_dof_fine = 0;
+        int curr_x_fine = curr_x_coarse*mgstruct->blocksize_x[mgstruct->curr_level];
+        int curr_y_fine = curr_y_coarse*mgstruct->blocksize_y[mgstruct->curr_level];
+        
+        double norm = 0.0;
+        
+        // Loop over all relevant fine sites.
+        for (int y = curr_y_fine; y < curr_y_fine+mgstruct->blocksize_y[mgstruct->curr_level]; y++)
         {
-            // What's the current coarse site? First, find the fine site.
-            curr_x = i % x_fine;
-            curr_y = i / x_fine; 
-            
-            // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
-            curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
-            curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-            
-            // Update the norm!
-            norms[curr_coarse] += real(conj(null_vectors[n][i])*null_vectors[n][i]);
+            for (int x = curr_x_fine; x < curr_x_fine+mgstruct->blocksize_x[mgstruct->curr_level]; x++)
+            {
+                for (int dof = curr_dof_fine; dof < mgstruct->curr_dof_fine; dof++)
+                {
+                    // Construct fine site.
+                    int fine_site = y*mgstruct->curr_x_fine*mgstruct->curr_dof_fine + x*mgstruct->curr_dof_fine + dof;
+                    
+                    // Build norm.
+                    norm += real(conj(null_vectors[curr_dof_coarse][fine_site])*null_vectors[curr_dof_coarse][fine_site]);
+                }
+            }
         }
         
-        // Sqrt all of the norms.
-        for (i = 0; i < coarse_size; i++)
-        {
-            norms[i] = sqrt(norms[i]);
-        }
+        norm = sqrt(norm);
         
-        // Normalize the null_vectors.
-        for (i = 0; i < fine_size; i++)
+        // Loop over all relevant fine sites.
+        for (int y = curr_y_fine; y < curr_y_fine+mgstruct->blocksize_y[mgstruct->curr_level]; y++)
         {
-            // What's the current coarse site? First, find the fine site.
-            curr_x = i % x_fine;
-            curr_y = i / x_fine; 
-            
-            // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
-            curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
-            curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-            
-            // Update the norm!
-            null_vectors[n][i] /= norms[curr_coarse];
+            for (int x = curr_x_fine; x < curr_x_fine+mgstruct->blocksize_x[mgstruct->curr_level]; x++)
+            {
+                for (int dof = curr_dof_fine; dof < mgstruct->curr_dof_fine; dof++)
+                {
+                    // Construct fine site.
+                    int fine_site = y*mgstruct->curr_x_fine*mgstruct->curr_dof_fine + x*mgstruct->curr_dof_fine + dof;
+                    
+                    // Normalize.
+                    null_vectors[curr_dof_coarse][fine_site] /= norm;
+                }
+            }
         }
     }
+        
     
-    delete[] norms; 
+    
 }
 
 // Properly orthonormalize the P vectors.
 void block_orthonormalize(mg_operator_struct_complex* mgstruct)
 {
-    int n, m, i;
-    int x_fine = mgstruct->curr_x_fine;
-    int y_fine = mgstruct->curr_y_fine;
-    int fine_size = x_fine*y_fine;
+    int  m, i;
+
     int x_coarse = mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
     int y_coarse = mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
     
     // Grab the current null vectors.
     complex<double>** null_vectors = mgstruct->null_vectors[mgstruct->curr_level];
     
     // Hold current sites.
-    int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
+    int curr_x_coarse, curr_y_coarse, curr_dof_coarse; 
     
-    // Perform a modified gram schmidt. 
+    double norm;
+    complex<double> dot_prod;
     
-    if (mgstruct->n_vector > 1)
+    // Loop over every coarse site separately from each color index.
+    for (i = 0; i < x_coarse*y_coarse; i++)
     {
-        // Build up norms in this array...
-        double* norms = new double[coarse_size];
-        complex<double>* dot_prod = new complex<double>[coarse_size];
-
+        // Get the current coarse sites.
+        int tmp = i;
+        curr_x_coarse = tmp % mgstruct->curr_x_coarse;
+        tmp = (tmp - curr_x_coarse)/mgstruct->curr_x_coarse;
+        curr_y_coarse = tmp;
         
-        // Loop over every vector.
-        for (n = 1; n < mgstruct->n_vector; n++)
+        // Convert to 'unit' corner of fine lattice.
+        int curr_dof_fine = 0;
+        int curr_x_fine = curr_x_coarse*mgstruct->blocksize_x[mgstruct->curr_level];
+        int curr_y_fine = curr_y_coarse*mgstruct->blocksize_y[mgstruct->curr_level];
+        
+        for (curr_dof_coarse = 1; curr_dof_coarse < mgstruct->curr_dof_coarse; curr_dof_coarse++)
         {
-            //cout << "\nn " << n << "\n";
-            zero<double>(norms, coarse_size);
-
-            // Get the new norm.
-            for (i = 0; i < fine_size; i++)
-            {
-                // What's the current coarse site? First, find the fine site.
-                curr_x = i % x_fine;
-                curr_y = i / x_fine; 
-
-                // Now, find the coarse site. 
-                curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
-                curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
-                curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-
-                // Update the norm of the previous vector,
-                // Compute new dot products. 
-                norms[curr_coarse] += real(conj(null_vectors[n-1][i])*null_vectors[n-1][i]);
-            }
+            norm = 0.0;
+            // First, normalize the previous vector.
             
-            // Sqrt all of the norms.
-            /*cout << "norm ";
-            for (i = 0; i < coarse_size; i++)
+            for (int y = curr_y_fine; y < curr_y_fine+mgstruct->blocksize_y[mgstruct->curr_level]; y++)
             {
-                norms[i] = sqrt(norms[i]);
-                cout << norms[i] << " ";
-            }
-            cout << "\n";*/
-
-            // Normalize the null_vectors.
-            for (i = 0; i < fine_size; i++)
-            {
-                // What's the current coarse site? First, find the fine site.
-                curr_x = i % x_fine;
-                curr_y = i / x_fine; 
-
-                // Now, find the coarse site. 
-                curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
-                curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
-                curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-
-                // Update the norm!
-                null_vectors[n-1][i] /= norms[curr_coarse];
-            }
-            
-            for (m = 0; m < n; m++)
-            {
-                // Zero out the dot product. 
-                
-                zero<double>(dot_prod, coarse_size);
-                // Pull off one piece at a time.
-                for (i = 0; i < fine_size; i++)
+                for (int x = curr_x_fine; x < curr_x_fine+mgstruct->blocksize_x[mgstruct->curr_level]; x++)
                 {
-                    // What's the current coarse site? First, find the fine site.
-                    curr_x = i % x_fine;
-                    curr_y = i / x_fine; 
+                    for (int dof = curr_dof_fine; dof < mgstruct->curr_dof_fine; dof++)
+                    {
+                        // Construct fine site.
+                        int fine_site = y*mgstruct->curr_x_fine*mgstruct->curr_dof_fine + x*mgstruct->curr_dof_fine + dof;
 
-                    // Now, find the coarse site. 
-                    curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
-                    curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
-                    curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-
-                    dot_prod[curr_coarse] += conj(null_vectors[m][i])*null_vectors[n][i];
+                        // Build norm.
+                        norm += real(conj(null_vectors[curr_dof_coarse-1][fine_site])*null_vectors[curr_dof_coarse-1][fine_site]);
+                    }
                 }
-
+            }
             
-                /*cout << "dot " << m << " ";
-                for (i = 0; i < coarse_size; i++)
+            norm = sqrt(norm);
+            
+            // Loop over all relevant fine sites.
+            for (int y = curr_y_fine; y < curr_y_fine+mgstruct->blocksize_y[mgstruct->curr_level]; y++)
+            {
+                for (int x = curr_x_fine; x < curr_x_fine+mgstruct->blocksize_x[mgstruct->curr_level]; x++)
                 {
-                    cout << dot_prod[i] << " ";
+                    for (int dof = curr_dof_fine; dof < mgstruct->curr_dof_fine; dof++)
+                    {
+                        // Construct fine site.
+                        int fine_site = y*mgstruct->curr_x_fine*mgstruct->curr_dof_fine + x*mgstruct->curr_dof_fine + dof;
+
+                        // Normalize.
+                        null_vectors[curr_dof_coarse-1][fine_site] /= norm;
+                    }
                 }
-                cout << "\n";*/
+            }
+            
+            // Orthogonalize current vector against all previous vectors.
+            for (m = 0; m < curr_dof_coarse; m++)
+            {
+                dot_prod = 0.0;
                 
-
-                // Normalize the null_vectors.
-                for (i = 0; i < fine_size; i++)
+                // Compute inner product...
+                for (int y = curr_y_fine; y < curr_y_fine+mgstruct->blocksize_y[mgstruct->curr_level]; y++)
                 {
-                    // What's the current coarse site? First, find the fine site.
-                    curr_x = i % x_fine;
-                    curr_y = i / x_fine; 
+                    for (int x = curr_x_fine; x < curr_x_fine+mgstruct->blocksize_x[mgstruct->curr_level]; x++)
+                    {
+                        for (int dof = curr_dof_fine; dof < mgstruct->curr_dof_fine; dof++)
+                        {
+                            // Construct fine site.
+                            int fine_site = y*mgstruct->curr_x_fine*mgstruct->curr_dof_fine + x*mgstruct->curr_dof_fine + dof;
 
-                    // Now, find the coarse site. 
-                    curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
-                    curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
-                    curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
+                            // Dot product.
+                            dot_prod = conj(null_vectors[m][fine_site])*null_vectors[curr_dof_coarse][fine_site];
+                        }
+                    }
+                }
+                
+                // Project off.
+                for (int y = curr_y_fine; y < curr_y_fine+mgstruct->blocksize_y[mgstruct->curr_level]; y++)
+                {
+                    for (int x = curr_x_fine; x < curr_x_fine+mgstruct->blocksize_x[mgstruct->curr_level]; x++)
+                    {
+                        for (int dof = curr_dof_fine; dof < mgstruct->curr_dof_fine; dof++)
+                        {
+                            // Construct fine site.
+                            int fine_site = y*mgstruct->curr_x_fine*mgstruct->curr_dof_fine + x*mgstruct->curr_dof_fine + dof;
 
-                    // Project off previous vector.
-                    null_vectors[n][i] -= dot_prod[curr_coarse]*null_vectors[m][i];
+                            // Dot product.
+                            null_vectors[curr_dof_coarse][fine_site] -= dot_prod*null_vectors[m][fine_site];
+                        }
+                    }
                 }
             }
         }
-
-        delete[] norms; 
-        delete[] dot_prod;
+           
     }
     
     block_normalize(mgstruct); 
@@ -364,39 +422,47 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
 // Prolong a coarse vector to a fine vector using the info in mgstruct.
 void prolong(complex<double>* vec_fine, complex<double>* vec_coarse, mg_operator_struct_complex* mgstruct)
 {
-    int n, i;
-    int x_fine = mgstruct->curr_x_fine;
-    int y_fine = mgstruct->curr_y_fine;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
-    //int y_coarse = mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
+    int i;
     
     // Grab the current null vectors.
     complex<double>** null_vectors = mgstruct->null_vectors[mgstruct->curr_level];
     
+    zero<double>(vec_fine, mgstruct->curr_fine_size); 
+    
     // Hold current sites.
-    int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
+    int curr_x_coarse, curr_y_coarse, curr_dof_coarse; 
     
-    zero<double>(vec_fine, fine_size); 
-    
-    // Loop over every vector.
-    for (n = 0; n < mgstruct->n_vector; n++)
+    // Loop over every coarse site and generalized color index.
+    for (i = 0; i < mgstruct->curr_coarse_size; i++)
     {
-        // Loop over the fine size.
+        int tmp = i;
+        // Decompose into color, x, y.
+        curr_dof_coarse = tmp % mgstruct->curr_dof_coarse;
+        tmp = (tmp - curr_dof_coarse)/mgstruct->curr_dof_coarse;
+        curr_x_coarse = tmp % mgstruct->curr_x_coarse;
+        tmp = (tmp - curr_x_coarse)/mgstruct->curr_x_coarse;
+        curr_y_coarse = tmp;
         
-        for (i = 0; i < fine_size; i++)
+        // Convert to 'unit' corner of fine lattice.
+        int curr_dof_fine = 0;
+        int curr_x_fine = curr_x_coarse*mgstruct->blocksize_x[mgstruct->curr_level];
+        int curr_y_fine = curr_y_coarse*mgstruct->blocksize_y[mgstruct->curr_level];
+        
+        // Loop over all relevant fine sites.
+        for (int y = curr_y_fine; y < curr_y_fine+mgstruct->blocksize_y[mgstruct->curr_level]; y++)
         {
-            // What's the current coarse site? First, find the fine site.
-            curr_x = i % x_fine;
-            curr_y = i / x_fine; 
-            
-            // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
-            curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
-            curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-            
-            // Update the fine with the coarse. 
-            vec_fine[i] += null_vectors[n][i]*vec_coarse[curr_coarse*mgstruct->n_vector+n];
+            for (int x = curr_x_fine; x < curr_x_fine+mgstruct->blocksize_x[mgstruct->curr_level]; x++)
+            {
+                for (int dof = curr_dof_fine; dof < mgstruct->curr_dof_fine; dof++)
+                {
+                    // Construct fine site.
+                    int fine_site = y*mgstruct->curr_x_fine*mgstruct->curr_dof_fine + x*mgstruct->curr_dof_fine + dof;
+                    
+                    // Update the fine with the coarse. 
+                    vec_fine[fine_site] += null_vectors[curr_dof_coarse][fine_site]*vec_coarse[i];
+                    
+                }
+            }
         }
     }
 }
@@ -405,40 +471,48 @@ void prolong(complex<double>* vec_fine, complex<double>* vec_coarse, mg_operator
 // Hermitian conjugate of prolong. 
 void restrict(complex<double>* vec_coarse, complex<double>* vec_fine, mg_operator_struct_complex* mgstruct)
 {
-    int n, i;
-    int x_fine = mgstruct->curr_x_fine;
-    int y_fine = mgstruct->curr_y_fine;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
-    int y_coarse = mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
+    int i;
     
     // Grab the current null vectors.
     complex<double>** null_vectors = mgstruct->null_vectors[mgstruct->curr_level];
     
+    zero<double>(vec_coarse, mgstruct->curr_coarse_size);
+    
     // Hold current sites.
-    int curr_x, curr_y, curr_x_coarse, curr_y_coarse, curr_coarse; 
+    int curr_x_coarse, curr_y_coarse, curr_dof_coarse; 
     
-    zero<double>(vec_coarse, mgstruct->n_vector*coarse_size); 
-    
-    // Loop over every vector.
-    for (n = 0; n < mgstruct->n_vector; n++)
+    // Loop over every coarse site and generalized color index.
+    for (i = 0; i < mgstruct->curr_coarse_size; i++)
     {
-        // Loop over the fine size.
+        int tmp = i;
+        // Decompose into color, x, y.
+        curr_dof_coarse = tmp % mgstruct->curr_dof_coarse;
+        tmp = (tmp - curr_dof_coarse)/mgstruct->curr_dof_coarse;
+        curr_x_coarse = tmp % mgstruct->curr_x_coarse;
+        tmp = (tmp - curr_x_coarse)/mgstruct->curr_x_coarse;
+        curr_y_coarse = tmp;
         
-        for (i = 0; i < fine_size; i++)
+        // Convert to 'unit' corner of fine lattice.
+        int curr_dof_fine = 0;
+        int curr_x_fine = curr_x_coarse*mgstruct->blocksize_x[mgstruct->curr_level];
+        int curr_y_fine = curr_y_coarse*mgstruct->blocksize_y[mgstruct->curr_level];
+        
+        // Loop over all relevant fine sites.
+        for (int y = curr_y_fine; y < curr_y_fine+mgstruct->blocksize_y[mgstruct->curr_level]; y++)
         {
-            // What's the current coarse site? First, find the fine site.
-            curr_x = i % x_fine;
-            curr_y = i / x_fine; 
-            
-            // Now, find the coarse site. 
-            curr_x_coarse = curr_x / mgstruct->blocksize_x[0];
-            curr_y_coarse = curr_y / mgstruct->blocksize_y[0]; 
-            curr_coarse = curr_y_coarse*x_coarse + curr_x_coarse; 
-            
-            // Update the fine with the coarse. 
-            vec_coarse[curr_coarse*mgstruct->n_vector+n] += conj(null_vectors[n][i])*vec_fine[i];
+            for (int x = curr_x_fine; x < curr_x_fine+mgstruct->blocksize_x[mgstruct->curr_level]; x++)
+            {
+                for (int dof = curr_dof_fine; dof < mgstruct->curr_dof_fine; dof++)
+                {
+                    // Construct fine site.
+                    int fine_site = y*mgstruct->curr_x_fine*mgstruct->curr_dof_fine + x*mgstruct->curr_dof_fine + dof;
+                    
+                    // Update the coarse with the fine.
+                    
+                    vec_coarse[i] += conj(null_vectors[curr_dof_coarse][fine_site])*vec_fine[fine_site];
+                    
+                }
+            }
         }
     }
 }
@@ -509,7 +583,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     // Standard defines.
     int x_fine = mgprecond->mgstruct->curr_x_fine;
     int y_fine = mgprecond->mgstruct->curr_y_fine;
-    int fine_size = x_fine*y_fine;
+    int fine_size = mgprecond->mgstruct->curr_fine_size;
     int x_coarse = mgprecond->mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
     int y_coarse = mgprecond->mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
     int coarse_size = x_coarse*y_coarse; 
@@ -535,10 +609,11 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 invif = minv_vector_minres(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
                 break;
             case GCR:
-                invif = minv_vector_gcr(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                //invif = minv_vector_gcr(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                invif = minv_vector_gcr(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break; 
         }
-        printf("[L1 Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq), invif.name.c_str());
+        printf("[L%d Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str()); fflush(stdout);
     }
     else
     {
@@ -551,7 +626,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         // 2. r_pre = rhs - A z_presmooth
         complex<double>* Az_presmooth = new complex<double>[fine_size];
         zero<double>(Az_presmooth, fine_size);
-        (*mgprecond->mgstruct->matrix_vector)(Az_presmooth, z_presmooth, mgprecond->mgstruct->matrix_extra_data);
+        (*mgprecond->fine_matrix_vector)(Az_presmooth, z_presmooth, mgprecond->matrix_extra_data);
 
         complex<double>* r_presmooth = new complex<double>[fine_size];
         for (int i = 0; i < fine_size; i++)
@@ -565,24 +640,36 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         zero<double>(rhs_coarse, coarse_length); 
         restrict(rhs_coarse, r_presmooth, mgprecond->mgstruct);
 
-        // 4. Perform coarse solve.
+        // 4. Perform coarse solve. If we're at the coarsest level, this is just a regular solve.
         complex<double>* lhs_coarse = new complex<double>[coarse_length];
         zero<double>(lhs_coarse, coarse_length);
-        switch (mgprecond->in_solve_type)
+        if (mgprecond->mgstruct->curr_level+1 == mgprecond->mgstruct->n_refine) // We're already on the coarsest level.
         {
-            case NONE: // The code can't reach here, anyway.
-                break;
-            case MINRES:
-                invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
-                break;
-            case CG:
-                invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
-                break;
-            case GCR:
-                invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
-                break;
+            switch (mgprecond->in_solve_type)
+            {
+                case NONE: // The code can't reach here, anyway.
+                    break;
+                case MINRES:
+                    invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
+                    break;
+                case CG:
+                    invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
+                    break;
+                case GCR:
+                    invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
+                    break;
+            }
         }
-        printf("[L2]: Iterations %d RelRes %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
+        else // Apply the fine operator preconditioned with the coarse op.
+        {
+            printf("About to enter coarser solve.\n"); fflush(stdout);
+            level_down(mgprecond->mgstruct);
+            invif = minv_vector_gcr_var_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, 32, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, extra_data);
+            level_up(mgprecond->mgstruct);
+            printf("Exited coarser solve.\n"); fflush(stdout);
+        }
+            
+        printf("[L%d]: Iterations %d RelRes %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+2, invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
 
         // Project the lhs to the fine vector.
         // 5. lhs_postsmooth = prolong(lhs_coarse)
@@ -624,11 +711,12 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
                 break;
             case GCR:
-                invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                //invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
         }
         //invif = minv_vector_minres(lhs, lhs_postsmooth, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
-        printf("[L1 Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq), invif.name.c_str());
+        printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());
     }
     
     // Clean up!

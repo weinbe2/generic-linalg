@@ -288,7 +288,8 @@ int main(int argc, char** argv)
     mgprecond.n_step = 10000; // max number of steps to use for inner solver.
     mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
-    mgprecond.matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
+    mgprecond.coarse_matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
+    mgprecond.fine_matrix_vector = fine_square_staggered; // Function which applies the fine operator. 
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
 
     // Set a point on the rhs.
@@ -572,6 +573,7 @@ int main(int argc, char** argv)
                     zero<double>(c_Arand_guess, mgstruct.curr_fine_size); 
                     fine_square_staggered(c_Arand_guess, c_rand_guess, (void*)&mgstruct);
                     
+                    
                     for (j = 0; j < mgstruct.curr_fine_size; j++)
                     {
                        c_Arand_guess[j] = -c_Arand_guess[j]; 
@@ -616,7 +618,10 @@ int main(int argc, char** argv)
                     }
                 }
                 
+                block_orthonormalize(&mgstruct); 
+                
                 // Print vector.
+                /*
                 cout << "\n\nPrinting null vectors:\n"; 
                 for (int n = 0; n < mgstruct.n_vector; n++)
                 {
@@ -634,7 +639,7 @@ int main(int argc, char** argv)
                         }
                         cout << "\n";
                     }
-                }
+                }*/
             }
             
             // Un-pop to the finest level.
@@ -650,6 +655,7 @@ int main(int argc, char** argv)
     } // end skipping generation if we're only doing a top level or smoother test. 
     
 #endif // generate null vector. 
+    
     
 #ifdef PRINT_NULL_VECTOR
     cout << "\nCheck projector:\n"; 
