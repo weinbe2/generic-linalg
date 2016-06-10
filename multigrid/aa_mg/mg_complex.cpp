@@ -712,7 +712,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 break;
             case GCR:
                 //invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
-                invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
         }
         //invif = minv_vector_minres(lhs, lhs_postsmooth, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 

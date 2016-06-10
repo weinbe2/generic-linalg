@@ -37,7 +37,7 @@ using namespace std;
 #define GEN_NULL_VECTOR
 
 // How many GCR iterations do we use?
-#define GEN_NULL_VECTOR_STEP 1000
+#define GEN_NULL_VECTOR_STEP 300
 #define GEN_NULL_VECTOR_REL_RESID 1e-4
 
 //#define AGGREGATE_FOUR
@@ -61,9 +61,11 @@ enum mg_test_types
     TOP_LEVEL_ONLY = 0,       // only test the top level solver.
     SMOOTHER_ONLY = 1,        // Top level + smoother
     TWO_LEVEL = 2,            // Two level MG 
-    TWO_LEVEL_P_SMOOTHER = 3, // Two level MG + smoother
-    THREE_LEVEL = 4           // Three level MG
+    THREE_LEVEL = 3           // Three level MG
 };
+
+// Square laplace 2d operator w/out u1 function.
+void square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
 // Square staggered 2d operator w/out u1 function.
 void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data);
@@ -91,6 +93,9 @@ int main(int argc, char** argv)
     inversion_info invif;
     staggered_u1_op stagif;
     
+    // What operator are we using?
+    void (*op)(complex<double>*, complex<double>*, void*) = square_staggered_u1; //square_laplace;
+    
     // What test are we performing?
     mg_test_types my_test = TWO_LEVEL;
     
@@ -117,6 +122,10 @@ int main(int argc, char** argv)
     
     // Multigrid info.
     int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
+    if (my_test == THREE_LEVEL)
+    {
+        n_refine = 2;
+    }
     int X_BLOCKSIZE = 4; 
     int Y_BLOCKSIZE = 4;
     int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation. 
@@ -252,14 +261,18 @@ int main(int argc, char** argv)
         mgstruct.blocksize_x[i] = X_BLOCKSIZE;
         mgstruct.blocksize_y[i] = Y_BLOCKSIZE;
     }
+
 #if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
     mgstruct.n_vector = 4*n_null_vector;
     mgstruct.eo = 1;
 #elif defined GEN_NULL_VECTOR
     mgstruct.eo = eo;
     mgstruct.n_vector = (eo+1)*n_null_vector;
+#else
+    mgstruct.eo = eo;
+    mgstruct.n_vector = (eo+1)*n_null_vector;
 #endif
-    mgstruct.matrix_vector = square_staggered_u1;
+    mgstruct.matrix_vector = op; //square_staggered_u1;
     mgstruct.matrix_extra_data = (void*)&stagif; 
     
     // Set the starting mg_struct state.
@@ -334,6 +347,7 @@ int main(int argc, char** argv)
 
     cout << "[MG]: Creating " << mgstruct.n_vector << " projector(s).\n";
 #ifndef GEN_NULL_VECTOR
+
     // Make a constant projector.
     if (mgstruct.n_vector == 1)
     {
@@ -353,8 +367,8 @@ int main(int argc, char** argv)
         for (i = 0; i < fine_size; i++)
         {
             mgstruct.null_vectors[0][0][i] = 1;
-            x = i % N;
-            y = i / N;
+            x = i % x_fine;
+            y = i / x_fine;
             mgstruct.null_vectors[0][1][i] = ((x+y)%2 == 0) ? complex<double>(0.0,1.0) : complex<double>(0.0,-1.0);
 #ifdef TEST_RANDOM_GAUGE
             mgstruct.null_vectors[0][0][i] *= (gauge_trans[i]);
@@ -372,8 +386,8 @@ int main(int argc, char** argv)
         std::normal_distribution<> dist(1.0, 0.1);
         for (i = 0; i < fine_size; i++)
         {
-            x = i % N;
-            y = i / N;
+            x = i % x_fine;
+            y = i / x_fine;
             mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] = 1.0;
             mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] = dist(generator);
             
@@ -393,6 +407,8 @@ int main(int argc, char** argv)
     delete[] gauge_trans;
 #endif
     
+    cout << "[MG]: Performing block orthonormalize of null vectors...\n";
+    block_orthonormalize(&mgstruct); 
     
 #ifdef PRINT_NULL_VECTOR
     cout << "[MG]: Check projector:\n"; 
@@ -409,6 +425,8 @@ int main(int argc, char** argv)
         }
     }
 #endif // PRINT_NULL_VECTOR
+    
+        
 
 #else // generate null vector
     
@@ -436,22 +454,23 @@ int main(int argc, char** argv)
             gaussian<double>(rand_guess, fine_size, generator);
 
             zero<double>(Arand_guess, fine_size); 
-            square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
+            (*op)(Arand_guess, rand_guess, (void*)&stagif);
+            //square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
             for (j = 0; j < fine_size; j++)
             {
                Arand_guess[j] = -Arand_guess[j]; 
             }
             zero<double>(mgstruct.null_vectors[0][i], fine_size);
 
-            minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
+            minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, op, (void*)&stagif); 
+            //minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
 
             for (j = 0; j < fine_size; j++)
             {
                 mgstruct.null_vectors[0][i][j] += rand_guess[j];
             }
 
-            //minv_vector_gcr(mgstruct.null_vectors[i], rand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
-
+            
             normalize(mgstruct.null_vectors[0][i], fine_size); 
         }
 
@@ -606,6 +625,9 @@ int main(int argc, char** argv)
                         {
                             int c = i % mgstruct.n_vector; // What color index do we have?
                                                            // 0 to mgstruct.n_vector/2-1 is even, else is odd.
+                            //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
+                            //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
+                            
                             if (c >= mgstruct.n_vector/2)
                             {
                                 mgstruct.null_vectors[mgstruct.curr_level][n+mgstruct.n_vector/2][i] = mgstruct.null_vectors[mgstruct.curr_level][n][i];
@@ -793,6 +815,7 @@ int main(int argc, char** argv)
     }
 #endif
     
+    
 #ifdef PDAGP_2TEST
     
     // Test adding a second projector.
@@ -947,7 +970,8 @@ int main(int argc, char** argv)
         // Try a direct solve.
         cout << "\n[ORIG]: Solve fine system.\n";
 
-        invif = minv_vector_gcr_restart(lhs, rhs, fine_size, 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
+        invif = minv_vector_gcr_restart(lhs, rhs, fine_size, 100000, outer_precision, outer_restart, op, (void*)&stagif);
+        //invif = minv_vector_gcr_restart(lhs, rhs, fine_size, 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
 
         if (invif.success == true)
         {
@@ -963,7 +987,8 @@ int main(int argc, char** argv)
 
         // Check and make sure we get the right answer.
         zero<double>(check, fine_size);
-        square_staggered_u1(check, lhs, (void*)&stagif);
+        (*op)(check, lhs, (void*)&stagif); 
+        //square_staggered_u1(check, lhs, (void*)&stagif);
 
         explicit_resid = 0.0;
         for (i = 0; i < fine_size; i++)
@@ -997,7 +1022,7 @@ int main(int argc, char** argv)
     delete[] pro_rhs_coarse; 
 #endif // COARSE_ONLY 
 
-    if (my_test == SMOOTHER_ONLY || my_test == TWO_LEVEL)
+    if (my_test == SMOOTHER_ONLY || my_test == TWO_LEVEL || my_test == THREE_LEVEL)
     {
         // Let's actually test a multigrid solve!
         cout << "\n[MG]: Test MG solve.\n";
@@ -1009,7 +1034,8 @@ int main(int argc, char** argv)
 
         // Well, maybe this will work?
         zero<double>(lhs, fine_size);
-        invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); /**/
+        invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
+        //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
 
         if (invif.success == true)
         {
@@ -1025,7 +1051,8 @@ int main(int argc, char** argv)
         printf("[MG]: Computing [check] = A [lhs] as a confirmation.\n");
 
         // Check and make sure we get the right answer.
-        square_staggered_u1(check, lhs, (void*)&stagif);
+        (*op)(check, lhs, (void*)&stagif);
+        //square_staggered_u1(check, lhs, (void*)&stagif);
 
         explicit_resid = 0.0;
         for (i = 0; i < fine_size; i++)
@@ -1059,7 +1086,48 @@ int main(int argc, char** argv)
     return 0; 
 }
 
+// Square lattice.
+// Kinetic term for a 2D laplace w/ period bc. Applies lhs = A*rhs.
+// The unit vectors are e_1 = xhat, e_2 = yhat.
+// The "extra_data" doesn't include anything.
+void square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Declare variables.
+    int i;
+    int x,y;
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    double mass = stagif->mass; 
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
 
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+
+        // + e1.
+        lhs[i] = lhs[i]-rhs[y*x_fine+((x+1)%x_fine)];
+
+        // - e1.
+        lhs[i] = lhs[i]- rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+        // + e2.
+        lhs[i] = lhs[i]- rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]- rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = lhs[i];
+
+        // 0
+        // Added mass term here.
+        lhs[i] = lhs[i]+ (4+mass)*rhs[i];
+    }
+
+}
 
 // Square lattice.
 // Kinetic term for a 2D staggered w/ period bc. Applies lhs = A*rhs.
