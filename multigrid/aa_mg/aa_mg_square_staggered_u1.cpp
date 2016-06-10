@@ -37,8 +37,8 @@ using namespace std;
 #define GEN_NULL_VECTOR
 
 // How many GCR iterations do we use?
-#define GEN_NULL_VECTOR_STEP 300
-#define GEN_NULL_VECTOR_REL_RESID 1e-4
+//#define GEN_NULL_VECTOR_STEP 300
+//#define GEN_NULL_VECTOR_REL_RESID 1e-4
 
 //#define AGGREGATE_FOUR
 
@@ -98,11 +98,88 @@ int main(int argc, char** argv)
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     double explicit_resid = 0.0;
     double bnorm = 0.0;
+    std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
     inversion_info invif;
     staggered_u1_op stagif;
     
-    // What operator are we using?
-    op_type opt = STAGGERED;
+    // Set parameters. 
+    
+    // What operator are we using? (Laplace is free only.)
+    op_type opt = STAGGERED; // LAPLACE, LAPLACE_NC2
+
+    // What test are we performing?
+    mg_test_types my_test = TWO_LEVEL; // TWO_LEVEL is the default which won't override anything.
+    
+    // L_x = L_y = Dimension for a square lattice.
+    int square_size = 32; 
+    
+    // Describe the staggered fermions.
+    double MASS = 0.01;
+    
+    // Outer Inverter information.
+    double outer_precision = 1e-6; 
+    int outer_restart = 32; 
+    
+    // Multigrid information. 
+    int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
+    if (my_test == THREE_LEVEL) // FOR TEST ONLY
+    {
+        n_refine = 2;
+    }
+    int X_BLOCKSIZE = 4; 
+    int Y_BLOCKSIZE = 4;
+    int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation.
+    if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
+    {
+        eo = 0;
+    }
+    
+    // Null vector generation
+    
+// If GEN_NULL_VECTOR isn't defined:
+//   1 for just const vector, 2 for const + even/odd vector, 4 for each corner
+//    of the hypercube.
+// If GEN_NULL_VECTOR is defined and eo = 0:
+//   Generate "n_null_vector" null vectors which are block orthogonalized.
+// IF GEN_NULL_VECTOR is defined and eo = 1:
+//   Generate "n_null_vector" null vectors, partition into even and odd.
+//    Total number of null vectors is 2*VECTOR_COUNT. 
+    int n_null_vector = 2; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
+    int null_max_iter = 300;
+    double null_precision = 1e-4;
+    
+    // Advanced:
+    // IF GEN_NULL_VECTOR is defined and AGGREGATE_EOCONJ is defined:
+    //   Generate VECTOR_COUNT null vectors, partition into even and odd, duplicate complex conj.
+    //    Total number of null vectors is 4*VECTOR_COUNT. 
+    // IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
+    //   Generate VECTOR_COUNT null vectors, partition into corners of hypercube.
+    //    Total number of null vectors is 4*VECTOR_COUNT. 
+    
+    
+    // Inner solver.
+    inner_solver in_solve = GCR; 
+    double inner_precision = 1e-4;
+    int inner_restart = 10000;
+    if (my_test == SMOOTHER_ONLY)
+    {
+        in_solve = NONE; 
+    }
+    
+    // Smoother
+    inner_solver in_smooth = GCR; 
+    int pre_smooth = 3;
+    int post_smooth = 3;
+    
+    // Gauge field information.
+    double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
+                       // For heatbath gauge field, corresponds to non-compact beta.
+    
+    ///////////////////////////////////////
+    // End of human-readable parameters! //
+    ///////////////////////////////////////
+    
+    
     string op_name;
     void (*op)(complex<double>*, complex<double>*, void*);
     switch (opt)
@@ -120,84 +197,32 @@ int main(int argc, char** argv)
             op = square_laplace;
             break;
     }
+    cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
     
-    // What test are we performing?
-    mg_test_types my_test = TWO_LEVEL;
-    
-    // Create an RNG. 
-    std::mt19937 generator (1337u); // 1337u is the seed. 
-    
-    // Describe the fine lattice. 
-    int square_size = 32; // For a square lattice.
-    int x_fine = square_size;
-    int y_fine = square_size;
+    // Only relevant for free laplace test.
     int Nc = 1;  // Only value that matters for staggered
     if (opt == LAPLACE_NC2)
     {
         Nc = 2;
     }
+    if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
+    {
+        n_null_vector *= Nc;
+    }
+    
+    // Describe the fine lattice. 
+    int x_fine = square_size;
+    int y_fine = square_size;
     int fine_size = x_fine*y_fine*Nc;
     
-    // Describe the staggered fermions.
-    double MASS = 0.01;
-    
-    cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
-    
-    // Inverter information.
-    double outer_precision = 1e-6; 
-    int outer_restart = 32; 
-    inner_solver in_solve = GCR; 
-    if (my_test == SMOOTHER_ONLY)
+    cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << x_fine*y_fine;
+    if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
     {
-        in_solve = NONE; 
+        cout << " Nc " << Nc;
     }
+    cout << "\n";
     
-    // Multigrid info.
-    int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
-    if (my_test == THREE_LEVEL)
-    {
-        n_refine = 2;
-    }
-    int X_BLOCKSIZE = 4; 
-    int Y_BLOCKSIZE = 4;
-    int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation.
-    if (opt == LAPLACE || opt == LAPLACE_NC2)
-    {
-        eo = 0;
-    }
-    double inner_precision = 1e-4;
-    inner_solver in_smooth = GCR; 
-    int pre_smooth = 3;
-    int post_smooth = 3;
-    
-    // Null vector generation
-    
-// If GEN_NULL_VECTOR isn't defined:
-//   1 for just const vector, 2 for const + even/odd vector, 4 for each corner
-//    of the hypercube.
-// If GEN_NULL_VECTOR is defined and AGGREGATE_EO isn't defined:
-//   Generate VECTOR_COUNT null vectors which are block orthogonalized.
-// IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
-//   Generate VECTOR_COUNT null vectors, partition into even and odd.
-//    Total number of null vectors is 2*VECTOR_COUNT. 
-// IF GEN_NULL_VECTOR is defined and AGGREGATE_EOCONJ is defined:
-//   Generate VECTOR_COUNT null vectors, partition into even and odd, duplicate complex conj.
-//    Total number of null vectors is 4*VECTOR_COUNT. 
-// IF GEN_NULL_VECTOR is defined and AGGREGATE_EO is defined:
-//   Generate VECTOR_COUNT null vectors, partition into corners of hypercube.
-//    Total number of null vectors is 4*VECTOR_COUNT. 
-    int n_null_vector = 2; 
-    if (opt == LAPLACE || opt == LAPLACE_NC2)
-    {
-        n_null_vector = Nc;
-    }
-    
-    // Gauge field information.
-    double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
-                       // For heatbath gauge field, corresponds to non-compact beta.
-    
-    cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << fine_size << "\n";
-    
+    // Do some allocation.
     // Initialize the lattice. Indexing: index = y*N + x.
     lattice = new complex<double>[2*fine_size];
     lhs = new complex<double>[fine_size];
@@ -208,6 +233,7 @@ int main(int argc, char** argv)
     zero<double>(rhs, fine_size);
     zero<double>(lhs, fine_size);
     zero<double>(check, fine_size);
+    //
     
     // Fill stagif.
     stagif.lattice = lattice;
@@ -215,6 +241,8 @@ int main(int argc, char** argv)
     stagif.x_fine = x_fine;
     stagif.y_fine = y_fine; 
     stagif.Nc = Nc; // Only relevant for laplace test only.
+    
+    
     
     // Describe the gauge field. 
     cout << "[GAUGE]: Creating a gauge field.\n";
@@ -317,6 +345,8 @@ int main(int argc, char** argv)
     mgstruct.matrix_vector = op; //square_staggered_u1;
     mgstruct.matrix_extra_data = (void*)&stagif; 
     
+    cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << n_null_vector << "\n";
+    
     // Set the starting mg_struct state.
     mgstruct.curr_level = 0; // Ready to do top level -> second level.
     mgstruct.curr_dof_fine = Nc; // Top level has only one d.o.f. per site. 
@@ -329,8 +359,6 @@ int main(int argc, char** argv)
     mgstruct.curr_y_coarse = mgstruct.y_fine/mgstruct.blocksize_y[0];
     mgstruct.curr_coarse_size = mgstruct.curr_y_coarse*mgstruct.curr_x_coarse*mgstruct.curr_dof_coarse;
     
-    cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << n_null_vector << "\n";
-    
     
     // Build the mg inverter structure.
     // Set up the MG preconditioner. 
@@ -340,7 +368,7 @@ int main(int argc, char** argv)
     mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
     mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
     mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, or GCR.
-    mgprecond.n_step = 10000; // max number of steps to use for inner solver.
+    mgprecond.n_step = inner_restart; // max number of steps to use for inner solver.
     mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
     mgprecond.coarse_matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
@@ -511,7 +539,7 @@ int main(int argc, char** argv)
             }
             zero<double>(mgstruct.null_vectors[0][i], fine_size);
 
-            minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, op, (void*)&stagif); 
+            minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op, (void*)&stagif); 
             //minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
 
             for (j = 0; j < fine_size; j++)
@@ -651,7 +679,7 @@ int main(int argc, char** argv)
                     zero<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
                     
                     // Invert!
-                    minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, fine_square_staggered, &mgstruct);
+                    minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct);
                     
 
                     for (j = 0; j < mgstruct.curr_fine_size; j++)
