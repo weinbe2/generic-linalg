@@ -168,6 +168,7 @@ int main(int argc, char** argv)
     
     // Smoother
     inner_solver in_smooth = GCR; 
+    double omega_smooth = 0.8; // for minres only. 
     int pre_smooth = 3;
     int post_smooth = 3;
     
@@ -366,6 +367,7 @@ int main(int argc, char** argv)
     mg_precond_struct_complex mgprecond;
 
     mgprecond.in_smooth_type = in_smooth; // What inner smoother? MINRES or GCR.
+    mgprecond.omega_smooth = omega_smooth; // What relaxation parameter should we use (MINRES only!)
     mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
     mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
     mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, or GCR.

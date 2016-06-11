@@ -509,21 +509,21 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             case NONE: // can't reach here, anyway.
                 break;
             case CG:
-                invif = minv_vector_minres(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                invif = minv_vector_cg(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
             case MINRES:
-                invif = minv_vector_minres(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                invif = minv_vector_minres(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
-            case GCR:
-                //invif = minv_vector_gcr(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+            case GCR: 
                 invif = minv_vector_gcr(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break; 
         }
         printf("[L%d Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str()); fflush(stdout);
+        
     }
     else
     {
-        copy<double>(z_presmooth, rhs, fine_size);
+        //copy<double>(z_presmooth, rhs, fine_size);
     }
     
     if (mgprecond->in_solve_type != NONE)
@@ -570,6 +570,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         {
             printf("About to enter coarser solve.\n"); fflush(stdout);
             level_down(mgprecond->mgstruct);
+            //mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data);
             invif = minv_vector_gcr_var_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, 32, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, extra_data);
             level_up(mgprecond->mgstruct);
             printf("Exited coarser solve.\n"); fflush(stdout);
@@ -588,7 +589,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         // 6. lhs = initial smooth (z_presmooth) + coarse solve (lhs_postsmooth)
         for (int i = 0; i < fine_size; i++)
         {
-            lhs[i] = z_presmooth[i] + lhs_postsmooth[i];
+            lhs[i] = lhs[i] + z_presmooth[i] + lhs_postsmooth[i];
         }
         
         delete[] Az_presmooth;
@@ -611,13 +612,12 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             case NONE: // Can't reach here, anyway.
                 break;
             case CG:
-                invif = minv_vector_cg(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                invif = minv_vector_cg(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
             case MINRES:
-                invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+                invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
             case GCR:
-                //invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
                 invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
         }

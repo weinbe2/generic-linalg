@@ -71,6 +71,9 @@ struct mg_precond_struct_complex
     // What inner smoother?
     inner_solver in_smooth_type; // MINRES or GCR
     
+    // Set the relaxation parameter (MINRES only.)
+    double omega_smooth;
+    
     // How many MinRes pre-smooth steps?
     int n_pre_smooth;
     
