@@ -105,20 +105,20 @@ int main(int argc, char** argv)
     // Set parameters. 
     
     // What operator are we using? (Laplace is free only.)
-    op_type opt = STAGGERED; // LAPLACE, LAPLACE_NC2
+    op_type opt = STAGGERED; // STAGGERED, LAPLACE, LAPLACE_NC2
 
     // What test are we performing?
-    mg_test_types my_test = TWO_LEVEL; // TWO_LEVEL is the default which won't override anything.
+    mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
     // L_x = L_y = Dimension for a square lattice.
-    int square_size = 32; 
+    int square_size = 64; 
     
     // Describe the staggered fermions.
     double MASS = 0.01;
     
     // Outer Inverter information.
     double outer_precision = 1e-6; 
-    int outer_restart = 32; 
+    int outer_restart = 64; 
     
     // Multigrid information. 
     int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
@@ -126,8 +126,8 @@ int main(int argc, char** argv)
     {
         n_refine = 2;
     }
-    int X_BLOCKSIZE = 4; 
-    int Y_BLOCKSIZE = 4;
+    int X_BLOCKSIZE = 8; 
+    int Y_BLOCKSIZE = 8;
     int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation.
     if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
     {
@@ -145,7 +145,7 @@ int main(int argc, char** argv)
 //   Generate "n_null_vector" null vectors, partition into even and odd.
 //    Total number of null vectors is 2*VECTOR_COUNT. 
     int n_null_vector = 2; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
-    int null_max_iter = 300;
+    int null_max_iter = 100;
     double null_precision = 1e-4;
     
     // Advanced:
@@ -159,7 +159,7 @@ int main(int argc, char** argv)
     
     // Inner solver.
     inner_solver in_solve = GCR; 
-    double inner_precision = 1e-4;
+    double inner_precision = 1e-3;
     int inner_restart = 10000;
     if (my_test == SMOOTHER_ONLY)
     {
@@ -167,10 +167,10 @@ int main(int argc, char** argv)
     }
     
     // Smoother
-    inner_solver in_smooth = GCR; 
+    inner_solver in_smooth = GCR; //NONE; //GCR; 
     double omega_smooth = 0.8; // for minres only. 
-    int pre_smooth = 3;
-    int post_smooth = 3;
+    int pre_smooth = 6;
+    int post_smooth = 6;
     
     // Gauge field information.
     double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).

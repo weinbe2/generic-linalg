@@ -268,7 +268,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
-    printf("Rel residual: %.8e\n", sqrt(rsq)/bsqrt); fflush(stdout);
+    printf("Iter: %d --- Rel residual: %.8e\n", k, sqrt(rsq)/bsqrt); fflush(stdout);
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
