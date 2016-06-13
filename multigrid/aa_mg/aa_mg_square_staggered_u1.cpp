@@ -111,14 +111,14 @@ int main(int argc, char** argv)
     mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
     // L_x = L_y = Dimension for a square lattice.
-    int square_size = 64; 
+    int square_size = 32; 
     
     // Describe the staggered fermions.
-    double MASS = 0.01;
+    double MASS = 1e-12;
     
     // Outer Inverter information.
     double outer_precision = 1e-6; 
-    int outer_restart = 64; 
+    int outer_restart = 32; 
     
     // Multigrid information. 
     int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
@@ -144,7 +144,7 @@ int main(int argc, char** argv)
 // IF GEN_NULL_VECTOR is defined and eo = 1:
 //   Generate "n_null_vector" null vectors, partition into even and odd.
 //    Total number of null vectors is 2*VECTOR_COUNT. 
-    int n_null_vector = 2; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
+    int n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
     int null_max_iter = 100;
     double null_precision = 1e-4;
     
@@ -158,7 +158,7 @@ int main(int argc, char** argv)
     
     
     // Inner solver.
-    inner_solver in_solve = GCR; 
+    inner_solver in_solve = GCR; //GCR; 
     double inner_precision = 1e-3;
     int inner_restart = 10000;
     if (my_test == SMOOTHER_ONLY)
