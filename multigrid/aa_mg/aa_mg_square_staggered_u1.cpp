@@ -168,7 +168,7 @@ int main(int argc, char** argv)
     
     // Smoother
     inner_solver in_smooth = GCR; //NONE; //GCR; 
-    double omega_smooth = 0.8; // for minres only. 
+    double omega_smooth = 0.67; // for minres only. 
     int pre_smooth = 6;
     int post_smooth = 6;
     

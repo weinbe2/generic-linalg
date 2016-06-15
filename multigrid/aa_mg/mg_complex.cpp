@@ -504,8 +504,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     // GET EXCITED! First off, let's do some pre-smoothing. 
     // 1. z1 = smoothed rhs. 
     complex<double>* z1 = new complex<double>[fine_size];
-    copy<double>(z1, rhs, fine_size);  // NEW TODAY
-    //zero<double>(z1, fine_size); TODAY
+    copy<double>(z1, rhs, fine_size); 
     complex<double>* r1 = new complex<double>[fine_size];
     zero<double>(r1, fine_size);
     if (mgprecond->n_pre_smooth > 0 && mgprecond->in_smooth_type != NONE)
@@ -536,7 +535,6 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     }
     else
     {
-        // NEW TODAY ALL
         copy<double>(z1, rhs, fine_size);
         // Compute r1 = r - A z1
         (*mgprecond->fine_matrix_vector)(r1, z1, mgprecond->matrix_extra_data); // Temporarily store Az1 in r1. 
@@ -545,25 +543,22 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             r1[i] = rhs[i] - r1[i];
         }
         
-        //zero<double>(z1, fine_size); TODAY
-        //copy<double>(r1, rhs, fine_size);  TODAY
     }
     
     // Next, solve z2 = P(P^\dag A P)^(-1) r1, r2 = r1 - A z2
     complex<double>* z2 = new complex<double>[fine_size]; zero<double>(z2, fine_size);
-    complex<double>* r2 = new complex<double>[fine_size]; zero<double>(r2, fine_size); // ADDED TODAY
+    complex<double>* r2 = new complex<double>[fine_size]; zero<double>(r2, fine_size); 
     if (mgprecond->in_solve_type != NONE)
     {
         
-        // lhs = (1 - P P^\dag ) r + P ( P^\dag A P )^(-1) P^\dag r
-        //     = r + P ( (P^\dag A P)^(-1) - 1 ) P^\dag r
+        // z2 = P ( P^\dag A P )^(-1) P^\dag r1 
         
-        // Restrict z_smooth. This forms P^\dag r. 
+        // Restrict z_smooth. This forms P^\dag r1. 
         complex<double>* rhs_coarse = new complex<double>[coarse_length];
         zero<double>(rhs_coarse, coarse_length); 
         restrict(rhs_coarse, r1, mgprecond->mgstruct);
         
-        // Apply (P^\dag A P)^(-1). This forms  (P^\dag A P)^(-1) P^\dag r. 
+        // Apply (P^\dag A P)^(-1). This forms  (P^\dag A P)^(-1) P^\dag r1. 
         // This gets modified if we're going to do multi-level MG, see commented out material below.
         complex<double>* lhs_coarse = new complex<double>[coarse_length];
         zero<double>(lhs_coarse, coarse_length);
@@ -591,36 +586,27 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             printf("About to enter coarser solve.\n"); fflush(stdout);
             level_down(mgprecond->mgstruct);
             mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data);
-            //invif = minv_vector_gcr_var_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, 32, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, extra_data);
             level_up(mgprecond->mgstruct);
             printf("Exited coarser solve.\n"); fflush(stdout);
         }
             
         
-        // Subtract off rhs_coarse. This forms ( ( P^\dag A P )^(-1) - 1 ) P^\dag r
-        for (i = 0; i < coarse_length; i++)
-        {
-            // lhs_coarse[i] = lhs_coarse[i] - rhs_coarse[i]; TODAY
-        }
-        
-        // Prolong lhs_coarse. This forms P ( ( P^\dag A P )^(-1) - 1 ) P^\dag r
+        // Prolong lhs_coarse. This forms P ( ( P^\dag A P )^(-1) P^\dag r1
         prolong(z2, lhs_coarse, mgprecond->mgstruct); 
         
         // Add prolonged lhs to original rhs. This forms r + P ( (P^\dag A P)^(-1) - 1 ) P^\dag r.
         // While we're at it, add the solution from the first part (if we presmoothed). 
         for (i = 0; i < fine_size; i++)
         {
-            // lhs[i] = z1[i] + z2[i] + r1[i]; TODAY
-            lhs[i] = z1[i] + z2[i]; // ADDED TODAY
+            lhs[i] = z1[i] + z2[i]; 
         }
         
-        // ADDED TODAY
+        // Compute an updated residual from z2. 
         (*mgprecond->fine_matrix_vector)(r2, z2, mgprecond->matrix_extra_data); // Temporarily store Az2 in r2. 
         for (int i = 0; i < fine_size; i++)
         {
             r2[i] = r1[i] - r2[i];
         }
-        // END ADDED TODAY
         
         // And we're done!
         
@@ -628,95 +614,19 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         delete[] rhs_coarse;
         delete[] lhs_coarse;
         
-        /*
-        // Compute updated residual. 
-        // 2. r_pre = rhs - A z_presmooth
-        complex<double>* Az_presmooth = new complex<double>[fine_size];
-        zero<double>(Az_presmooth, fine_size);
-        (*mgprecond->fine_matrix_vector)(Az_presmooth, z_presmooth, mgprecond->matrix_extra_data);
-
-        complex<double>* r_presmooth = new complex<double>[fine_size];
-        for (int i = 0; i < fine_size; i++)
-        {
-            r_presmooth[i] = rhs[i] - Az_presmooth[i];
-        }
-
-        // Restrict r_presmooth. 
-        // 3. rhs_coarse = restrict(r_presmooth)
-        complex<double>* rhs_coarse = new complex<double>[coarse_length];
-        zero<double>(rhs_coarse, coarse_length); 
-        restrict(rhs_coarse, r_presmooth, mgprecond->mgstruct);
-
-        // 4. Perform coarse solve. If we're at the coarsest level, this is just a regular solve.
-        complex<double>* lhs_coarse = new complex<double>[coarse_length];
-        zero<double>(lhs_coarse, coarse_length);
-        if (mgprecond->mgstruct->curr_level+1 == mgprecond->mgstruct->n_refine) // We're already on the coarsest level.
-        {
-            switch (mgprecond->in_solve_type)
-            {
-                case NONE: // The code can't reach here, anyway.
-                    break;
-                case MINRES:
-                    invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
-                    break;
-                case CG:
-                    invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
-                    break;
-                case GCR:
-                    invif = minv_vector_gcr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
-                    break;
-            }
-        }
-        else // Apply the fine operator preconditioned with the coarse op.
-        {
-            printf("About to enter coarser solve.\n"); fflush(stdout);
-            level_down(mgprecond->mgstruct);
-            //mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data);
-            invif = minv_vector_gcr_var_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, 32, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, extra_data);
-            level_up(mgprecond->mgstruct);
-            printf("Exited coarser solve.\n"); fflush(stdout);
-        }
-            
-        printf("[L%d]: Iterations %d RelRes %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+2, invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
-
-        // Project the lhs to the fine vector.
-        // 5. lhs_postsmooth = prolong(lhs_coarse)
-        complex<double>* lhs_postsmooth = new complex<double>[fine_size];
-        zero<double>(lhs_postsmooth, fine_size);
-        prolong(lhs_postsmooth, lhs_coarse, mgprecond->mgstruct); 
-
-
-        // Update the solution. 
-        // 6. lhs = initial smooth (z_presmooth) + coarse solve (lhs_postsmooth)
-        for (int i = 0; i < fine_size; i++)
-        {
-            lhs[i] = lhs[i] + z_presmooth[i] + lhs_postsmooth[i];
-        }
-        
-        
-        
-        delete[] Az_presmooth;
-        delete[] r_presmooth; 
-        delete[] rhs_coarse;
-        delete[] lhs_coarse; 
-        delete[] lhs_postsmooth;
-        
-        */
     }
-    else // no inner solver, set lhs to z1 + r1.
+    else // no inner solver, set lhs to z1, copy r1 into r2 (since z2 is trivially 0).
     {
         for (i = 0; i < fine_size; i++)
         {
-            //lhs[i] = z1[i] + r1[i]; TODAY
-            // ADDED TODAY
             lhs[i] = z1[i];
             r2[i] = r1[i];
         }
         
     }
     
-    complex<double>* z3 = new complex<double>[fine_size]; zero<double>(z3, fine_size); // ADDED TODAY
-    // Almost done! Do some post-smoothing.
+    complex<double>* z3 = new complex<double>[fine_size]; zero<double>(z3, fine_size); 
+    // Almost done! Do some post-smoothing. on z3 = A^(-1) r2
     // 7. Post smooth.
     if (mgprecond->n_post_smooth > 0 && mgprecond->in_smooth_type != NONE)
     {
@@ -725,35 +635,31 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             case NONE: // Can't reach here, anyway.
                 break;
             case CG:
-                //invif = minv_vector_cg(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); TODAY
-                invif = minv_vector_cg(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); // ADDED TODAY
+                invif = minv_vector_cg(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
             case MINRES:
-                //invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data);  TODAY
-                invif = minv_vector_minres(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); // ADDED TODAY
+                invif = minv_vector_minres(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
             case GCR:
-                //invif = minv_vector_gcr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); TODAY
-                invif = minv_vector_gcr(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); // ADDED TODAY
+                invif = minv_vector_gcr(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
         }
-        //invif = minv_vector_minres(lhs, lhs_postsmooth, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
         printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());
     }
     // else z3 = 0 is fine.
     
-    // ADDED TODAY
+    // Update lhs with z3. 
     for (i = 0; i < fine_size; i++)
     {
-        lhs[i] += z3[i]; // ADDED TODAY
+        lhs[i] += z3[i]; 
     }
     
     // Clean up!
     delete[] z1;
     delete[] z2;
-    delete[] z3; // ADDED TODAY
+    delete[] z3; 
     delete[] r1;
-    delete[] r2; // ADDED TODAY
+    delete[] r2; 
     
     cout << "[MG]: Exited mg_preconditioner.\n";
     
