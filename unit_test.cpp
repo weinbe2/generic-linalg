@@ -57,7 +57,7 @@ int main(int argc, char** argv)
     
    // Create a verbosity struct.
    inversion_verbose_struct verb;
-   verb.verbosity = VERB_DETAIL;
+   verb.verbosity = VERB_RESTART_DETAIL;
    verb.verb_prefix = "";
    verb.precond_verbosity = VERB_PASS_THROUGH;
  
@@ -118,7 +118,7 @@ int main(int argc, char** argv)
     
    printf("Begin Check restarted GCR(8).\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
-   invif = minv_vector_gcr_restart(lhs, rhs, N*N, 4000, 1e-6, 8, square_laplacian, NULL);
+   invif = minv_vector_gcr_restart(lhs, rhs, N*N, 4000, 1e-6, 8, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));

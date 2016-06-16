@@ -26,6 +26,7 @@ void print_verbosity_resid(inversion_verbose_struct* verb, std::string alg, int 
 // Properly prints summary at end of inversion.
 void print_verbosity_summary(inversion_verbose_struct* verb, std::string alg, bool success, int iter, double relres); 
 
-
+// Properly prints summary at restart.
+void print_verbosity_restart(inversion_verbose_struct* verb, std::string alg, int iter, double relres); 
 
 #endif // VERBOSITY

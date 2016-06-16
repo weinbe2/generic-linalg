@@ -30,3 +30,15 @@ void print_verbosity_summary(inversion_verbose_struct* verb, std::string alg, bo
     
     return; 
 }
+
+// Properly prints summary at restart.
+void print_verbosity_restart(inversion_verbose_struct* verb, std::string alg, int iter, double relres)
+{
+    if (verb != 0)
+    {
+        if (verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
+        {
+            std::cout << verb->verb_prefix << alg << " Iter " << iter << " RelRes " << relres << "\n";
+        }
+    }
+}
