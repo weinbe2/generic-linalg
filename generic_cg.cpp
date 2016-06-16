@@ -34,7 +34,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
   Ap = new double[size];
 
   // Initialize values.
-  rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0;
+  rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
 
   // Zero vectors;
   zero<double>(r, size); 
@@ -139,7 +139,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   Ap = new complex<double>[size];
 
   // Initialize values.
-  rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0;
+  rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
 
   // Zero vectors;
   zero<double>(r, size); 
