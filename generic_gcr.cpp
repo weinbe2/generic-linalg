@@ -21,7 +21,7 @@ using namespace std;
 
 // Solves lhs = A^(-1) rhs using GCR.
 // Taken from section 6.9 of Saad, 2nd Edition.
-inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
 
   // Initialize vectors.
@@ -85,7 +85,7 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
-    printf("Rel residual: %.8e\n", sqrt(rsq)/bsqrt); fflush(stdout);
+    print_verbosity_resid(verb, "GCR", k+1, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
@@ -144,8 +144,7 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
     delete[] Ap_store[i];
   }
 
-  
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verb, "GCR", invif.success, k, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -186,7 +185,7 @@ inversion_info minv_vector_gcr_restart(double  *phi, double  *phi0, int size, in
 }
 
 
-inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
 
   // Initialize vectors.
@@ -251,7 +250,7 @@ inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, in
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
-    //printf("Rel residual: %.8e\n", sqrt(rsq)/bsqrt); fflush(stdout);
+    print_verbosity_resid(verb, "GCR", k+1, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
@@ -310,8 +309,8 @@ inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, in
     delete[] Ap_store[i];
   }
 
+  print_verbosity_summary(verb, "GCR", invif.success, k, sqrt(truersq)/bsqrt);
   
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
   
   invif.resSq = truersq;
   invif.iter = k;
