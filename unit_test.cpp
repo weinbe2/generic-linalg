@@ -7,6 +7,7 @@
 // Need to put in a test for power iterations. Prob requires returning eigenvector. 
 
 #include <iostream>
+#include <iomanip> // to set output precision.
 #include <cmath>
 #include <string>
 #include <sstream>
@@ -16,6 +17,7 @@
 #include "generic_inverters_precond.h"
 #include "generic_eigenvalues.h"
 #include "generic_vector.h"
+#include "verbosity.h"
 
 using namespace std; 
 
@@ -49,6 +51,15 @@ int main(int argc, char** argv)
    double bnorm = 0.0;
    inversion_info invif;
    eigenvalue_info eigif;
+    
+   // Set output precision.
+   cout << setiosflags(ios::scientific) << setprecision(6);
+    
+   // Create a verbosity struct.
+   inversion_verbose_struct verb;
+   verb.verbosity = VERB_DETAIL;
+   verb.verb_prefix = "";
+   verb.precond_verbosity = VERB_PASS_THROUGH;
  
    // Initialize the lattice. Indexing: index = y*N + x.
    lattice = new double[N*N];
@@ -58,7 +69,7 @@ int main(int argc, char** argv)
    
    printf("Begin Check CG.\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
-   invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
+   invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));

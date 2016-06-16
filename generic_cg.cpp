@@ -17,11 +17,11 @@
 using namespace std;
 
 // Solves lhs = A^(-1) rhs
-inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
 // CG solutions to Mphi = b 
 //  see http://en.wikipedia.org/wiki/Conjugate_gradient_method
-
+  
   // Initialize vectors.
   double *r, *p, *Ap;
   double alpha, beta, rsq, rsqNew, bsqrt, truersq;
@@ -73,6 +73,8 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
     
     // Exit if new residual is small enough
     rsqNew = norm2sq<double>(r, size);
+    
+    print_verbosity_resid(verb, "CG", k+1, sqrt(rsqNew)/bsqrt); 
 
     if (sqrt(rsqNew) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -92,14 +94,13 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
   } 
     
   if(k == max_iter) {
-    //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
     //return 0;// Failed convergence 
   }
   else
   {
      invif.success = true;
-     //printf("CG: Converged in %d iterations.\n", k);
+    k++; 
   }
   
   (*matrix_vector)(Ap,phi,extra_info);
@@ -110,8 +111,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
   delete[] p;
   delete[] Ap;
 
-  
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verb, "CG", invif.success, k, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -120,7 +120,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
 } 
 
 
-inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
 // CG solutions to Mphi = b 
 //  see http://en.wikipedia.org/wiki/Conjugate_gradient_method
@@ -164,6 +164,8 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   
   // Compute rsq.
   rsq = norm2sq<double>(r, size);
+  
+  print_verbosity_resid(verb, "CG", k+1, sqrt(rsqNew)/bsqrt); 
 
   // iterate till convergence
   for(k = 0; k< max_iter; k++) {
@@ -197,14 +199,12 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   } 
     
   if(k == max_iter) {
-    //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
-    //return 0;// Failed convergence 
   }
   else
   {
      invif.success = true;
-     //printf("CG: Converged in %d iterations.\n", k);
+    k++;
   }
   
   (*matrix_vector)(Ap,phi,extra_info);
@@ -216,7 +216,8 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   delete[] Ap;
 
   
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verb, "CG", invif.success, k, sqrt(truersq)/bsqrt);
+  
   
   invif.resSq = truersq;
   invif.iter = k;
