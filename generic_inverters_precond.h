@@ -9,6 +9,7 @@
 //#define VERBOSE_WARN
 
 #include "generic_inverters.h"
+#include "verbosity.h"
 
 // Preconditioned Conjugate Gradient:
 inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*), void* precond_info);

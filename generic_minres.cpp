@@ -18,13 +18,17 @@ using namespace std;
 
 // Assumes the symmetric part of the matrix is positive definite.
 // Taken from section 5.3.2 of Saad, 2nd Edition.
-inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verbosity)
 {
   // Initialize vectors.
   double *p, *r, *x;
   double alpha, rsq, truersq, bsqrt;
   int i,k;
   inversion_info invif;
+  
+  stringstream ss;
+  ss << "MinRes_" << omega;
+  
 
   // Allocate memory.
   p = new double[size];
@@ -73,6 +77,8 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
+    print_verbosity_resid(verbosity, ss.str(), k+1, sqrt(rsq)/bsqrt); 
+    
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -82,14 +88,12 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
   }
    
   if(k == max_iter) {
-    //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
-    //return 0;// Failed convergence 
   }
   else
   {
      invif.success = true;
-     //printf("CG: Converged in %d iterations.\n", k);
+     k++;
   }
   
   // Check true residual. 
@@ -105,7 +109,7 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
   delete[] r;
   delete[] x;
   
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verbosity, ss.str(), invif.success, k, sqrt(invif.resSq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -114,15 +118,15 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
 } 
 
 // Version without overrelaxation parameter. 
-inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verbosity)
 {
-  return minv_vector_minres(phi, phi0, size, max_iter, eps, 1.0, matrix_vector, extra_info);
+  return minv_vector_minres(phi, phi0, size, max_iter, eps, 1.0, matrix_vector, extra_info, verbosity);
 }
 
 
 // Assumes the Hermitian part of the matrix is positive definite.
 // Taken from section 5.3.2 of Saad, 2nd Edition.
-inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity)
 {
   // Initialize vectors.
   complex<double> *p, *r, *x;
@@ -130,6 +134,9 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
   complex<double> alpha;
   int i,k;
   inversion_info invif;
+  
+  stringstream ss;
+  ss << "MinRes_" << omega;
 
   // Allocate memory.
   p = new complex<double>[size];
@@ -178,6 +185,8 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
+    print_verbosity_resid(verbosity, ss.str(), k+1, sqrt(rsq)/bsqrt); 
+    
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -210,6 +219,8 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
   delete[] r;
   delete[] x;
   
+  print_verbosity_summary(verbosity, ss.str(), invif.success, k, sqrt(invif.resSq)/bsqrt);
+  
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
   
   invif.resSq = truersq;
@@ -219,9 +230,9 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
 } 
 
 // Version without overrelaxation parameter. 
-inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity)
 {
-  return minv_vector_minres(phi, phi0, size, max_iter, eps, 1.0, matrix_vector, extra_info);
+  return minv_vector_minres(phi, phi0, size, max_iter, eps, 1.0, matrix_vector, extra_info, verbosity);
 }
 
 
