@@ -387,9 +387,7 @@ inversion_info minv_vector_gmres_restart(double  *phi, double  *phi0, int size, 
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   inversion_verbose_struct verb_rest;
-  verb_rest.verbosity = (verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_SUMMARY) ? VERB_NONE : verb->verbosity; 
-  verb_rest.verb_prefix = verb->verb_prefix;
-  verb_rest.precond_verbosity = verb->precond_verbosity;
+  shuffle_verbosity_precond(&verb_rest, verb);
   
   stringstream ss;
   ss << "GMRES(" << restart_freq << ")";
@@ -777,9 +775,7 @@ inversion_info minv_vector_gmres_restart(complex<double>  *phi, complex<double> 
   ss << "GMRES(" << restart_freq << ")";
   
   inversion_verbose_struct verb_rest;
-  verb_rest.verbosity = (verb->verbosity == VERB_RESTART_DETAIL) ? VERB_SUMMARY : verb->verbosity; 
-  verb_rest.verb_prefix = verb->verb_prefix;
-  verb_rest.precond_verbosity = verb->precond_verbosity;
+  shuffle_verbosity_precond(&verb_rest, verb);
 
   iter = 0;  
   do
