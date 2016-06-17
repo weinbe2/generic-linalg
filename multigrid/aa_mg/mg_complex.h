@@ -98,6 +98,6 @@ struct mg_precond_struct_complex
 };
 
 // MG preconditioner!
-void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data);
+void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data, inversion_verbose_struct* verb = 0);
 
 #endif // MG_REAL

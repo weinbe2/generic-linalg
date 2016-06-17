@@ -1115,7 +1115,7 @@ int main(int argc, char** argv)
 
         // Well, maybe this will work?
         zero<double>(lhs, fine_size);
-        invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
+        invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, NULL); 
         //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
 
         if (invif.success == true)

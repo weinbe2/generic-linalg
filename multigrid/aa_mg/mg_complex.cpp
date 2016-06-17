@@ -481,7 +481,7 @@ void level_up(mg_operator_struct_complex* mgstruct)
 
 
 // MG preconditioner!! (Man, I'm excited!
-void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data)
+void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data, inversion_verbose_struct* verb)
 {
     // Iterator.
     int i;
@@ -585,7 +585,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         {
             printf("About to enter coarser solve.\n"); fflush(stdout);
             level_down(mgprecond->mgstruct);
-            mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data);
+            mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data, verb);
             level_up(mgprecond->mgstruct);
             printf("Exited coarser solve.\n"); fflush(stdout);
         }
