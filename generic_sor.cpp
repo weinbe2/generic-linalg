@@ -19,13 +19,16 @@ using namespace std;
 // Solves lhs = A^(-1) rhs using SOR. omega is the OR parameter. 
 // If lambda(p) are the eigenvalues, this only converges if |1 - omega*lambda(p)| < 1 is true
 // for all eigenvalues. 
-inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   // Initialize vectors.
   double *Ax, *x, *xnew, *check; 
   double bsqrt, rsq, truersq;
   int i,k;
   inversion_info invif;
+  
+  stringstream ss;
+  ss << "SOR_" << omega;
 
   // Allocate memory.
   Ax = new double[size];
@@ -59,6 +62,8 @@ inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_it
     // Compute norm.
     rsq = norm2sq<double>(check, size);
     
+    print_verbosity_resid(verb, ss.str(), k+1, sqrt(rsq)/bsqrt); 
+    
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -80,6 +85,7 @@ inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_it
   else
   {
      invif.success = true;
+    k++;
      //printf("CG: Converged in %d iterations.\n", k);
   }
   
@@ -96,20 +102,20 @@ inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_it
   delete[] x;
   delete[] check;
   
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verb, ss.str(), invif.success, k, sqrt(invif.resSq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
-  stringstream ss;
-  ss << "SOR omega=" << omega;
-  invif.name = ss.str();
+  stringstream ss2;
+  ss2 << "SOR omega=" << omega;
+  invif.name = ss2.str();
   return invif; // Convergence 
 } 
 
 // Solves lhs = A^(-1) rhs using SOR. omega is the OR parameter. 
 // If lambda(p) are the eigenvalues, this only converges if |1 - omega*lambda(p)| < 1 is true
 // for all eigenvalues. 
-inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   // Initialize vectors.
   complex<double> *Ax, *x, *xnew, *check; 
@@ -117,6 +123,9 @@ inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, in
   int i,k;
   inversion_info invif;
 
+  stringstream ss;
+  ss << "SOR_" << omega;
+  
   // Allocate memory.
   Ax = new complex<double>[size];
   x = new complex<double>[size];
@@ -148,6 +157,8 @@ inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, in
     
     // Compute norm.
     rsq = norm2sq<double>(check, size);
+    
+    print_verbosity_resid(verb, ss.str(), k+1, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
@@ -186,12 +197,12 @@ inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, in
   delete[] x;
   delete[] check;
   
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verb, ss.str(), invif.success, k, sqrt(invif.resSq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
-  stringstream ss;
-  ss << "SOR omega=" << omega;
-  invif.name = ss.str();
+  stringstream ss2;
+  ss2 << "SOR omega=" << omega;
+  invif.name = ss2.str();
   return invif; // Convergence 
 } 
