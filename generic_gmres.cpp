@@ -36,7 +36,7 @@ struct gmres_struct
 void gmres_hTh(double* phi, double* phi0, void* extra_data);
 */
 
-inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+inversion_info minv_vector_gmres(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
 // GMRES solutions to Mphi = b 
 //  see https://en.wikipedia.org/wiki/Generalized_minimal_residual_method
@@ -265,6 +265,8 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
     }
     localres=sqrt(localres);
     
+    print_verbosity_resid(verb, "GMRES", iter, localres/bres); 
+    
     if (localres < eps*bres)
     {
       break;
@@ -365,9 +367,11 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
   //free(y);
   //free(bhTy);
   
+  print_verbosity_summary(verb, "GMRES", invif.success, iter, localres/bres);
+  
+  
   invif.resSq = localres*localres;
   invif.iter = iter;
-  if (invif.success == false) { invif.iter--; } // For loop has an extra incr. at the end.
   invif.name = "GMRES";
   return invif; // Convergence 
 
@@ -376,22 +380,34 @@ inversion_info minv_vector_gmres_norestart(double  *phi, double  *phi0, int size
 
 // Performs GMRES with restarts when restart_freq is hit.
 // This may be sloppy, but it works.
-inversion_info minv_vector_gmres_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+inversion_info minv_vector_gmres_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
   inversion_info invif;
-
+  double bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  inversion_verbose_struct verb_rest;
+  verb_rest.verbosity = (verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_SUMMARY) ? VERB_NONE : verb->verbosity; 
+  verb_rest.verb_prefix = verb->verb_prefix;
+  verb_rest.precond_verbosity = verb->precond_verbosity;
+  
+  stringstream ss;
+  ss << "GMRES(" << restart_freq << ")";
+  
   iter = 0;  
   do
   {
-    invif = minv_vector_gmres_norestart(phi, phi0, size, restart_freq, res, matrix_vector, extra_info);
+    invif = minv_vector_gmres(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
     iter += invif.iter;
+    
+    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
   
   invif.iter = iter;
-  stringstream ss;
-  ss << "GMRES(" << restart_freq << ")";
+  
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  
   invif.name = ss.str();
   // invif.resSq is good.
   if (sqrt(invif.resSq) > res)
@@ -406,7 +422,7 @@ inversion_info minv_vector_gmres_restart(double  *phi, double  *phi0, int size, 
   return invif;
 }
 
-inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+inversion_info minv_vector_gmres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
 // GMRES solutions to Mphi = b 
 //  see https://en.wikipedia.org/wiki/Generalized_minimal_residual_method
@@ -635,6 +651,8 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
     }
     localres=sqrt(localres);
     
+    print_verbosity_resid(verb, "GMRES", iter, localres/bres); 
+    
     if (localres < eps*bres)
     {
       break;
@@ -735,6 +753,8 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
   //free(y);
   //free(bhTy);
   
+  print_verbosity_summary(verb, "GMRES", invif.success, iter, localres/bres);
+  
   invif.resSq = localres*localres;
   invif.iter = iter;
   if (invif.success == false) { invif.iter--; } // For loop has an extra incr. at the end.
@@ -747,22 +767,34 @@ inversion_info minv_vector_gmres_norestart(complex<double>  *phi, complex<double
 
 // Performs GMRES with restarts when restart_freq is hit.
 // This may be sloppy, but it works.
-inversion_info minv_vector_gmres_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+inversion_info minv_vector_gmres_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
   inversion_info invif;
+  double bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  stringstream ss;
+  ss << "GMRES(" << restart_freq << ")";
+  
+  inversion_verbose_struct verb_rest;
+  verb_rest.verbosity = (verb->verbosity == VERB_RESTART_DETAIL) ? VERB_SUMMARY : verb->verbosity; 
+  verb_rest.verb_prefix = verb->verb_prefix;
+  verb_rest.precond_verbosity = verb->precond_verbosity;
 
   iter = 0;  
   do
   {
-    invif = minv_vector_gmres_norestart(phi, phi0, size, restart_freq, res, matrix_vector, extra_info);
+    invif = minv_vector_gmres(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
     iter += invif.iter;
+    
+    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
   
   invif.iter = iter;
-  stringstream ss;
-  ss << "GMRES(" << restart_freq << ")";
+  
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  
   invif.name = ss.str();
   // invif.resSq is good.
   if (sqrt(invif.resSq) > res)
