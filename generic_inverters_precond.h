@@ -57,6 +57,7 @@ struct minres_precond_struct_real
     double rel_res; 
     void (*matrix_vector)(double*, double*, void*);
     void* matrix_extra_data; 
+    inversion_verbose_struct* verb_prec; 
 };
 
 // Preconditioning struct. 
@@ -66,6 +67,7 @@ struct minres_precond_struct_complex
     double rel_res; 
     void (*matrix_vector)(complex<double>*, complex<double>*, void*);
     void* matrix_extra_data; 
+    inversion_verbose_struct* verb_prec;
 };
 
 /* END MINRES PRECONDITIONER */
@@ -84,6 +86,7 @@ struct gcr_precond_struct_real
     double rel_res; 
     void (*matrix_vector)(double*, double*, void*);
     void* matrix_extra_data; 
+    inversion_verbose_struct* verb_prec;
 };
 
 // Preconditioning struct. 
@@ -93,6 +96,7 @@ struct gcr_precond_struct_complex
     double rel_res; 
     void (*matrix_vector)(complex<double>*, complex<double>*, void*);
     void* matrix_extra_data; 
+    inversion_verbose_struct* verb_prec;
 };
 
 /* END GCR PRECONDITIONER */
