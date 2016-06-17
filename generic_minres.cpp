@@ -109,7 +109,7 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
   delete[] r;
   delete[] x;
   
-  print_verbosity_summary(verbosity, ss.str(), invif.success, k, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verbosity, ss.str(), invif.success, k, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -219,7 +219,7 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
   delete[] r;
   delete[] x;
   
-  print_verbosity_summary(verbosity, ss.str(), invif.success, k, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verbosity, ss.str(), invif.success, k, sqrt(truersq)/bsqrt);
   
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
   

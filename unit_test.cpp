@@ -60,6 +60,7 @@ int main(int argc, char** argv)
    verb.verbosity = VERB_DETAIL;
    verb.verb_prefix = "";
    verb.precond_verbosity = VERB_PASS_THROUGH;
+   verb.precond_verb_prefix = "Prec ";
  
    // Initialize the lattice. Indexing: index = y*N + x.
    lattice = new double[N*N];
@@ -148,6 +149,7 @@ int main(int argc, char** argv)
    printf("End Check unrestarted GMRES.\n");
    printf("\n\n\n");
    
+   
    printf("Begin Check restarted GMRES(8).\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
    invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-6, 8,  square_laplacian, NULL, &verb);
@@ -216,12 +218,12 @@ int main(int argc, char** argv)
    initialize_test(lattice, lhs, rhs, check, N*N);
    // Prepare MinRes preconditioner.
    minres_precond_struct_real mps; 
-   mps.n_step = 10;
+   mps.n_step = 3;
    mps.rel_res = 1e-15; // Make n_step the dominant factor. 
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
    // End Prepare MinRes preconditioner.
-   invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps);
+   invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
@@ -243,7 +245,7 @@ int main(int argc, char** argv)
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
    // End Prepare MinRes preconditioner.
-   invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps);
+   invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
@@ -265,7 +267,7 @@ int main(int argc, char** argv)
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
    // End Prepare MinRes preconditioner.
-   invif = minv_vector_cg_flex_precond_restart(lhs, rhs, N*N, 4000, 1e-6, 12, square_laplacian, NULL, minres_preconditioner, (void*)&mps);
+   invif = minv_vector_cg_flex_precond_restart(lhs, rhs, N*N, 4000, 1e-6, 12, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
@@ -287,7 +289,7 @@ int main(int argc, char** argv)
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
    // End Prepare MinRes preconditioner.
-   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps);
+   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
@@ -309,7 +311,7 @@ int main(int argc, char** argv)
    gps.rel_res = 1e-20; // Make n_step the dominant factor. 
    gps.matrix_vector = square_laplacian; 
    gps.matrix_extra_data = NULL;
-   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, gcr_preconditioner, (void*)&gps); /**/
+   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, gcr_preconditioner, (void*)&gps, &verb); /**/
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
@@ -330,7 +332,7 @@ int main(int argc, char** argv)
    gps.rel_res = 1e-20; // Make n_step the dominant factor. 
    gps.matrix_vector = square_laplacian; 
    gps.matrix_extra_data = NULL;
-   invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 10000, 1e-6, 12, square_laplacian, NULL, gcr_preconditioner, (void*)&gps); /**/
+   invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 10000, 1e-6, 12, square_laplacian, NULL, gcr_preconditioner, (void*)&gps, &verb); /**/
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));

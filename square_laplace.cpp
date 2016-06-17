@@ -77,11 +77,11 @@ int main(int argc, char** argv)
    
    //invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
    //invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
-   //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
+   //invif = minv_vector_gmres(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 8, square_laplacian, NULL);
    //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 20, square_laplacian, NULL);
    //invif = minv_vector_sor(lhs, rhs, N*N, 10000, 1e-6, 0.1, square_laplacian, NULL);
-   //invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
+   invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gcr_restart(lhs, rhs, N*N, 4000, 1e-8, 20, square_laplacian, NULL);
     
    // Indentity preconditioner.
@@ -107,7 +107,7 @@ int main(int argc, char** argv)
    invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps); /**/
     
    // Restarted CG with GCR preconditioner. 
-   gcr_precond_struct_real gps; 
+   /*gcr_precond_struct_real gps; 
    gps.n_step = 10000; // Make rel_res the dominant factor.
    gps.rel_res = 0.8; // Make n_step the dominant factor. 
    gps.matrix_vector = square_laplacian; 

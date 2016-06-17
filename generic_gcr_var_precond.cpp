@@ -26,7 +26,7 @@ using namespace std;
 
 // Solves lhs = A^(-1) rhs using GCR.
 // Taken from section 6.9 of Saad, 2nd Edition.
-inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*), void* precond_info)
+inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   // Initialize vectors.
   double *x, *r, *Ar, *p, *Ap, *z, *Az; 
@@ -34,6 +34,10 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
   double alpha, beta_ij, rsq, bsqrt, truersq;
   int k,i,ii;
   inversion_info invif;
+  
+  // For preconditioning verbosity.
+  inversion_verbose_struct verb_prec;
+  shuffle_verbosity_precond(&verb_prec, verb);
 
   // Allocate memory.
   x = new double[size];
@@ -66,7 +70,7 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
   }
   
   // 2. z_0 = M^(-1) r_0.
-  (*precond_matrix_vector)(z, r, size, precond_info); 
+  (*precond_matrix_vector)(z, r, size, precond_info, &verb_prec); 
   
   // 3. p_0 = z_0, Compute A p_0 (called q_0 in paper)
   copy<double>(p, z, size); 
@@ -93,6 +97,8 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
+    print_verbosity_resid(verb, "VPGCR", k+1, sqrt(rsq)/bsqrt); 
+    
     //printf("Rel residual: %.8e\n", sqrt(rsq)/bsqrt); fflush(stdout);
     
     // Check convergence. 
@@ -103,7 +109,7 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
     
     // 7. z = M^(-1) r;
     zero<double>(z, size); 
-    (*precond_matrix_vector)(z, r, size, precond_info); 
+    (*precond_matrix_vector)(z, r, size, precond_info, &verb_prec); 
     
     // 8. Compute Az.
     zero<double>(Az, size);
@@ -159,7 +165,7 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
   delete[] Az; 
 
   
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verb, "VPGCR", invif.success, k, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -169,22 +175,32 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
 
 // Performs VPGCR(restart_freq) with restarts when restart_freq is hit.
 // This may be sloppy, but it works.
-inversion_info minv_vector_gcr_var_precond_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*), void* precond_info)
+inversion_info minv_vector_gcr_var_precond_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
   inversion_info invif;
+  double bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  stringstream ss;
+  ss << "Variably Preconditioned Restarted GCR(" << restart_freq << ")";
 
+  inversion_verbose_struct verb_rest;
+  shuffle_verbosity_restart(&verb_rest, verb);
+  
   iter = 0;  
   do
   {
-    invif = minv_vector_gcr_var_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info);
+    invif = minv_vector_gcr_var_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
     iter += invif.iter;
+    
+    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
   
   invif.iter = iter;
-  stringstream ss;
-  ss << "Variably Preconditioned Restarted GCR(" << restart_freq << ")";
+  
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  
   invif.name = ss.str();
   // invif.resSq is good.
   if (sqrt(invif.resSq) > res)
@@ -199,7 +215,7 @@ inversion_info minv_vector_gcr_var_precond_restart(double  *phi, double  *phi0, 
   return invif;
 }
 
-inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*), void* precond_info)
+inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
 
   // Initialize vectors.
@@ -209,6 +225,10 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
   complex<double> alpha, beta_ij;
   int k,i,ii;
   inversion_info invif;
+  
+  // For preconditioning verbosity.
+  inversion_verbose_struct verb_prec;
+  shuffle_verbosity_precond(&verb_prec, verb);
 
   // Allocate memory.
   x = new complex<double>[size];
@@ -241,7 +261,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
   }
   
   // 2. z_0 = M^(-1) r_0.
-  (*precond_matrix_vector)(z, r, size, precond_info); 
+  (*precond_matrix_vector)(z, r, size, precond_info, &verb_prec); 
   
   // 3. p_0 = z_0, Compute A p_0 (called q_0 in paper)
   copy<double>(p, z, size); 
@@ -268,7 +288,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
-    printf("Iter: %d --- Rel residual: %.8e\n", k, sqrt(rsq)/bsqrt); fflush(stdout);
+    print_verbosity_resid(verb, "VPGCR", k+1, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
@@ -278,7 +298,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
     
     // 7. z = M^(-1) r;
     zero<double>(z, size); 
-    (*precond_matrix_vector)(z, r, size, precond_info); 
+    (*precond_matrix_vector)(z, r, size, precond_info, &verb_prec); 
     
     // 8. Compute Az.
     zero<double>(Az, size);
@@ -334,7 +354,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
   delete[] Az; 
 
   
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verb, "VPGCR", invif.success, k, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -344,22 +364,32 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
 
 // Performs VPGCR(restart_freq) with restarts when restart_freq is hit.
 // This may be sloppy, but it works.
-inversion_info minv_vector_gcr_var_precond_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*), void* precond_info)
+inversion_info minv_vector_gcr_var_precond_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
   inversion_info invif;
+  double bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  stringstream ss;
+  ss << "Variably Preconditioned Restarted GCR(" << restart_freq << ")";
 
+  inversion_verbose_struct verb_rest;
+  shuffle_verbosity_precond(&verb_rest, verb);
+  
   iter = 0;  
   do
   {
-    invif = minv_vector_gcr_var_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info);
+    invif = minv_vector_gcr_var_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
     iter += invif.iter;
+    
+    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
   
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  
   invif.iter = iter;
-  stringstream ss;
-  ss << "Variably Preconditioned Restarted GCR(" << restart_freq << ")";
+  
   invif.name = ss.str();
   // invif.resSq is good.
   if (sqrt(invif.resSq) > res)

@@ -161,7 +161,7 @@ inversion_info minv_vector_gcr_restart(double  *phi, double  *phi0, int size, in
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   inversion_verbose_struct verb_rest;
-  shuffle_verbosity_precond(&verb_rest, verb);
+  shuffle_verbosity_restart(&verb_rest, verb);
   
   stringstream ss;
   ss << "GCR(" << restart_freq << ")";
@@ -340,7 +340,7 @@ inversion_info minv_vector_gcr_restart(complex<double>  *phi, complex<double>  *
   ss << "GCR(" << restart_freq << ")";
   
   inversion_verbose_struct verb_rest;
-  shuffle_verbosity_precond(&verb_rest, verb);
+  shuffle_verbosity_restart(&verb_rest, verb);
   
   iter = 0;  
   do

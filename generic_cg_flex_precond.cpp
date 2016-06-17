@@ -22,7 +22,7 @@ using namespace std;
 // Defined in FLEXIBLE CONJUGATE GRADIENTS by YVAN NOTAY. 
 // Currently implemented without truncation. 
 // Uses the preconditioner given in precond_matrix_vector. 
-inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*), void* precond_info)
+inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
 //  see http://en.wikipedia.org/wiki/Conjugate_gradient_method
 
@@ -32,6 +32,10 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
   double alpha, beta_ij, rsq, bsqrt, truersq;
   int k,i,ii;
   inversion_info invif;
+  
+  // For preconditioning verbosity.
+  inversion_verbose_struct verb_prec;
+  shuffle_verbosity_precond(&verb_prec, verb);
 
   // Allocate memory.
   r = new double[size];
@@ -59,7 +63,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
   }
   
   // 2. z = M^(-1) r
-  (*precond_matrix_vector)(z, r, size, precond_info); 
+  (*precond_matrix_vector)(z, r, size, precond_info, &verb_prec); 
   
   // 3. p_0 = z_0.
   copy<double>(p, z, size);
@@ -89,7 +93,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
     // Exit if new residual is small enough
     rsq = norm2sq<double>(r, size);
     
-    printf("Rel residual: %.8e\n", sqrt(rsq)/bsqrt); fflush(stdout);
+    print_verbosity_resid(verb, "FPCG", k+1, sqrt(rsq)/bsqrt); 
 
     if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -98,7 +102,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
     
     // 7. z = M^(-1) r
     zero<double>(z, size);
-    (*precond_matrix_vector)(z, r, size, precond_info); 
+    (*precond_matrix_vector)(z, r, size, precond_info, &verb_prec); 
     
     // 8. Compute Az.
     zero<double>(Az, size);
@@ -129,7 +133,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
   else
   {
      invif.success = true;
-     //printf("CG: Converged in %d iterations.\n", k);
+     k++;
   }
   
   
@@ -151,7 +155,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
   }
 
   
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verb, "FPCG", invif.success, k, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -163,18 +167,27 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
 // Solves lhs = A^(-1) rhs using flexibly preconditioned Conjugate gradient, 
 // restarting after restart_freq. 
 // This may be sloppy, but it works.
-inversion_info minv_vector_cg_flex_precond_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*), void* precond_info)
+inversion_info minv_vector_cg_flex_precond_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
   inversion_info invif;
   double truersq = 0.0;
   int i;
+  double bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  stringstream ss;
+  ss << "Flexibly Preconditioned Restarted CG(" << restart_freq << ")";
 
+  inversion_verbose_struct verb_rest;
+  shuffle_verbosity_restart(&verb_rest, verb);
+  
   iter = 0;  
   do
   {
-    invif = minv_vector_cg_flex_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info);
+    invif = minv_vector_cg_flex_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
     iter += invif.iter;
+    
+    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
   
@@ -185,8 +198,9 @@ inversion_info minv_vector_cg_flex_precond_restart(double  *phi, double  *phi0, 
   delete[] Aphi; 
   
   invif.iter = iter;
-  stringstream ss;
-  ss << "Flexibly Preconditioned Restarted CG(" << restart_freq << ")";
+  
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(truersq)/bsqrt);
+  
   invif.name = ss.str();
   // invif.resSq is good.
   if (sqrt(invif.resSq) > res)
@@ -203,7 +217,7 @@ inversion_info minv_vector_cg_flex_precond_restart(double  *phi, double  *phi0, 
 
 
 
-inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*), void* precond_info)
+inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   // Initialize vectors.
   complex<double> *r, *p, *Ap, *z, *Az;
@@ -212,6 +226,10 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   double rsq, bsqrt, truersq;
   int k,i,ii;
   inversion_info invif;
+  
+  // For preconditioning verbosity.
+  inversion_verbose_struct verb_prec;
+  shuffle_verbosity_precond(&verb_prec, verb);
 
   // Allocate memory.
   r = new complex<double>[size];
@@ -239,7 +257,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   }
   
   // 2. z = M^(-1) r
-  (*precond_matrix_vector)(z, r, size, precond_info); 
+  (*precond_matrix_vector)(z, r, size, precond_info, &verb_prec); 
   
   // 3. p_0 = z_0.
   copy<double>(p, z, size);
@@ -269,7 +287,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
     // Exit if new residual is small enough
     rsq = norm2sq<double>(r, size);
     
-    printf("Rel residual: %.8e\n", sqrt(rsq)/bsqrt); fflush(stdout);
+    print_verbosity_resid(verb, "FPCG", k+1, sqrt(rsq)/bsqrt); 
 
     if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -278,7 +296,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
     
     // 7. z = M^(-1) r
     zero<double>(z, size);
-    (*precond_matrix_vector)(z, r, size, precond_info); 
+    (*precond_matrix_vector)(z, r, size, precond_info, &verb_prec); 
     
     // 8. Compute Az.
     zero<double>(Az, size);
@@ -309,7 +327,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   else
   {
      invif.success = true;
-     //printf("CG: Converged in %d iterations.\n", k);
+     k++;
   }
   
   
@@ -331,7 +349,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   }
 
   
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
+  print_verbosity_summary(verb, "FPCG", invif.success, k, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -344,18 +362,27 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
 // Solves lhs = A^(-1) rhs using flexibly preconditioned Conjugate gradient, 
 // restarting after restart_freq. 
 // This may be sloppy, but it works.
-inversion_info minv_vector_cg_flex_precond_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*), void* precond_info)
+inversion_info minv_vector_cg_flex_precond_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
   inversion_info invif;
   double truersq = 0.0;
   int i;
+  double bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  stringstream ss;
+  ss << "Flexibly Preconditioned Restarted CG(" << restart_freq << ")";
 
+  inversion_verbose_struct verb_rest;
+  shuffle_verbosity_restart(&verb_rest, verb);
+  
   iter = 0;  
   do
   {
-    invif = minv_vector_cg_flex_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info);
+    invif = minv_vector_cg_flex_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
     iter += invif.iter;
+    
+    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
   
@@ -365,9 +392,10 @@ inversion_info minv_vector_cg_flex_precond_restart(complex<double>  *phi, comple
   invif.resSq = truersq; 
   delete[] Aphi;
   
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(truersq)/bsqrt);
+  
   invif.iter = iter;
-  stringstream ss;
-  ss << "Flexibly Preconditioned Restarted CG(" << restart_freq << ")";
+  
   invif.name = ss.str();
   // invif.resSq is good.
   if (sqrt(invif.resSq) > res)
