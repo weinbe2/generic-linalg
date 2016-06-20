@@ -11,7 +11,6 @@
 #include "generic_inverters.h"
 #include "generic_inverters_precond.h"
 #include "generic_vector.h"
-#include "verbosity.h"
 #include "mg.h"
 #include "mg_real.h"
 #include "mg_complex.h"
@@ -115,7 +114,7 @@ int main(int argc, char** argv)
     int square_size = 32; 
     
     // Describe the staggered fermions.
-    double MASS = 0.01;
+    double MASS = 0.001;
     
     // Outer Inverter information.
     double outer_precision = 1e-6; 
@@ -127,8 +126,8 @@ int main(int argc, char** argv)
     {
         n_refine = 2;
     }
-    int X_BLOCKSIZE = 4; 
-    int Y_BLOCKSIZE = 4;
+    int X_BLOCKSIZE = 8; 
+    int Y_BLOCKSIZE = 8;
     int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation.
     if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
     {
@@ -244,12 +243,7 @@ int main(int argc, char** argv)
     stagif.y_fine = y_fine; 
     stagif.Nc = Nc; // Only relevant for laplace test only.
     
-    // Create the verbosity structure.
-    inversion_verbose_struct verb;
-    verb.verbosity = VERB_DETAIL;
-    verb.verb_prefix = "[L1]: ";
-    verb.precond_verbosity = VERB_NONE;
-    verb.precond_verb_prefix = "Prec ";
+    
     
     // Describe the gauge field. 
     cout << "[GAUGE]: Creating a gauge field.\n";
@@ -549,13 +543,12 @@ int main(int argc, char** argv)
             zero<double>(mgstruct.null_vectors[0][i], fine_size);
 
             minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op, (void*)&stagif); 
-            
+            //minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, GEN_NULL_VECTOR_STEP, GEN_NULL_VECTOR_REL_RESID, square_staggered_u1, (void*)&stagif); 
 
             for (j = 0; j < fine_size; j++)
             {
                 mgstruct.null_vectors[0][i][j] += rand_guess[j];
             }
-            
 
             
             normalize(mgstruct.null_vectors[0][i], fine_size); 
@@ -572,7 +565,7 @@ int main(int argc, char** argv)
             for (i = 0; i < fine_size; i++)
             {
                 x = i % x_fine;
-                y = i / x_fine;
+                y = i / y_fine;
                 if (x%2 == 1 && y%2 == 0)
                 {
                     mgstruct.null_vectors[0][n+mgstruct.n_vector/4][i] = mgstruct.null_vectors[0][n][i];
@@ -1058,7 +1051,7 @@ int main(int argc, char** argv)
         // Try a direct solve.
         cout << "\n[ORIG]: Solve fine system.\n";
 
-        invif = minv_vector_gcr_restart(lhs, rhs, fine_size, 100000, outer_precision, outer_restart, op, (void*)&stagif, &verb);
+        invif = minv_vector_gcr_restart(lhs, rhs, fine_size, 100000, outer_precision, outer_restart, op, (void*)&stagif);
         //invif = minv_vector_gcr_restart(lhs, rhs, fine_size, 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
 
         if (invif.success == true)
@@ -1122,7 +1115,7 @@ int main(int argc, char** argv)
 
         // Well, maybe this will work?
         zero<double>(lhs, fine_size);
-        invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+        invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, NULL); 
         //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
 
         if (invif.success == true)

@@ -374,7 +374,7 @@ inversion_info minv_vector_gcr_var_precond_restart(complex<double>  *phi, comple
   ss << "Variably Preconditioned Restarted GCR(" << restart_freq << ")";
 
   inversion_verbose_struct verb_rest;
-  shuffle_verbosity_precond(&verb_rest, verb);
+  shuffle_verbosity_restart(&verb_rest, verb);
   
   iter = 0;  
   do
