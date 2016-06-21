@@ -7,6 +7,8 @@
 #include <sstream>
 #include <complex>
 #include <random>
+#include <cstring> // should be replaced by using sstream
+
 
 #include "generic_inverters.h"
 #include "generic_inverters_precond.h"
@@ -81,6 +83,12 @@ enum op_type
     LAPLACE_NC2 = 2
 };
 
+enum src_type
+{
+    POINT = 0,
+    RANDOM_GAUSSIAN = 1
+};
+
 struct staggered_u1_op
 {
     complex<double> *lattice;
@@ -103,6 +111,7 @@ int main(int argc, char** argv)
     inversion_info invif;
     staggered_u1_op stagif;
     
+    
     // Set parameters. 
     
     // What operator are we using? (Laplace is free only.)
@@ -112,10 +121,13 @@ int main(int argc, char** argv)
     mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
     // L_x = L_y = Dimension for a square lattice.
-    int square_size = 32; 
+    int square_size = 32; // Can be set on command line with --square_size. 
     
     // Describe the staggered fermions.
-    double MASS = 0.01;
+    double MASS = 0.01; // Can be overridden on command line with --mass 
+    
+    // Describe the source type.
+    src_type source = RANDOM_GAUSSIAN; // POINT or RANDOM_GAUSSIAN
     
     // Outer Inverter information.
     double outer_precision = 1e-6; 
@@ -123,12 +135,13 @@ int main(int argc, char** argv)
     
     // Multigrid information. 
     int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
+                      // Can be set on command line with --nvec
     if (my_test == THREE_LEVEL) // FOR TEST ONLY
     {
         n_refine = 2;
     }
-    int X_BLOCKSIZE = 4; 
-    int Y_BLOCKSIZE = 4;
+    int X_BLOCKSIZE = 4; // Can be overrided with below arg on command line
+    int Y_BLOCKSIZE = 4; // with --blocksize 
     int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation.
     if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
     {
@@ -146,6 +159,7 @@ int main(int argc, char** argv)
 //   Generate "n_null_vector" null vectors, partition into even and odd.
 //    Total number of null vectors is 2*VECTOR_COUNT. 
     int n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
+                           // Can be override on command line with --nvec
     int null_max_iter = 100;
     double null_precision = 1e-4;
     
@@ -176,6 +190,56 @@ int main(int argc, char** argv)
     // Gauge field information.
     double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
                        // For heatbath gauge field, corresponds to non-compact beta.
+                       // Can be set on command line with --beta.
+    
+    
+    /////////////////////////////////////////////
+    // Get a few parameters from command line. //
+    /////////////////////////////////////////////
+    for (i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--help") == 0)
+        {
+            cout << "--mass [mass]            (default 1e-2)\n";
+            cout << "--blocksize [blocksize]  (default 4)\n";
+            cout << "--nvec [nvec]            (default 4)\n";
+            cout << "--beta [3.0 or 6.0]      (default 6.0)\n";
+            cout << "--square_size [32 or 64] (default 32)\n";
+            return 0;
+        }
+        if (i+1 != argc)
+        {
+            if (strcmp(argv[i], "--mass") == 0)
+            {
+                MASS = atof(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--blocksize") == 0)
+            {
+                X_BLOCKSIZE = atoi(argv[i+1]);
+                Y_BLOCKSIZE = X_BLOCKSIZE;
+                i++;
+            }
+            else if (strcmp(argv[i], "--nvec") == 0)
+            {
+                n_null_vector = atoi(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--beta") == 0)
+            {
+                BETA = atof(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--square_size") == 0)
+            {
+                square_size = atoi(argv[i+1]);
+                i++;
+            }
+        }
+    }
+    
+    //printf("Mass %.8e Blocksize %d %d Null Vectors %d\n", MASS, X_BLOCKSIZE, Y_BLOCKSIZE, n_null_vector);
+    //return 0;
     
     ///////////////////////////////////////
     // End of human-readable parameters! //
@@ -384,12 +448,19 @@ int main(int argc, char** argv)
     mgprecond.fine_matrix_vector = fine_square_staggered; // Function which applies the fine operator. 
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
 
-    // Set a point on the rhs.
-    for (i = 0; i < Nc; i++)
+    // Set right hand side.
+    switch (source)
     {
-        rhs[(x_fine/2+(y_fine/2)*x_fine)*Nc+i] = 1.0;
+        case POINT: // Set a point.
+            for (i = 0; i < Nc; i++)
+            {
+                rhs[(x_fine/2+(y_fine/2)*x_fine)*Nc+i] = 1.0;
+            }
+            break;
+        case RANDOM_GAUSSIAN: // Random rhs.
+            gaussian<double>(rhs, fine_size, generator);
+            break;
     }
-    //gaussian<double>(rhs, fine_size, generator);
 
     // Get norm for rhs.
     bnorm = sqrt(norm2sq<double>(rhs, fine_size));
