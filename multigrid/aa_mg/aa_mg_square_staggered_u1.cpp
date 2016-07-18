@@ -55,8 +55,6 @@ using namespace std;
 
 // Are we loading a gauge field?
 #define LOAD_GAUGE_FIELD
-// Is it a heatbath field?
-#define HEATBATH
 
 // What type of test should we do?
 enum mg_test_types
@@ -86,7 +84,8 @@ enum op_type
 enum src_type
 {
     POINT = 0,
-    RANDOM_GAUSSIAN = 1
+    RANDOM_GAUSSIAN = 1,
+    ORIGIN_POINT = 2 // for correlator test. 
 };
 
 struct staggered_u1_op
@@ -127,10 +126,10 @@ int main(int argc, char** argv)
     double MASS = 0.01; // Can be overridden on command line with --mass 
     
     // Describe the source type.
-    src_type source = RANDOM_GAUSSIAN; // POINT or RANDOM_GAUSSIAN
+    src_type source = ORIGIN_POINT; // POINT, RANDOM_GAUSSIAN, or ORIGIN_POINT (for correlator test).
     
     // Outer Inverter information.
-    double outer_precision = 1e-6; 
+    double outer_precision = 5e-7; 
     int outer_restart = 64; 
     
     // Multigrid information. 
@@ -160,8 +159,8 @@ int main(int argc, char** argv)
 //    Total number of null vectors is 2*VECTOR_COUNT. 
     int n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
                            // Can be override on command line with --nvec
-    int null_max_iter = 100;
-    double null_precision = 1e-4;
+    int null_max_iter = 3000;
+    double null_precision = 5e-5;
     
     // Advanced:
     // IF GEN_NULL_VECTOR is defined and AGGREGATE_EOCONJ is defined:
@@ -175,7 +174,7 @@ int main(int argc, char** argv)
     // Inner solver.
     inner_solver in_solve = GCR; //GCR; 
     double inner_precision = 1e-3;
-    int inner_restart = 10000;
+    int inner_restart = 3000;
     if (my_test == SMOOTHER_ONLY)
     {
         in_solve = NONE; 
@@ -200,12 +199,12 @@ int main(int argc, char** argv)
     {
         if (strcmp(argv[i], "--help") == 0)
         {
-            cout << "--mass [mass]             (default 1e-2)\n";
-            cout << "--blocksize [blocksize]   (default 4)\n";
-            cout << "--nvec [nvec]             (default 4)\n";
-            cout << "--nrefine [number coarse] (default 1)\n";
-            cout << "--beta [3.0 or 6.0]       (default 6.0)\n";
-            cout << "--square_size [32 or 64]  (default 32)\n";
+            cout << "--mass [mass]                          (default 1e-2)\n";
+            cout << "--blocksize [blocksize]                (default 4)\n";
+            cout << "--nvec [nvec]                          (default 4)\n";
+            cout << "--nrefine [number coarse]              (default 1)\n";
+            cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
+            cout << "--square_size [32, 64, 128]            (default 32)\n";
             return 0;
         }
         if (i+1 != argc)
@@ -318,7 +317,7 @@ int main(int argc, char** argv)
     inversion_verbose_struct verb;
     verb.verbosity = VERB_DETAIL;
     verb.verb_prefix = "[L1]: ";
-    verb.precond_verbosity = VERB_NONE;
+    verb.precond_verbosity = VERB_DETAIL;
     verb.precond_verb_prefix = "Prec ";
     
     // Describe the gauge field. 
@@ -334,20 +333,22 @@ int main(int argc, char** argv)
     {
         if (abs(BETA - 3.0) < 1e-8)
         {
-#ifdef HEATBATH
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b30_heatbath.dat");
-#else
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b30.dat");
-#endif
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 6.0) < 1e-8)
         {
-#ifdef HEATBATH
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60_heatbath.dat");
-#else
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60.dat");
-#endif
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b100_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10000.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32bperturb_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else
@@ -359,20 +360,44 @@ int main(int argc, char** argv)
     {
         if (abs(BETA - 3.0) < 1e-8)
         {
-#ifdef HEATBATH
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60_heatbath.dat");
-#else
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60.dat");
-#endif
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b30_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 6.0) < 1e-8)
         {
-#ifdef HEATBATH
             read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b60_heatbath.dat");
-#else
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b60.dat");
-#endif
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b100_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10000.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64bperturb_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else
+        {
+            cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
+        }
+    }
+    else if (x_fine == 128 && y_fine == 128)
+    {
+        if (abs(BETA - 6.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l128t128b60_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l128t128b100_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10000.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l128t128bperturb_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else
@@ -472,6 +497,11 @@ int main(int argc, char** argv)
         case RANDOM_GAUSSIAN: // Random rhs.
             gaussian<double>(rhs, fine_size, generator);
             break;
+        case ORIGIN_POINT: // Set a point for correlator computation.
+            for (i = 0; i < Nc; i++)
+            {
+                rhs[i] = 1.0;
+            }
     }
 
     // Get norm for rhs.
@@ -1234,6 +1264,29 @@ int main(int argc, char** argv)
 
         printf("[MG]: [check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
     } // SMOOTHER_ONLY or TWO_LEVEL
+    
+    // Look at the two point function!
+    if (source == ORIGIN_POINT)
+    {
+        double* corr = new double[y_fine];
+        cout << "BEGIN_GOLDSTONE\n";
+        for (i = 0; i < y_fine; i++)
+        {
+            corr[i] = 0.0;
+            for (j = 0; j < x_fine; j++)
+            {
+                corr[i] += real(conj(lhs[i*x_fine+j])*lhs[i*x_fine+j]);
+            }
+            cout << i << " " << corr[i] << "\n";
+        }
+        cout << "END_GOLDSTONE\n";
+        cout << "BEGIN_EFFMASS\n";
+        for (i = 0; i < y_fine; i++)
+        {
+            cout << i << " " << log(corr[i]/corr[(i+1)%y_fine]) << "\n";
+        }
+        cout << "END_EFFMASS\n";
+    }
     
     // Free the lattice.
     delete[] lattice;
