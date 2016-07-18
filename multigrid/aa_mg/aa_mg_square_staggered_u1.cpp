@@ -131,11 +131,11 @@ int main(int argc, char** argv)
     
     // Outer Inverter information.
     double outer_precision = 1e-6; 
-    int outer_restart = 32; 
+    int outer_restart = 64; 
     
     // Multigrid information. 
     int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
-                      // Can be set on command line with --nvec
+                      // Can be set on command line with --nrefine
     if (my_test == THREE_LEVEL) // FOR TEST ONLY
     {
         n_refine = 2;
@@ -200,11 +200,12 @@ int main(int argc, char** argv)
     {
         if (strcmp(argv[i], "--help") == 0)
         {
-            cout << "--mass [mass]            (default 1e-2)\n";
-            cout << "--blocksize [blocksize]  (default 4)\n";
-            cout << "--nvec [nvec]            (default 4)\n";
-            cout << "--beta [3.0 or 6.0]      (default 6.0)\n";
-            cout << "--square_size [32 or 64] (default 32)\n";
+            cout << "--mass [mass]             (default 1e-2)\n";
+            cout << "--blocksize [blocksize]   (default 4)\n";
+            cout << "--nvec [nvec]             (default 4)\n";
+            cout << "--nrefine [number coarse] (default 1)\n";
+            cout << "--beta [3.0 or 6.0]       (default 6.0)\n";
+            cout << "--square_size [32 or 64]  (default 32)\n";
             return 0;
         }
         if (i+1 != argc)
@@ -223,6 +224,11 @@ int main(int argc, char** argv)
             else if (strcmp(argv[i], "--nvec") == 0)
             {
                 n_null_vector = atoi(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--nrefine") == 0)
+            {
+                n_refine = atoi(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--beta") == 0)
@@ -389,6 +395,12 @@ int main(int argc, char** argv)
 #endif
     
     cout << "[GAUGE]: The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
+    
+    // Sanity check if we're doing a multigrid solve.
+    if (n_refine == 0)
+    {
+        my_test = TOP_LEVEL_ONLY;
+    }
     
     // Build an mg_struct.
     mg_operator_struct_complex mgstruct;
