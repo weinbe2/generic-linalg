@@ -87,7 +87,7 @@ int main(int argc, char** argv)
    
    printf("Begin Check BiCGStab.\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
-   invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
+   invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
       printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));

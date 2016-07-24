@@ -51,9 +51,9 @@ inversion_info minv_vector_gcr_restart(complex<double>  *phi, complex<double>  *
 
 // Solves lhs = A^(-1) rhs with bicgstab
 // Makes no assumptions about the matrix.
-inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int max_iter, double res, void (*matrix_vector)(double*,double*,void*), void* extra_info);
+inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int max_iter, double res, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verbosity = 0);
 
-inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
+inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity = 0);
 
 // Solves lhs = A^(-1) rhs with GMRES, no restarts.
 // Makes no assumption about matrix.

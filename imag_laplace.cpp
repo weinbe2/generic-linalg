@@ -49,11 +49,7 @@ int main(int argc, char** argv)
    rhs[N/2+(N/2)*N] = complex<double>(1.0,-1.0);
    
    // Get norm for rhs.
-   for (i=0;i<N*N;i++)
-   {
-     bnorm = bnorm + pow(abs(rhs[i]),2);
-   }
-   bnorm = sqrt(bnorm);
+    bnorm = sqrt(norm2sq<double>(rhs, N*N));
    
    // Set a point on the lhs.
    //lhs[N/2+(N/2)*N+1] = 1.0;
@@ -73,10 +69,10 @@ int main(int argc, char** argv)
    // 7: "extra data": can set this to not-null to pass in gauge fields, etc.
    
    //invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL);
-   //invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
+   invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
    //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-8, square_laplacian, NULL);
-   invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 8, square_laplacian, NULL);
+   //invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-8, 8, square_laplacian, NULL);
    // Note: SOR doesn't converge in any reasonable amount of time. 
    //invif = minv_vector_sor(lhs, rhs, N*N, 400000, 1e-6, 0.01, square_laplacian, NULL);
    //invif = minv_vector_minres(lhs, rhs, N*N, 400000, 1e-6, 0.01, square_laplacian, NULL);
@@ -109,10 +105,17 @@ int main(int argc, char** argv)
    printf("[check] should equal [rhs]. The residual is %15.20e.\n", explicit_resid);
 
    // Free the lattice.
+    
+   printf("About to free.\n"); fflush(stdout);
    delete[] lattice;
+    printf("Free lattice.\n"); fflush(stdout);
    delete[] lhs;
+    printf("Free lhs..\n"); fflush(stdout);
    delete[] rhs;
+    printf("Free rhs..\n"); fflush(stdout);
    delete[] check;
+    printf("Free check..\n"); fflush(stdout);
+    return 0;
 }
 
 // Square lattice.
@@ -157,7 +160,7 @@ void square_laplacian(complex<double>* lhs, complex<double>* rhs, void* extra_da
 
       // 0
       // Added mass term here.
-      lhs[i] = lhs[i]+(4+MASS+complex<double>(0.0,1.0))*rhs[i];
+      lhs[i] = lhs[i]+(4.0+MASS+complex<double>(0.0,1.0))*rhs[i];
    }
        
 }
