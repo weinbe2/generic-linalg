@@ -65,6 +65,13 @@ enum mg_test_types
     THREE_LEVEL = 3           // Three level MG
 };
 
+// How should we generate null vectors?
+enum mg_null_gen_type
+{
+    NULL_GCR = 0,                    // Generate null vectors with GCR
+    NULL_BICGSTAB = 1                // Generate null vectors with BiCGStab
+};
+
 // Square laplace 2d operator w/out u1 function.
 void square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
@@ -119,6 +126,9 @@ int main(int argc, char** argv)
     // What test are we performing?
     mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
+    // How are we generating null vectors?
+    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_GCR
+    
     // L_x = L_y = Dimension for a square lattice.
     int square_size = 32; // Can be set on command line with --square_size. 
     
@@ -126,7 +136,7 @@ int main(int argc, char** argv)
     double MASS = 0.01; // Can be overridden on command line with --mass 
     
     // Describe the source type.
-    src_type source = ORIGIN_POINT; // POINT, RANDOM_GAUSSIAN, or ORIGIN_POINT (for correlator test).
+    src_type source = POINT; // POINT, RANDOM_GAUSSIAN, or ORIGIN_POINT (for correlator test).
     
     // Outer Inverter information.
     double outer_precision = 5e-7; 
@@ -661,7 +671,15 @@ int main(int argc, char** argv)
             }
             zero<double>(mgstruct.null_vectors[0][i], fine_size);
 
-            minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op, (void*)&stagif); 
+            switch (null_gen)
+            {
+                case NULL_GCR:
+                    minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op, (void*)&stagif, &verb); 
+                    break;
+                case NULL_BICGSTAB:
+                    minv_vector_bicgstab(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op, (void*)&stagif, &verb); 
+                    break;
+            }
             
 
             for (j = 0; j < fine_size; j++)
@@ -801,8 +819,15 @@ int main(int argc, char** argv)
                     
                     zero<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
                     
-                    // Invert!
-                    minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct);
+                    switch (null_gen)
+                    {
+                        case NULL_GCR:
+                            minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            break;
+                        case NULL_BICGSTAB:
+                            minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            break;
+                    }
                     
 
                     for (j = 0; j < mgstruct.curr_fine_size; j++)
