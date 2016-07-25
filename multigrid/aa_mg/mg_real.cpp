@@ -343,7 +343,7 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     zero<double>(z_presmooth, fine_size);
     if (mgprecond->n_pre_smooth > 0)
     {
-        invif = minv_vector_minres(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+        invif = minv_vector_mr(z_presmooth, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
         printf("[L1 Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq), invif.name.c_str());
     }
     else
@@ -378,8 +378,8 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
         {
             case NONE: // The code can't reach here, anyway.
                 break;
-            case MINRES:
-                invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
+            case MR:
+                invif = minv_vector_mr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
                 break;
             case CG:
                 invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_step, mgprecond->rel_res, mgprecond->matrix_vector, mgprecond->matrix_extra_data);
@@ -417,8 +417,8 @@ void mg_preconditioner(double* lhs, double* rhs, int size, void* extra_data)
     // 7. Post smooth.
     if (mgprecond->n_post_smooth > 0)
     {
-        invif = minv_vector_minres(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
-        //invif = minv_vector_minres(lhs, lhs_postsmooth, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+        invif = minv_vector_mr(lhs, rhs, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
+        //invif = minv_vector_mr(lhs, lhs_postsmooth, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->mgstruct->matrix_vector, mgprecond->mgstruct->matrix_extra_data); 
         printf("[L1 Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", invif.iter, sqrt(invif.resSq), invif.name.c_str());
     }
     

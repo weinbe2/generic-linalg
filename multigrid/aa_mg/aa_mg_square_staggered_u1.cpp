@@ -184,15 +184,16 @@ int main(int argc, char** argv)
     // Inner solver.
     inner_solver in_solve = GCR; //GCR; 
     double inner_precision = 1e-3;
-    int inner_restart = 3000;
+    int inner_restart = 64;
+    int inner_max = 3000;
     if (my_test == SMOOTHER_ONLY)
     {
         in_solve = NONE; 
     }
     
     // Smoother
-    inner_solver in_smooth = GCR; //NONE; //GCR; 
-    double omega_smooth = 0.67; // for minres only. 
+    inner_solver in_smooth = GCR; //NONE; //GCR; BICGSTAB
+    double omega_smooth = 0.67; // for MR only. 
     int pre_smooth = 6;
     int post_smooth = 6;
     
@@ -483,12 +484,13 @@ int main(int argc, char** argv)
     // Set up the MG preconditioner. 
     mg_precond_struct_complex mgprecond;
 
-    mgprecond.in_smooth_type = in_smooth; // What inner smoother? MINRES or GCR.
-    mgprecond.omega_smooth = omega_smooth; // What relaxation parameter should we use (MINRES only!)
-    mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
-    mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
-    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, or GCR.
-    mgprecond.n_step = inner_restart; // max number of steps to use for inner solver.
+    mgprecond.in_smooth_type = in_smooth; // What inner smoother? MR or GCR.
+    mgprecond.omega_smooth = omega_smooth; // What relaxation parameter should we use (MR only!)
+    mgprecond.n_pre_smooth = pre_smooth; // 6 MR smoother steps before coarsening.
+    mgprecond.n_post_smooth = post_smooth; // 6 MR smoother steps after refining.
+    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MR, CG, GCR, BICGSTAB
+    mgprecond.n_max = inner_max; // max number of steps to use for inner solver.
+    mgprecond.n_restart = inner_restart; // frequency of restart (relevant for CG, GCR).
     mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
     mgprecond.coarse_matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
@@ -659,6 +661,15 @@ int main(int argc, char** argv)
 #endif
         {
             gaussian<double>(rand_guess, fine_size, generator);
+            
+            // Make orthogonal to previous solutions.
+            if (i > 0)
+            {
+                for (j = 0; j < i; j++)
+                {
+                    orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j], fine_size); 
+                }
+            }
 
             zero<double>(Arand_guess, fine_size);
             
@@ -690,6 +701,14 @@ int main(int argc, char** argv)
 
             
             normalize(mgstruct.null_vectors[0][i], fine_size); 
+            if (i > 0)
+            {
+                for (j = 0; j < i; j++)
+                {
+                    orthogonal<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], fine_size); 
+                }
+            }
+
         }
 
         // This causes a segfault related to the RNG when
@@ -807,6 +826,15 @@ int main(int argc, char** argv)
                 for (i = 0; i < mgstruct.n_vector/(mgstruct.eo+1); i++)
                 {
                     gaussian<double>(c_rand_guess, mgstruct.curr_fine_size, generator);
+                    
+                    // Make orthogonal to previous solutions.
+                    if (i > 0)
+                    {
+                        for (j = 0; j < i; j++)
+                        {
+                            orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j], fine_size); 
+                        }
+                    }
 
                     zero<double>(c_Arand_guess, mgstruct.curr_fine_size); 
                     fine_square_staggered(c_Arand_guess, c_rand_guess, (void*)&mgstruct);
@@ -837,6 +865,14 @@ int main(int argc, char** argv)
 
 
                     normalize(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size); 
+                    
+                    if (i > 0)
+                    {
+                        for (j = 0; j < i; j++)
+                        {
+                            orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], fine_size); 
+                        }
+                    }
                 }
 
                 delete[] c_rand_guess; 

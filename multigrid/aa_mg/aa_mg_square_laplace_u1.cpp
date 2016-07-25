@@ -584,9 +584,9 @@ int main(int argc, char** argv)
     // Set up the MG preconditioner. 
     mg_precond_struct_complex mgprecond;
     
-    mgprecond.n_pre_smooth = 6; // 6 MinRes smoother steps before coarsening.
-    mgprecond.n_post_smooth = 6; // 6 MinRes smoother steps after refining.
-    mgprecond.in_solve_type = CG; // What inner solver? MINRES, CG, or GCR.
+    mgprecond.n_pre_smooth = 6; // 6 MR smoother steps before coarsening.
+    mgprecond.n_post_smooth = 6; // 6 MR smoother steps after refining.
+    mgprecond.in_solve_type = CG; // What inner solver? MR, CG, or GCR.
     mgprecond.n_step = 10000; // max number of steps to use for inner solver.
     mgprecond.rel_res = 1e-1; // Maximum relative residual for inner solver.
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)

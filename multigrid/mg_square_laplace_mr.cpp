@@ -96,7 +96,7 @@ int main(int argc, char** argv)
   
   
   printf("Start Length %d Mass %15.20e Levels %d.\n", p.N, p.m, nlev);
-  printf("Using a %d step MinRes smoother.\n", smoother_steps, omega);
+  printf("Using a %d step MR smoother.\n", smoother_steps, omega);
   
   if(nlev  > p.Lmax)
   { 
@@ -181,7 +181,7 @@ int main(int argc, char** argv)
     {
       
       // Perform smoother_steps iterations of SOR
-      invif = minv_vector_minres(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], smoother_steps, 1e-10, square_laplacian, &p);
+      invif = minv_vector_mr(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], smoother_steps, 1e-10, square_laplacian, &p);
       
       
       dslash[p.level] += smoother_steps; 
@@ -196,7 +196,7 @@ int main(int argc, char** argv)
     {
       
       // Perform smoother_steps iterations of SOR
-      invif = minv_vector_minres(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], smoother_steps, 1e-10, square_laplacian, &p);
+      invif = minv_vector_mr(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], smoother_steps, 1e-10, square_laplacian, &p);
       
       dslash[p.level] += smoother_steps;
       

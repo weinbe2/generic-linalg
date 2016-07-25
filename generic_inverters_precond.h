@@ -43,15 +43,15 @@ void identity_preconditioner(double* lhs, double* rhs, int size, void* extra_dat
 
 void identity_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data, inversion_verbose_struct* verb = 0);
 
-/* BEGIN MINRES PRECONDITIONER */
+/* BEGIN MR PRECONDITIONER */
 
 // Preconditioning function.
-void minres_preconditioner(double* lhs, double* rhs, int size, void* extra_data, inversion_verbose_struct* verb = 0);
+void mr_preconditioner(double* lhs, double* rhs, int size, void* extra_data, inversion_verbose_struct* verb = 0);
 
-void minres_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data, inversion_verbose_struct* verb = 0); 
+void mr_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data, inversion_verbose_struct* verb = 0); 
 
 // Preconditioning struct. 
-struct minres_precond_struct_real
+struct mr_precond_struct_real
 {
     int n_step; 
     double rel_res; 
@@ -60,7 +60,7 @@ struct minres_precond_struct_real
 };
 
 // Preconditioning struct. 
-struct minres_precond_struct_complex
+struct mr_precond_struct_complex
 {
     int n_step; 
     double rel_res; 
@@ -68,7 +68,7 @@ struct minres_precond_struct_complex
     void* matrix_extra_data; 
 };
 
-/* END MINRES PRECONDITIONER */
+/* END MR PRECONDITIONER */
 
 /* BEGIN GCR PRECONDITIONER */
 

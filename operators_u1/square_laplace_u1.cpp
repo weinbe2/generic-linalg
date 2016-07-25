@@ -83,30 +83,30 @@ int main(int argc, char** argv)
    invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice); 
    //invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice); 
    //invif = minv_vector_gmres_norestart(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice);
-   //invif = minv_vector_minres(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice); 
+   //invif = minv_vector_mr(lhs, rhs, N*N, 4000, 1e-6, square_laplacian_u1, (void*)lattice); 
     
     
    // Identity preconditioned CG.
    //invif = minv_vector_cg_precond(lhs, rhs, N*N, 1000, 1e-6, square_laplacian_u1, (void*)lattice, identity_preconditioner, NULL;
     
-   // MinRes preconditioned CG. 
-   /*minres_precond_struct_complex mps; 
+   // MR preconditioned CG. 
+   /*mr_precond_struct_complex mps; 
    mps.n_step = 3;
    mps.rel_res = 1e-15; // Fix to 3 iters. 
    mps.matrix_vector = square_laplacian_u1; 
    mps.matrix_extra_data = (void*)lattice;
-   invif = minv_vector_cg_precond(lhs, rhs, N*N, 1000, 1e-6, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&mps); /**/
+   invif = minv_vector_cg_precond(lhs, rhs, N*N, 1000, 1e-6, square_laplacian_u1, (void*)lattice, mr_preconditioner, (void*)&mps); /**/
     
    // Identity variably preconditioned GCR.
    //invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 1000, 1e-6, square_laplacian_u1, (void*)lattice, identity_preconditioner, NULL);
     
-   // MinRes variably preconditioned GCR
-   /*minres_precond_struct_complex mps; 
+   // MR variably preconditioned GCR
+   /*mr_precond_struct_complex mps; 
    mps.n_step = 10000; // Let rel res dominate.
    mps.rel_res = 1e-1; 
    mps.matrix_vector = square_laplacian_u1; 
    mps.matrix_extra_data = (void*)lattice;
-   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 1000, 1e-6, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&mps); /**/
+   invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 1000, 1e-6, square_laplacian_u1, (void*)lattice, mr_preconditioner, (void*)&mps); /**/
     
 
    // variably preconditioned restarted GCR(12), preconditioned with GCR restarted when rel_res is 1e-1.
@@ -115,23 +115,23 @@ int main(int argc, char** argv)
    gps.rel_res = 1e-1; 
    gps.matrix_vector = square_laplacian_u1; 
    gps.matrix_extra_data = (void*)lattice;
-   invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 1000, 1e-6, 12, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&gps); /**/
+   invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 1000, 1e-6, 12, square_laplacian_u1, (void*)lattice, gcr_preconditioner, (void*)&gps); /**/
     
-   // Minres preconditioner to flex cg. 
-   /*minres_precond_struct_complex mps; 
+   // MR preconditioner to flex cg. 
+   /*mr_precond_struct_complex mps; 
    mps.n_step = 10000; // Make rel_res the dominant factor. 
    mps.rel_res = 1e-1; 
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
-   invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&mps); /**/
+   invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian_u1, (void*)lattice, mr_preconditioner, (void*)&mps); /**/
     
-   // Restarted Minres preconditioner to flex cg. 
-   /*minres_precond_struct_complex mps; 
+   // Restarted MR preconditioner to flex cg. 
+   /*mr_precond_struct_complex mps; 
    mps.n_step = 10000; // Make rel_res the dominant factor. 
    mps.rel_res = 0.8; 
    mps.matrix_vector = square_laplacian; 
    mps.matrix_extra_data = NULL;
-   invif = minv_vector_cg_flex_precond_restart(lhs, rhs, N*N, 10000, 1e-6, 12, square_laplacian_u1, (void*)lattice, minres_preconditioner, (void*)&mps); /**/
+   invif = minv_vector_cg_flex_precond_restart(lhs, rhs, N*N, 10000, 1e-6, 12, square_laplacian_u1, (void*)lattice, mir_preconditioner, (void*)&mps); /**/
    
    if (invif.success == true)
    {

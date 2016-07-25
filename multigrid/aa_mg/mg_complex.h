@@ -69,20 +69,21 @@ struct mg_operator_struct_complex
 struct mg_precond_struct_complex
 {
     // What inner smoother?
-    inner_solver in_smooth_type; // MINRES or GCR
+    inner_solver in_smooth_type; // MR or GCR
     
-    // Set the relaxation parameter (MINRES only.)
+    // Set the relaxation parameter (MR only.)
     double omega_smooth;
     
-    // How many MinRes pre-smooth steps?
+    // How many pre-smooth steps?
     int n_pre_smooth;
     
-    // How many MinRes post-smooth steps?
+    // How many post-smooth steps?
     int n_post_smooth;
     
     // What inner solver should we use?
-    inner_solver in_solve_type; // MINRES, CG, or GCR
-    int n_step; // Max steps for inner solver?
+    inner_solver in_solve_type; // MR, CG, or GCR
+    int n_max; // Max steps for inner solver?
+    int n_restart; // restart frequency (relevant for CG, GCR).
     double rel_res; // Rel_res for inner solver?
     
     // What's the mg_info?

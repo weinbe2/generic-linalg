@@ -214,7 +214,7 @@ int main(int argc, char** argv)
     {
       
       // Perform one iteration of GMRES(8).
-      invif = minv_vector_gmres_norestart(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
+      invif = minv_vector_gmres(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
       
       // Perform 8 iterations of BiCGStab
       //invif = minv_vector_bicgstab(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
@@ -252,7 +252,7 @@ int main(int argc, char** argv)
       
       // Perform one iteration of GMRES(8), perhaps using old
       // phi as an initial guess!
-      invif = minv_vector_gmres_norestart(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
+      invif = minv_vector_gmres(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);
       
       // Perform 8 iterations of BiCGStab
       //invif = minv_vector_bicgstab(phi[p.level], res[p.level], p.size[p.level]*p.size[p.level], rest, 1e-10, square_laplacian, &p);

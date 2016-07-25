@@ -38,14 +38,14 @@ struct mg_operator_struct_real
 // Preconditioning struct
 struct mg_precond_struct_real
 {
-    // How many MinRes pre-smooth steps?
+    // How many MR pre-smooth steps?
     int n_pre_smooth;
     
-    // How many MinRes post-smooth steps?
+    // How many MR post-smooth steps?
     int n_post_smooth;
     
     // What inner solver should we use?
-    inner_solver in_solve_type; // MINRES, CG, or GCR
+    inner_solver in_solve_type; // MR, CG, or GCR
     int n_step; // Max steps for inner solver?
     double rel_res; // Rel_res for inner solver?
     
