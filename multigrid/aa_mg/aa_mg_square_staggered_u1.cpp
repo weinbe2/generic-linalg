@@ -69,7 +69,8 @@ enum mg_test_types
 enum mg_null_gen_type
 {
     NULL_GCR = 0,                    // Generate null vectors with GCR
-    NULL_BICGSTAB = 1                // Generate null vectors with BiCGStab
+    NULL_BICGSTAB = 1,               // Generate null vectors with BiCGStab
+    NULL_CG = 2,                    // Generate null vectors with CG
 };
 
 // Square laplace 2d operator w/out u1 function.
@@ -79,13 +80,24 @@ void square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data
 void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
 // Square staggered 2d operator w/ u1 function.
-void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);  
+void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// \gamma_5
+void gamma_5(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Square \gamma_5 staggered 2d operator w/ u1 function.
+void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);  
+
+// Staggered normal equations.
+void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);  
 
 enum op_type
 {
     STAGGERED = 0,
     LAPLACE = 1,
-    LAPLACE_NC2 = 2
+    LAPLACE_NC2 = 2,
+    G5_STAGGERED = 3,
+    STAGGERED_NORMAL = 4
 };
 
 enum src_type
@@ -108,7 +120,7 @@ int main(int argc, char** argv)
 {  
     // Declare some variables.
     cout << setiosflags(ios::scientific) << setprecision(6);
-    int i, j, x, y;
+    int i, j, k, x, y;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     double explicit_resid = 0.0;
@@ -120,14 +132,17 @@ int main(int argc, char** argv)
     
     // Set parameters. 
     
-    // What operator are we using? (Laplace is free only.)
-    op_type opt = STAGGERED; // STAGGERED, LAPLACE, LAPLACE_NC2
+    // What operator are we using for the solve? (Laplace is free only.)
+    op_type opt = G5_STAGGERED; // STAGGERED, LAPLACE, LAPLACE_NC2, G5_STAGGERED
+    
+    // What operator are we using for null vector generation?
+    op_type opt_null = STAGGERED_NORMAL;
 
     // What test are we performing?
     mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
     // How are we generating null vectors?
-    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_GCR
+    mg_null_gen_type null_gen = NULL_CG; // NULL_BICGSTAB, NULL_GCR, NULL_CG
     
     // L_x = L_y = Dimension for a square lattice.
     int square_size = 32; // Can be set on command line with --square_size. 
@@ -136,7 +151,7 @@ int main(int argc, char** argv)
     double MASS = 0.01; // Can be overridden on command line with --mass 
     
     // Describe the source type.
-    src_type source = POINT; // POINT, RANDOM_GAUSSIAN, or ORIGIN_POINT (for correlator test).
+    src_type source = RANDOM_GAUSSIAN; // POINT, RANDOM_GAUSSIAN, or ORIGIN_POINT (for correlator test).
     
     // Outer Inverter information.
     double outer_precision = 5e-7; 
@@ -169,8 +184,8 @@ int main(int argc, char** argv)
 //    Total number of null vectors is 2*VECTOR_COUNT. 
     int n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
                            // Can be override on command line with --nvec
-    int null_max_iter = 3000;
-    double null_precision = 5e-5;
+    int null_max_iter = 500;
+    double null_precision = 5e-4;
     
     // Advanced:
     // IF GEN_NULL_VECTOR is defined and AGGREGATE_EOCONJ is defined:
@@ -185,7 +200,7 @@ int main(int argc, char** argv)
     inner_solver in_solve = GCR; //GCR; 
     double inner_precision = 1e-3;
     int inner_restart = 64;
-    int inner_max = 3000;
+    int inner_max = 1000;
     if (my_test == SMOOTHER_ONLY)
     {
         in_solve = NONE; 
@@ -278,6 +293,13 @@ int main(int argc, char** argv)
             op_name = "Free Laplace Nc = 2";
             op = square_laplace;
             break;
+        case G5_STAGGERED:
+            op_name = "Gamma_5 Staggered U(1)";
+            op = square_staggered_gamma5_u1;
+            break;
+        case STAGGERED_NORMAL:
+            op_name = "Staggered U(1) Normal";
+            op = square_staggered_normal_u1;
     }
     cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
     
@@ -437,6 +459,33 @@ int main(int argc, char** argv)
     {
         my_test = TOP_LEVEL_ONLY;
     }
+    
+    string op_null_name;
+    void (*op_null)(complex<double>*, complex<double>*, void*);
+    switch (opt_null)
+    {
+        case STAGGERED:
+            op_null = square_staggered_u1;
+            op_null_name = "Staggered U(1)";
+            break;
+        case LAPLACE:
+            op_null_name = "Free Laplace";
+            op_null = square_laplace;
+            break;
+        case LAPLACE_NC2:
+            op_null_name = "Free Laplace Nc = 2";
+            op_null = square_laplace;
+            break;
+        case G5_STAGGERED:
+            op_null_name = "Gamma_5 Staggered U(1)";
+            op_null = square_staggered_gamma5_u1;
+            break;
+        case STAGGERED_NORMAL:
+            op_null_name = "Staggered U(1) Normal";
+            op_null = square_staggered_normal_u1;
+            break;
+    }
+    cout << "[OP]: Null Gen Operator " << op_null_name << "\n";
     
     // Build an mg_struct.
     mg_operator_struct_complex mgstruct;
@@ -653,7 +702,7 @@ int main(int argc, char** argv)
         complex<double>* Arand_guess = new complex<double>[fine_size];
     
         // Temporarily set the mass to zero for the null vector generation. 
-        stagif.mass = 0.0;
+        stagif.mass = stagif.mass*1e-2;
 #if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
         for (i = 0; i < mgstruct.n_vector/4; i++) // Because we partition fourfold afterwards.
 #else // GEN_NULL_VECTOR is defined.
@@ -667,13 +716,28 @@ int main(int argc, char** argv)
             {
                 for (j = 0; j < i; j++)
                 {
+#if defined GEN_NULL_VECTOR && (defined AGGREGATE_FOUR || defined AGGREGATE_EOCONJ)
                     orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j], fine_size); 
+                    orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j+mgstruct.n_vector/4], fine_size); 
+                    orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4], fine_size); 
+                    orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4], fine_size); 
+#else
+                    if (mgstruct.eo == 1)
+                    {
+                        orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j], fine_size); 
+                        orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j+mgstruct.n_vector/2], fine_size); 
+                    }
+                    else // no eo.
+                    {
+                        orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j], fine_size); 
+                    }
+#endif
                 }
             }
 
             zero<double>(Arand_guess, fine_size);
             
-            (*op)(Arand_guess, rand_guess, (void*)&stagif);
+            (*op_null)(Arand_guess, rand_guess, (void*)&stagif);
             
             //square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
             for (j = 0; j < fine_size; j++)
@@ -685,10 +749,13 @@ int main(int argc, char** argv)
             switch (null_gen)
             {
                 case NULL_GCR:
-                    minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op, (void*)&stagif, &verb); 
+                    minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
                     break;
                 case NULL_BICGSTAB:
-                    minv_vector_bicgstab(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op, (void*)&stagif, &verb); 
+                    minv_vector_bicgstab(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
+                    break;
+                case NULL_CG:
+                    minv_vector_cg(mgstruct.null_vectors[0][i], Arand_guess, fine_size, null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
                     break;
             }
             
@@ -698,16 +765,150 @@ int main(int argc, char** argv)
                 mgstruct.null_vectors[0][i][j] += rand_guess[j];
             }
             
-
+            // Aggregate in chirality (or corners) as needed, orthogonalize against previous vectors.  
+#if defined GEN_NULL_VECTOR && defined AGGREGATE_FOUR
+            for (j = 0; j < fine_size; j++)
+            {
+                x = j % x_fine;
+                y = j / x_fine;
+                if (x%2 == 1 && y%2 == 0)
+                {
+                    mgstruct.null_vectors[0][i+mgstruct.n_vector/4][j] = mgstruct.null_vectors[0][i][j];
+                    mgstruct.null_vectors[0][i][j] = 0.0;
+                }
+                else if (x%2 == 0 && y%2 == 1)
+                {
+                    mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4][j] = mgstruct.null_vectors[0][i][j];
+                    mgstruct.null_vectors[0][i][j] = 0.0;
+                }
+                else if (x%2 == 1 && y%2 == 1)
+                {
+                    mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4][j] = mgstruct.null_vectors[0][i][j];
+                    mgstruct.null_vectors[0][i][j] = 0.0;
+                }
+            }
+            normalize(mgstruct.null_vectors[0][i], fine_size);
+            normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], fine_size);
+            normalize(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], fine_size);
+            normalize(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], fine_size);
             
-            normalize(mgstruct.null_vectors[0][i], fine_size); 
             if (i > 0)
             {
                 for (j = 0; j < i; j++)
                 {
+                    // Check dot product before normalization.
+                    cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
+                        abs(dot<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j],fine_size))) << " " << 
+                        abs(dot<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], mgstruct.null_vectors[0][j+mgstruct.n_vector/4], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/4],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j+mgstruct.n_vector/4],fine_size))) << " " << 
+                        abs(dot<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4],fine_size))) << " " << 
+                        abs(dot<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4i],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4],fine_size))) << " " << "\n"; 
+                    
                     orthogonal<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], fine_size); 
+                    
+                    
+                    orthogonal<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], mgstruct.null_vectors[0][j+mgstruct.n_vector/4], fine_size); 
+                    orthogonal<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4], fine_size); 
+                    orthogonal<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4], fine_size); 
                 }
             }
+            
+            normalize(mgstruct.null_vectors[0][i], fine_size);
+            normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], fine_size);
+            normalize(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], fine_size);
+            normalize(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], fine_size);
+
+#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EOCONJ
+            for (j = 0; j < fine_size; j++)
+            {
+                x = j % x_fine;
+                y = j / y_fine;
+                if ((x+y)%2 == 1)
+                {
+                    mgstruct.null_vectors[0][i+mgstruct.n_vector/4][j] = mgstruct.null_vectors[0][i][j];
+                    mgstruct.null_vectors[0][i][j] = 0.0;
+                }
+            }
+            normalize(mgstruct.null_vectors[0][i], fine_size);
+            normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], fine_size);
+            copy<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], mgstruct.null_vectors[0][i], fine_size);
+            copy<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], mgstruct.null_vectors[0][i+mgstruct.n_vector/4], fine_size);
+            conj(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], fine_size);
+            conj(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], fine_size);
+            
+            if (i > 0)
+            {
+                for (j = 0; j < i; j++)
+                {
+                    // Check dot product before normalization.
+                    cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
+                        abs(dot<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j],fine_size))) << " " << 
+                        abs(dot<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], mgstruct.null_vectors[0][j+mgstruct.n_vector/4], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/4],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j+mgstruct.n_vector/4],fine_size))) << " " << 
+                        abs(dot<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4],fine_size))) << " " << 
+                        abs(dot<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4i],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4],fine_size))) << " " << "\n"; 
+                    
+                    orthogonal<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], fine_size); 
+                    orthogonal<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], mgstruct.null_vectors[0][j+mgstruct.n_vector/4], fine_size); 
+                    orthogonal<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4], fine_size); 
+                    orthogonal<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4], fine_size); 
+                }
+            }
+            
+            normalize(mgstruct.null_vectors[0][i], fine_size);
+            normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], fine_size);
+            normalize(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], fine_size);
+            normalize(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], fine_size);
+
+#else // even/odd
+            if (mgstruct.eo == 1)
+            {
+                for (j = 0; j < fine_size; j++)
+                {
+                    x = j % x_fine;
+                    y = j / y_fine;
+                    if ((x+y)%2 == 1)
+                    {
+                        mgstruct.null_vectors[0][i+mgstruct.n_vector/2][j] = mgstruct.null_vectors[0][i][j];
+                        mgstruct.null_vectors[0][i][j] = 0.0;
+                    }
+                }
+                normalize(mgstruct.null_vectors[0][i], fine_size);
+                normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/2], fine_size);
+                
+                if (i > 0)
+                {
+                    for (j = 0; j < i; j++)
+                    {
+                        // Check dot product before normalization.
+                    cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
+                        abs(dot<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j],fine_size))) << " " << 
+                        abs(dot<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/2], mgstruct.null_vectors[0][j+mgstruct.n_vector/2], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/2],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j+mgstruct.n_vector/2],fine_size))) << "\n"; 
+                        
+                        orthogonal<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], fine_size); 
+                        orthogonal<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/2], mgstruct.null_vectors[0][j+mgstruct.n_vector/2], fine_size); 
+                    }
+                }
+                
+                normalize(mgstruct.null_vectors[0][i], fine_size);
+                normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/2], fine_size);
+
+            }
+            else
+            {
+                normalize(mgstruct.null_vectors[0][i], fine_size);
+                if (i > 0)
+                {
+                    for (j = 0; j < i; j++)
+                    {
+                        // Check dot product before normalization.
+                    cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
+                        abs(dot<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i],fine_size)*norm2sq<double>(mgstruct.null_vectors[0][j],fine_size))) << "\n"; 
+                        
+                        orthogonal<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], fine_size); 
+                    }
+                }
+                normalize(mgstruct.null_vectors[0][i], fine_size);
+            }
+#endif // defined GEN_NULL_VECTOR && defined AGGREGATE_FOUR
 
         }
 
@@ -716,75 +917,7 @@ int main(int argc, char** argv)
         delete[] rand_guess; 
         delete[] Arand_guess; 
 
-#if defined GEN_NULL_VECTOR && defined AGGREGATE_FOUR
-        for (int n = 0; n < mgstruct.n_vector/4; n++)
-        {
-            for (i = 0; i < fine_size; i++)
-            {
-                x = i % x_fine;
-                y = i / x_fine;
-                if (x%2 == 1 && y%2 == 0)
-                {
-                    mgstruct.null_vectors[0][n+mgstruct.n_vector/4][i] = mgstruct.null_vectors[0][n][i];
-                    mgstruct.null_vectors[0][n][i] = 0.0;
-                }
-                else if (x%2 == 0 && y%2 == 1)
-                {
-                    mgstruct.null_vectors[0][n+2*mgstruct.n_vector/4][i] = mgstruct.null_vectors[0][n][i];
-                    mgstruct.null_vectors[0][n][i] = 0.0;
-                }
-                else if (x%2 == 1 && y%2 == 1)
-                {
-                    mgstruct.null_vectors[0][n+3*mgstruct.n_vector/4][i] = mgstruct.null_vectors[0][n][i];
-                    mgstruct.null_vectors[0][n][i] = 0.0;
-                }
-            }
-            normalize(mgstruct.null_vectors[0][n], fine_size);
-            normalize(mgstruct.null_vectors[0][n+mgstruct.n_vector/2], fine_size);
 
-        }
-#elif defined GEN_NULL_VECTOR && defined AGGREGATE_EOCONJ
-        for (int n = 0; n < mgstruct.n_vector/4; n++)
-        {
-            for (i = 0; i < fine_size; i++)
-            {
-                x = i % x_fine;
-                y = i / y_fine;
-                if ((x+y)%2 == 1)
-                {
-                    mgstruct.null_vectors[0][n+mgstruct.n_vector/4][i] = mgstruct.null_vectors[0][n][i];
-                    mgstruct.null_vectors[0][n][i] = 0.0;
-                }
-            }
-            normalize(mgstruct.null_vectors[0][n], fine_size);
-            normalize(mgstruct.null_vectors[0][n+mgstruct.n_vector/4], fine_size);
-            copy<double>(mgstruct.null_vectors[0][n+2*mgstruct.n_vector/4], mgstruct.null_vectors[0][n], fine_size);
-            copy<double>(mgstruct.null_vectors[0][n+3*mgstruct.n_vector/4], mgstruct.null_vectors[0][n+mgstruct.n_vector/4], fine_size);
-            conj(mgstruct.null_vectors[0][n+2*mgstruct.n_vector/4], fine_size);
-            conj(mgstruct.null_vectors[0][n+3*mgstruct.n_vector/4], fine_size);
-
-        }
-#else // even/odd
-        if (mgstruct.eo == 1)
-        {
-            for (int n = 0; n < mgstruct.n_vector/2; n++)
-            {
-                for (i = 0; i < fine_size; i++)
-                {
-                    x = i % x_fine;
-                    y = i / y_fine;
-                    if ((x+y)%2 == 1)
-                    {
-                        mgstruct.null_vectors[0][n+mgstruct.n_vector/2][i] = mgstruct.null_vectors[0][n][i];
-                        mgstruct.null_vectors[0][n][i] = 0.0;
-                    }
-                }
-                normalize(mgstruct.null_vectors[0][n], fine_size);
-                normalize(mgstruct.null_vectors[0][n+mgstruct.n_vector/2], fine_size);
-
-            }
-        }
-#endif // defined GEN_NULL_VECTOR && defined AGGREGATE_FOUR
     
 #ifdef PRINT_NULL_VECTOR
         cout << "Check projector:\n"; 
@@ -809,6 +942,7 @@ int main(int argc, char** argv)
         // Do we need to generate more levels?
         if (mgstruct.n_refine > 1)
         {
+            mgstruct.matrix_vector = op_null; // Trick op to null gen op.
             for (int n = 1; n < mgstruct.n_refine; n++)
             {
                 level_down(&mgstruct);
@@ -832,7 +966,15 @@ int main(int argc, char** argv)
                     {
                         for (j = 0; j < i; j++)
                         {
-                            orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j], fine_size); 
+                            if (mgstruct.eo == 1)
+                            {
+                                orthogonal<double>(c_rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size); 
+                                orthogonal<double>(c_rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j+mgstruct.n_vector/2], mgstruct.curr_fine_size);
+                            }
+                            else // no eo.
+                            {
+                                orthogonal<double>(c_rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size); 
+                            }
                         }
                     }
 
@@ -855,6 +997,9 @@ int main(int argc, char** argv)
                         case NULL_BICGSTAB:
                             minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                             break;
+                        case NULL_CG:
+                            minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            break;
                     }
                     
 
@@ -864,44 +1009,70 @@ int main(int argc, char** argv)
                     }
 
 
-                    normalize(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size); 
-                    
-                    if (i > 0)
+                    // Aggregate in chirality, orthogonalize against previous vectors.
+                    if (mgstruct.eo == 1)
                     {
-                        for (j = 0; j < i; j++)
+                        
+                        for (j = 0; j < mgstruct.curr_fine_size; j++)
                         {
-                            orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], fine_size); 
-                        }
-                    }
-                }
-
-                delete[] c_rand_guess; 
-                delete[] c_Arand_guess; 
-                
-                // Aggregate even/odd if we need to!
-                if (mgstruct.eo == 1)
-                {
-                    for (int n = 0; n < mgstruct.n_vector/2; n++)
-                    {
-                        for (i = 0; i < mgstruct.curr_fine_size; i++)
-                        {
-                            int c = i % mgstruct.n_vector; // What color index do we have?
+                            int c = j % mgstruct.n_vector; // What color index do we have?
                                                            // 0 to mgstruct.n_vector/2-1 is even, else is odd.
                             //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
                             //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
                             
                             if (c >= mgstruct.n_vector/2)
                             {
-                                mgstruct.null_vectors[mgstruct.curr_level][n+mgstruct.n_vector/2][i] = mgstruct.null_vectors[mgstruct.curr_level][n][i];
-                                mgstruct.null_vectors[mgstruct.curr_level][n][i] = 0.0;
+                                mgstruct.null_vectors[mgstruct.curr_level][i+mgstruct.n_vector/2][j] = mgstruct.null_vectors[mgstruct.curr_level][i][j];
+                                mgstruct.null_vectors[mgstruct.curr_level][i][j] = 0.0;
                             }
                         }
-                        normalize(mgstruct.null_vectors[mgstruct.curr_level][n], mgstruct.curr_fine_size);
-                        normalize(mgstruct.null_vectors[mgstruct.curr_level][n+mgstruct.n_vector/2], mgstruct.curr_fine_size);
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+mgstruct.n_vector/2], mgstruct.curr_fine_size);
+                        
+                        if (i > 0)
+                        {
+                            for (j = 0; j < i; j++)
+                            {
+                                // Check dot product before normalization.
+                                cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][i],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][j],mgstruct.curr_fine_size))) << " " << 
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][i+mgstruct.n_vector/2], mgstruct.null_vectors[mgstruct.curr_level][j+mgstruct.n_vector/2], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][i+mgstruct.n_vector/2],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][j+mgstruct.n_vector/2],mgstruct.curr_fine_size))) << "\n"; 
+                                
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size); 
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i+mgstruct.n_vector/2], mgstruct.null_vectors[mgstruct.curr_level][j+mgstruct.n_vector/2], mgstruct.curr_fine_size); 
+                            }
+                            
+                            
+                        }
+                        
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+mgstruct.n_vector/2], mgstruct.curr_fine_size);
 
                     }
+                    else
+                    {
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
+                        
+                        if (i > 0)
+                        {
+                            for (j = 0; j < i; j++)
+                            {
+                                // Check dot product before normalization.
+                                cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][i],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][j],mgstruct.curr_fine_size))) << "\n"; 
+                                
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size); 
+                            }
+                        }
+                        
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
+                    }
+
                 }
-                
+
+                delete[] c_rand_guess; 
+                delete[] c_Arand_guess; 
+         
                 block_orthonormalize(&mgstruct); 
                 
                 // Print vector.
@@ -931,6 +1102,8 @@ int main(int argc, char** argv)
             {
                 level_up(&mgstruct);
             }
+            
+            mgstruct.matrix_vector = op; // Reset op to solved op.
         }
         
         // Reset the mass.
@@ -1531,6 +1704,54 @@ void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra
             lhs[i] = -lhs[i];
         }*/
     }
-
 }
 
+// \gamma_5
+void gamma_5(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Declare variables.
+    int i;
+    int x,y;
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* lattice = stagif->lattice;
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        
+        lhs[i] = ((double)(1 - 2*((x+y)%2)))*rhs[i];
+    }
+}
+
+// Square \gamma_5 staggered 2d operator w/ u1 function.
+void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    int i;
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
+    
+    square_staggered_u1(tmp, rhs, extra_data);
+    gamma_5(lhs, tmp, extra_data);
+    
+    delete[] tmp;
+    
+}
+
+// Staggered normal equations.
+void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    int i;
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
+    
+    square_staggered_u1(tmp, rhs, extra_data);
+    gamma_5(lhs, tmp, extra_data);
+    square_staggered_u1(tmp, lhs, extra_data);
+    gamma_5(lhs, tmp, extra_data);
+    
+    delete[] tmp;
+}

@@ -180,6 +180,8 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
     
     // Exit if new residual is small enough
     rsqNew = norm2sq<double>(r, size);
+      
+    print_verbosity_resid(verb, "CG", k+1, sqrt(rsqNew)/bsqrt);
 
     if (sqrt(rsqNew) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
