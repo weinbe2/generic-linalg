@@ -42,7 +42,7 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
   z = new double[size];
 
   // Initialize values.
-  rsq = zdotr = zdotr_new = bsqrt = 0.0;
+  rsq = zdotr = zdotr_new = bsqrt = truersq = 0.0;
 
   // Zero vectors;
   zero<double>(r, size); zero<double>(z, size);
@@ -169,7 +169,7 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
   z = new complex<double>[size];
 
   // Initialize values.
-  zdotr = zdotr_new = alpha = beta = 0.0;
+  zdotr = zdotr_new = alpha = beta = truersq = 0.0;
   rsq = bsqrt = 0.0;
 
   // Zero vectors;

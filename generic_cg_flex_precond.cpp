@@ -45,7 +45,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
   Az = new double[size]; 
 
   // Initialize values.
-  rsq = bsqrt = 0.0;
+  rsq = bsqrt = truersq = 0.0;
 
   // Zero vectors;
   zero<double>(r, size); zero<double>(z, size);
@@ -239,7 +239,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   Az = new complex<double>[size]; 
 
   // Initialize values.
-  rsq = bsqrt = 0.0;
+  rsq = bsqrt = truersq = 0.0;
 
   // Zero vectors;
   zero<double>(r, size); zero<double>(z, size);

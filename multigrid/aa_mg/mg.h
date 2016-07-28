@@ -8,7 +8,8 @@ enum inner_solver
     MR = 1,
     CG = 2,
     GCR = 3,
-    BICGSTAB = 4
+    BICGSTAB = 4,
+    CR = 5
 };
 
 #endif // MG

@@ -120,7 +120,7 @@ int main(int argc, char** argv)
 {  
     // Declare some variables.
     cout << setiosflags(ios::scientific) << setprecision(6);
-    int i, j, k, x, y;
+    int i, j, x, y;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     double explicit_resid = 0.0;
@@ -197,7 +197,7 @@ int main(int argc, char** argv)
     
     
     // Inner solver.
-    inner_solver in_solve = GCR; //GCR; 
+    inner_solver in_solve = GCR; //CR; //GCR; 
     double inner_precision = 1e-3;
     int inner_restart = 64;
     int inner_max = 1000;
@@ -734,6 +734,14 @@ int main(int argc, char** argv)
 #endif
                 }
             }
+            
+            // If we're using the staggered normal to generate, multiply the random source by gamma_5 D.
+            /*if (opt_null == STAGGERED_NORMAL)
+            {
+                copy<double>(Arand_guess, rand_guess, fine_size);
+                square_staggered_gamma5_u1(rand_guess, Arand_guess, (void*)&stagif);
+                zero<double>(Arand_guess, fine_size);
+            }*/
 
             zero<double>(Arand_guess, fine_size);
             
@@ -1713,7 +1721,6 @@ void gamma_5(complex<double>* lhs, complex<double>* rhs, void* extra_data)
     int i;
     int x,y;
     staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
-    complex<double>* lattice = stagif->lattice;
     int x_fine = stagif->x_fine;
     int y_fine = stagif->y_fine;
 
@@ -1730,7 +1737,6 @@ void gamma_5(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 // Square \gamma_5 staggered 2d operator w/ u1 function.
 void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
-    int i;
     staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
     complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
     
@@ -1744,7 +1750,6 @@ void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void
 // Staggered normal equations.
 void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
-    int i;
     staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
     complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
     

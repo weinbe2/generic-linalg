@@ -69,6 +69,9 @@ inversion_info minv_vector_gmres(double  *phi, double  *phi0, int size, int max_
   int i, j, k, iter;
   inversion_info invif;
   
+  // Initialize scalars.
+  localres = 0.0;
+  
   // Prepare q, h. These get larger on each iteration.
   q = new double*[max_iter];
   h = new double*[max_iter-1];
@@ -452,6 +455,10 @@ inversion_info minv_vector_gmres(complex<double>  *phi, complex<double>  *phi0, 
   //gmres_struct gmstr; // Passed to solve lls problem, no longer needed: we use gaussian elim.
   int i, j, k, iter;
   inversion_info invif;
+  
+    
+  // Initialize scalars.
+  localres = 0.0;
   
   // Prepare q, h. These get larger on each iteration.
   q = new complex<double>*[max_iter];

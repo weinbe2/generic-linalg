@@ -490,8 +490,6 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     mg_precond_struct_complex* mgprecond = (mg_precond_struct_complex*)extra_data; 
     
     // Standard defines.
-    int x_fine = mgprecond->mgstruct->curr_x_fine;
-    int y_fine = mgprecond->mgstruct->curr_y_fine;
     int fine_size = mgprecond->mgstruct->curr_fine_size;
     int x_coarse = mgprecond->mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
     int y_coarse = mgprecond->mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
@@ -525,6 +523,9 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             case BICGSTAB:
                 invif = minv_vector_bicgstab(z1, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
+            case CR:
+                invif = minv_vector_cr(z1, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                break; 
         }
         printf("[L%d Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str()); fflush(stdout);
         
@@ -582,6 +583,9 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                     break;
                 case BICGSTAB:
                     invif = minv_vector_bicgstab(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
+                    break;
+                case CR:
+                    invif = minv_vector_cr_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->n_restart, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
                     break;
             }
             
@@ -651,6 +655,9 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 break;
             case BICGSTAB:
                 invif = minv_vector_bicgstab(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                break;
+            case CR:
+                invif = minv_vector_gcr(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
         }
         printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());

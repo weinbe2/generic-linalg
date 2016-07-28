@@ -81,9 +81,9 @@ struct mg_precond_struct_complex
     int n_post_smooth;
     
     // What inner solver should we use?
-    inner_solver in_solve_type; // MR, CG, or GCR
+    inner_solver in_solve_type; // MR, CG, CR, or GCR
     int n_max; // Max steps for inner solver?
-    int n_restart; // restart frequency (relevant for CG, GCR).
+    int n_restart; // restart frequency (relevant for CG, CR, GCR).
     double rel_res; // Rel_res for inner solver?
     
     // What's the mg_info?
