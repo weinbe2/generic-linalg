@@ -185,7 +185,7 @@ int main(int argc, char** argv)
     int n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
                            // Can be override on command line with --nvec
     int null_max_iter = 500;
-    double null_precision = 5e-4;
+    double null_precision = 5e-5; //5e-4;
     
     // Advanced:
     // IF GEN_NULL_VECTOR is defined and AGGREGATE_EOCONJ is defined:
@@ -350,7 +350,7 @@ int main(int argc, char** argv)
     inversion_verbose_struct verb;
     verb.verbosity = VERB_DETAIL;
     verb.verb_prefix = "[L1]: ";
-    verb.precond_verbosity = VERB_DETAIL;
+    verb.precond_verbosity = VERB_NONE;
     verb.precond_verb_prefix = "Prec ";
     
     // Describe the gauge field. 

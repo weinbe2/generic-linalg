@@ -572,16 +572,16 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 case NONE: // The code can't reach here, anyway.
                     break;
                 case MR:
-                    invif = minv_vector_mr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
+                    invif = minv_vector_mr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
                     break;
                 case CG:
-                    invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
+                    invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
                     break;
                 case GCR:
-                    invif = minv_vector_gcr_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->n_restart, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
+                    invif = minv_vector_gcr_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->n_restart, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
                     break;
                 case BICGSTAB:
-                    invif = minv_vector_bicgstab(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data);
+                    invif = minv_vector_bicgstab(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
                     break;
             }
             
