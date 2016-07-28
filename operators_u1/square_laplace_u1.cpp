@@ -12,6 +12,7 @@
 #include "generic_inverters_precond.h"
 #include "generic_vector.h"
 #include "u1_utils.h"
+#include "verbosity.h"
 
 using namespace std; 
 

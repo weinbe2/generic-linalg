@@ -9,7 +9,7 @@
 #include "generic_inverters.h"
 #include "generic_inverters_precond.h"
 #include "generic_vector.h"
-
+#include "verbosity.h"
 
 using namespace std; 
 

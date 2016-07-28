@@ -3,8 +3,8 @@
 
 #============================================================
 
-C_SOURCES =  ../generic_cg.cpp ../generic_bicgstab.cpp ../generic_gcr.cpp ../generic_gmres.cpp ../generic_gelim.cpp ../generic_sor.cpp ../generic_mr.cpp ../generic_precond.cpp ../generic_cg_precond.cpp ../generic_cg_flex_precond.cpp ../generic_gcr_var_precond.cpp ../u1_utils/u1_utils.cpp ../verbosity.cpp
-C_OBJS    = generic_bicgstab.o generic_cg.o generic_gcr.o generic_gmres.o generic_gelim.o generic_sor.o generic_mr.o generic_precond.o generic_cg_precond.o generic_cg_flex_precond.o generic_gcr_var_precond.o u1_utils.o verbosity.o
+C_SOURCES =  ../generic_cg.cpp ../generic_cr.cpp ../generic_bicgstab.cpp ../generic_gcr.cpp ../generic_gmres.cpp ../generic_gelim.cpp ../generic_sor.cpp ../generic_mr.cpp ../generic_precond.cpp ../generic_cg_precond.cpp ../generic_cg_flex_precond.cpp ../generic_gcr_var_precond.cpp ../u1_utils/u1_utils.cpp ../verbosity.cpp
+C_OBJS    = generic_bicgstab.o generic_cr.o generic_cg.o generic_gcr.o generic_gmres.o generic_gelim.o generic_sor.o generic_mr.o generic_precond.o generic_cg_precond.o generic_cg_flex_precond.o generic_gcr_var_precond.o u1_utils.o verbosity.o
 C_INCLUDES  = generic_inverters.h generic_vector.h
 C_LIBS    = -lm
 EXAMPLES = inv_power_iter

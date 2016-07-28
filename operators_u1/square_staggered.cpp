@@ -8,6 +8,7 @@
 
 #include "generic_inverters.h"
 #include "generic_vector.h"
+#include "verbosity.h"
 
 using namespace std; 
 
