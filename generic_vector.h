@@ -140,6 +140,32 @@ inline T norm2sq(std::complex<T>* v1, int size)
   return res;
 }
 
+// Return |v1 - v2|
+template <typename T>
+inline T diffnorm2sq(T* v1, T* v2, int size)
+{
+    int i;
+    T res = (T)0.0;
+    for (i = 0; i < size; i++)
+    {
+        res = res + (v1[i] - v2[i])*(v1[i] - v2[i]);
+    }
+    return res;
+}
+
+template <typename T>
+inline T diffnorm2sq(std::complex<T>* v1, std::complex<T>* v2, int size)
+{
+    int i;
+    T res = (T)0.0;
+    for (i = 0; i < size; i++)
+    {
+        res = res + real(conj(v1[i] - v2[i])*(v1[i] - v2[i]));
+    }
+    return res;
+}
+    
+
 template <typename T>
 inline void normalize(T* v1, int size)
 {

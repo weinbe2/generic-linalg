@@ -104,7 +104,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
   }
   
   (*matrix_vector)(Ap,phi,extra_info);
-  for(i=0; i < size; i++) truersq += (Ap[i] - phi0[i])*(Ap[i] - phi0[i]);
+  truersq = diffnorm2sq<double>(Ap, phi0, size);
   
   // Free all the things!
   delete[] r;
@@ -210,7 +210,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   }
   
   (*matrix_vector)(Ap,phi,extra_info);
-  for(i=0; i < size; i++) truersq += real(conj(Ap[i] - phi0[i])*(Ap[i] - phi0[i]));
+  truersq = diffnorm2sq<double>(Ap, phi0, size);
   
   // Free all the things!
   delete[] r;
