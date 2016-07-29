@@ -183,9 +183,9 @@ int main(int argc, char** argv)
 //   Generate "n_null_vector" null vectors, partition into even and odd.
 //    Total number of null vectors is 2*VECTOR_COUNT. 
     int n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
-                           // Can be override on command line with --nvec
+                           // Can be overriden on command line with --nvec
     int null_max_iter = 500;
-    double null_precision = 5e-5; //5e-4;
+    double null_precision = 5e-5; //5e-4; // Can be overriden on command line with --null-precision
     
     // Advanced:
     // IF GEN_NULL_VECTOR is defined and AGGREGATE_EOCONJ is defined:
@@ -228,9 +228,10 @@ int main(int argc, char** argv)
             cout << "--mass [mass]                          (default 1e-2)\n";
             cout << "--blocksize [blocksize]                (default 4)\n";
             cout << "--nvec [nvec]                          (default 4)\n";
+            cout << "--null-precision [null prec]           (default 5e-5)\n";
             cout << "--nrefine [number coarse]              (default 1)\n";
             cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
-            cout << "--square_size [32, 64, 128]            (default 32)\n";
+            cout << "--square-size [32, 64, 128]            (default 32)\n";
             return 0;
         }
         if (i+1 != argc)
@@ -251,6 +252,11 @@ int main(int argc, char** argv)
                 n_null_vector = atoi(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--null-precision") == 0)
+            {
+                null_precision = atof(argv[i+1]);
+                i++;
+            }
             else if (strcmp(argv[i], "--nrefine") == 0)
             {
                 n_refine = atoi(argv[i+1]);
@@ -261,7 +267,7 @@ int main(int argc, char** argv)
                 BETA = atof(argv[i+1]);
                 i++;
             }
-            else if (strcmp(argv[i], "--square_size") == 0)
+            else if (strcmp(argv[i], "--square-size") == 0)
             {
                 square_size = atoi(argv[i+1]);
                 i++;
