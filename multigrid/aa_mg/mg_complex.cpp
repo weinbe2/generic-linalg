@@ -431,7 +431,7 @@ void level_down(mg_operator_struct_complex* mgstruct)
         // Update the number of d.o.f.
         if (mgstruct->curr_level == 0)
         {
-            mgstruct->curr_dof_fine *= mgstruct->n_vector/mgstruct->Nc; // Nc for square laplace only. 
+            mgstruct->curr_dof_fine *= mgstruct->n_vector/mgstruct->Nc; 
         }
         
         // Update the current fine.
@@ -462,7 +462,7 @@ void level_up(mg_operator_struct_complex* mgstruct)
         // Update the number of d.o.f.
         if (mgstruct->curr_level == 0)
         {
-            mgstruct->curr_dof_fine /= mgstruct->n_vector/mgstruct->Nc;  // Nc for square laplace only. 
+            mgstruct->curr_dof_fine /= mgstruct->n_vector/mgstruct->Nc;  
         }
         
         // Update the current fine.

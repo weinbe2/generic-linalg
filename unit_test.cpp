@@ -17,6 +17,7 @@
 #include "generic_inverters_precond.h"
 #include "generic_eigenvalues.h"
 #include "generic_vector.h"
+#include "generic_traits.h"
 #include "verbosity.h"
 
 using namespace std; 

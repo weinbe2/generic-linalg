@@ -39,22 +39,9 @@ using namespace std;
 // Do null vector generation? Currently uses BiCGStab
 #define GEN_NULL_VECTOR
 
-// How many GCR iterations do we use?
-//#define GEN_NULL_VECTOR_STEP 300
-//#define GEN_NULL_VECTOR_REL_RESID 1e-4
-
 //#define AGGREGATE_FOUR
 
 //#define AGGREGATE_EOCONJ
-
-// Are we testing a random gauge rotation?
-//#define TEST_RANDOM_GAUGE
-
-// Are we testing a random field?
-//#define TEST_RANDOM_FIELD
-
-// Are we loading a gauge field?
-#define LOAD_GAUGE_FIELD
 
 // What type of test should we do?
 enum mg_test_types
@@ -72,6 +59,17 @@ enum mg_null_gen_type
     NULL_BICGSTAB = 1,               // Generate null vectors with BiCGStab
     NULL_CG = 2,                    // Generate null vectors with CG
 };
+
+// What gauge field do we use? Load, random, unit?
+enum gauge_create_type
+{
+    GAUGE_LOAD = 0,             // Load a gauge field.
+    GAUGE_RANDOM = 1,           // Create a gauge field with deviation 1/sqrt(beta)
+    GAUGE_UNIT = 2              // Use a unit gauge field.
+};
+
+// Custom routine to load gauge field.
+void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, double BETA);
 
 // Square laplace 2d operator w/out u1 function.
 void square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data);
@@ -131,6 +129,12 @@ int main(int argc, char** argv)
     
     
     // Set parameters. 
+    
+    // How are we creating the gauge field? Load it, random, unit?
+    gauge_create_type gauge_load = GAUGE_LOAD; // GAUGE_LOAD, GAUGE_UNIT, GAUGE_RANDOM
+    
+    // Should we do a random gauge rotation?
+    bool do_gauge_transform = false; 
     
     // What operator are we using for the solve? (Laplace is free only.)
     op_type opt = G5_STAGGERED; // STAGGERED, LAPLACE, LAPLACE_NC2, G5_STAGGERED
@@ -225,13 +229,17 @@ int main(int argc, char** argv)
     {
         if (strcmp(argv[i], "--help") == 0)
         {
+            cout << "--square-size [32, 64, 128]            (default 32)\n";
             cout << "--mass [mass]                          (default 1e-2)\n";
             cout << "--blocksize [blocksize]                (default 4)\n";
             cout << "--nvec [nvec]                          (default 4)\n";
             cout << "--null-precision [null prec]           (default 5e-5)\n";
             cout << "--nrefine [number coarse]              (default 1)\n";
+            cout << "--gauge [unit, load, random]           (default load)\n";
+            cout << "--gauge-transform [yes, no]            (default no)\n";
             cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
-            cout << "--square-size [32, 64, 128]            (default 32)\n";
+            cout << "--npre-smooth [presmooth steps]        (default 6)\n";
+            cout << "--npost-smooth [postsmooth steps]      (default 6)\n";
             return 0;
         }
         if (i+1 != argc)
@@ -262,6 +270,34 @@ int main(int argc, char** argv)
                 n_refine = atoi(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--gauge") == 0)
+            {
+                if (strcmp(argv[i+1], "unit") == 0)
+                {
+                    gauge_load = GAUGE_UNIT;
+                }
+                else if (strcmp(argv[i+1], "random") == 0)
+                {
+                    gauge_load = GAUGE_RANDOM;
+                }
+                else
+                {
+                    gauge_load = GAUGE_LOAD;
+                }
+                i++;
+            }
+            else if (strcmp(argv[i], "--gauge-transform") == 0)
+            {
+                if (strcmp(argv[i+1], "yes") == 0)
+                {
+                    do_gauge_transform = true;
+                }
+                else
+                {
+                    do_gauge_transform = false;
+                }
+                i++;
+            }
             else if (strcmp(argv[i], "--beta") == 0)
             {
                 BETA = atof(argv[i+1]);
@@ -271,6 +307,32 @@ int main(int argc, char** argv)
             {
                 square_size = atoi(argv[i+1]);
                 i++;
+            }
+            else if (strcmp(argv[i], "--npre-smooth") == 0)
+            {
+                pre_smooth = atof(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--npost-smooth") == 0)
+            {
+                post_smooth = atof(argv[i+1]);
+                i++;
+            }
+            else
+            {
+                cout << argv[i] << " is not a valid flag.\n";
+                cout << "--square-size [32, 64, 128]            (default 32)\n";
+                cout << "--mass [mass]                          (default 1e-2)\n";
+                cout << "--blocksize [blocksize]                (default 4)\n";
+                cout << "--nvec [nvec]                          (default 4)\n";
+                cout << "--null-precision [null prec]           (default 5e-5)\n";
+                cout << "--nrefine [number coarse]              (default 1)\n";
+                cout << "--gauge [unit, load, random]           (default load)\n";
+                cout << "--gauge-transform [yes, no]            (default no)\n";
+                cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
+                cout << "--npre-smooth [presmooth steps]        (default 6)\n";
+                cout << "--npost-smooth [postsmooth steps]      (default 6)\n";
+                return 0;
             }
         }
     }
@@ -315,10 +377,6 @@ int main(int argc, char** argv)
     {
         Nc = 2;
     }
-    if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
-    {
-        n_null_vector *= Nc;
-    }
     
     // Describe the fine lattice. 
     int x_fine = square_size;
@@ -337,12 +395,17 @@ int main(int argc, char** argv)
     lattice = new complex<double>[2*fine_size];
     lhs = new complex<double>[fine_size];
     rhs = new complex<double>[fine_size];   
-    check = new complex<double>[fine_size];   
+    check = new complex<double>[fine_size]; 
+    
+    // In case we need a gauge transform.
+    complex<double>* gauge_trans = new complex<double>[fine_size];
+    
     // Zero it out.
     zero<double>(lattice, 2*fine_size);
     zero<double>(rhs, fine_size);
     zero<double>(lhs, fine_size);
     zero<double>(check, fine_size);
+    zero<double>(gauge_trans, fine_size);
     //
     
     // Fill stagif.
@@ -361,102 +424,28 @@ int main(int argc, char** argv)
     
     // Describe the gauge field. 
     cout << "[GAUGE]: Creating a gauge field.\n";
-    unit_gauge_u1(lattice, x_fine, y_fine);
     
-#ifdef TEST_RANDOM_FIELD
-    gauss_gauge_u1(lattice, x_fine, y_fine, generator, BETA);
-    cout << "[GAUGE]: Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
-#endif
-#ifdef LOAD_GAUGE_FIELD
-    if (x_fine == 32 && y_fine == 32)
+    switch (gauge_load)
     {
-        if (abs(BETA - 3.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b30_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else if (abs(BETA - 6.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else if (abs(BETA - 10.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b100_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else if (abs(BETA - 10000.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32bperturb_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else
-        {
-            cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
-        }
+        case GAUGE_UNIT:
+            unit_gauge_u1(lattice, x_fine, y_fine);
+            break;
+        case GAUGE_RANDOM:
+            gauss_gauge_u1(lattice, x_fine, y_fine, generator, BETA);
+            cout << "[GAUGE]: Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+            break;
+        case GAUGE_LOAD:
+            internal_load_gauge_u1(lattice, x_fine, y_fine, BETA); // defined at end of file.
+            break;
     }
-    else if (x_fine == 64 && y_fine == 64)
-    {
-        if (abs(BETA - 3.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b30_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else if (abs(BETA - 6.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b60_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else if (abs(BETA - 10.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b100_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else if (abs(BETA - 10000.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64bperturb_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else
-        {
-            cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
-        }
-    }
-    else if (x_fine == 128 && y_fine == 128)
-    {
-        if (abs(BETA - 6.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l128t128b60_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else if (abs(BETA - 10.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l128t128b100_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else if (abs(BETA - 10000.0) < 1e-8)
-        {
-            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l128t128bperturb_heatbath.dat");
-            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
-        }
-        else
-        {
-            cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
-        }
-    }
-    else
-    {
-        cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
-    }
-#endif // LOAD_GAUGE_FIELD
     
-#ifdef TEST_RANDOM_GAUGE
-    // Generate and perform a random gauge transformation.
-    complex<double>* gauge_trans = new complex<double>[fine_size];
-    rand_trans_u1(gauge_trans, x_fine, y_fine, generator);
-    apply_gauge_trans_u1(lattice, gauge_trans, x_fine, y_fine);
-    cout << "[GAUGE]: Performed a random gauge rotation.\n";
-#endif
+    if (do_gauge_transform)
+    {
+        // Generate and perform a random gauge transformation.
+        rand_trans_u1(gauge_trans, x_fine, y_fine, generator);
+        apply_gauge_trans_u1(lattice, gauge_trans, x_fine, y_fine);
+        cout << "[GAUGE]: Performed a random gauge rotation.\n";
+    }
     
     cout << "[GAUGE]: The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
     
@@ -617,9 +606,10 @@ int main(int argc, char** argv)
         for (i = 0; i < fine_size; i++)
         {
             mgstruct.null_vectors[0][0][i] = 1;
-#ifdef TEST_RANDOM_GAUGE
-            mgstruct.null_vectors[0][0][i] *= gauge_trans[i];
-#endif
+            if (do_gauge_transform) 
+            {
+                mgstruct.null_vectors[0][0][i] *= gauge_trans[i];
+            }
         }
     }
     else if (mgstruct.n_vector == 2) // constant, even/odd phase. 
@@ -632,10 +622,11 @@ int main(int argc, char** argv)
             x = i % x_fine;
             y = i / x_fine;
             mgstruct.null_vectors[0][1][i] = ((x+y)%2 == 0) ? complex<double>(0.0,1.0) : complex<double>(0.0,-1.0);
-#ifdef TEST_RANDOM_GAUGE
-            mgstruct.null_vectors[0][0][i] *= (gauge_trans[i]);
-            mgstruct.null_vectors[0][1][i] *= (gauge_trans[i]);
-#endif
+            if (do_gauge_transform)
+            {
+                mgstruct.null_vectors[0][0][i] *= (gauge_trans[i]);
+                mgstruct.null_vectors[0][1][i] *= (gauge_trans[i]);
+            }
         }
     }
     else if (mgstruct.n_vector == 4) // 4 corners of hypercube.
@@ -653,9 +644,10 @@ int main(int argc, char** argv)
             mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] = 1.0;
             mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] = dist(generator);
             
-#ifdef TEST_RANDOM_GAUGE
-            mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] *= (gauge_trans[i]);
-#endif
+            if (do_gauge_transform)
+            {
+                mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] *= (gauge_trans[i]);
+            }
         }
     }
     else // invalid.
@@ -663,11 +655,6 @@ int main(int argc, char** argv)
         cout << "Unless you are generating null vectors, you can only use 1, 2, or 4 null vectors.\n";
         return 0;
     }
-
-    
-#ifdef TEST_RANDOM_GAUGE
-    delete[] gauge_trans;
-#endif
     
     cout << "[MG]: Performing block orthonormalize of null vectors...\n";
     block_orthonormalize(&mgstruct); 
@@ -1541,6 +1528,7 @@ int main(int argc, char** argv)
     delete[] lhs;
     delete[] rhs;
     delete[] check;
+    delete[] gauge_trans;
     
     // Clean up!
     delete[] mgstruct.blocksize_x;
@@ -1766,3 +1754,90 @@ void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void
     
     delete[] tmp;
 }
+
+// Custom routine to load gauge field.
+void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, double BETA)
+{
+    if (x_fine == 32 && y_fine == 32)
+    {
+        if (abs(BETA - 3.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b30_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 6.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b60_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32b100_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10000.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l32t32bperturb_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else
+        {
+            cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
+        }
+    }
+    else if (x_fine == 64 && y_fine == 64)
+    {
+        if (abs(BETA - 3.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b30_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 6.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b60_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64b100_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10000.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l64t64bperturb_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else
+        {
+            cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
+        }
+    }
+    else if (x_fine == 128 && y_fine == 128)
+    {
+        if (abs(BETA - 6.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l128t128b60_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l128t128b100_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else if (abs(BETA - 10000.0) < 1e-8)
+        {
+            read_gauge_u1(lattice, x_fine, y_fine, "./cfg/l128t128bperturb_heatbath.dat");
+            cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
+        }
+        else
+        {
+            cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist.\n";
+        }
+    }
+    else
+    {
+        cout << "[GAUGE]: Saved U(1) gauge field with correct beta, volume does not exist. Using unit gauge.\n";
+    }
+}
+
+

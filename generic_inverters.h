@@ -24,6 +24,7 @@ struct inversion_info
   std::string name; // name of algorithm.
 };
 
+#include "generic_traits.h"
 #include "verbosity.h"
 
 // Performs gaussian elimination.
@@ -36,6 +37,8 @@ int gaussian_elimination(complex<double>* x, complex<double>* b, complex<double>
 // Requires matrix to be symmetric (Hermitian) positive definite 
 
 // CG with verbosity setting.
+/*template <typename T, typename Treal> // = typename RealType<T>::Type >
+inversion_info minv_vector_cg(T  *phi, T *phi0, int size, int max_iter, Treal eps, void (*matrix_vector)(T*,T*,void*), void* extra_info, inversion_verbose_struct* verbosity = 0);*/
 inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_iter, double res, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verbosity = 0);
 inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity = 0);
 
