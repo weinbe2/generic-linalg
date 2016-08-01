@@ -130,23 +130,23 @@ int main(int argc, char** argv)
     
     // Set parameters. 
     
-    // How are we creating the gauge field? Load it, random, unit?
+    // How are we creating the gauge field? Load it, random, unit? Can set on command line.
     gauge_create_type gauge_load = GAUGE_LOAD; // GAUGE_LOAD, GAUGE_UNIT, GAUGE_RANDOM
     
-    // Should we do a random gauge rotation?
+    // Should we do a random gauge rotation? Can set on command line.
     bool do_gauge_transform = false; 
     
-    // What operator are we using for the solve? (Laplace is free only.)
-    op_type opt = G5_STAGGERED; // STAGGERED, LAPLACE, LAPLACE_NC2, G5_STAGGERED
+    // What operator are we using for the solve? (Laplace is free only.) Can set on command line.
+    op_type opt = STAGGERED; // STAGGERED, LAPLACE, LAPLACE_NC2, G5_STAGGERED
     
-    // What operator are we using for null vector generation?
-    op_type opt_null = STAGGERED_NORMAL;
+    // What operator are we using for null vector generation? Can set on command line.
+    op_type opt_null = STAGGERED;
 
     // What test are we performing?
     mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
     // How are we generating null vectors?
-    mg_null_gen_type null_gen = NULL_CG; // NULL_BICGSTAB, NULL_GCR, NULL_CG
+    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG
     
     // L_x = L_y = Dimension for a square lattice.
     int square_size = 32; // Can be set on command line with --square_size. 
@@ -171,10 +171,6 @@ int main(int argc, char** argv)
     int X_BLOCKSIZE = 4; // Can be overrided with below arg on command line
     int Y_BLOCKSIZE = 4; // with --blocksize 
     int eo = 1; // 0 for no even/odd aggregation, 1 for even/odd aggregation.
-    if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
-    {
-        eo = 0;
-    }
     
     // Null vector generation
     
@@ -213,8 +209,8 @@ int main(int argc, char** argv)
     // Smoother
     inner_solver in_smooth = GCR; //NONE; //GCR; BICGSTAB
     double omega_smooth = 0.67; // for MR only. 
-    int pre_smooth = 6;
-    int post_smooth = 6;
+    int pre_smooth = 6; // Can set on command line.
+    int post_smooth = 6; // Can set on command line.
     
     // Gauge field information.
     double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
@@ -230,6 +226,10 @@ int main(int argc, char** argv)
         if (strcmp(argv[i], "--help") == 0)
         {
             cout << "--square-size [32, 64, 128]            (default 32)\n";
+            cout << "--operator [laplace, laplace2, staggered\n";
+            cout << "       g5_staggered, normal_staggered] (default staggered)\n";
+            cout << "--null-operator [laplace, laplace2, staggered\n";
+            cout << "       g5_staggered, normal_staggered] (default staggered)\n";
             cout << "--mass [mass]                          (default 1e-2)\n";
             cout << "--blocksize [blocksize]                (default 4)\n";
             cout << "--nvec [nvec]                          (default 4)\n";
@@ -247,6 +247,54 @@ int main(int argc, char** argv)
             if (strcmp(argv[i], "--mass") == 0)
             {
                 MASS = atof(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--operator") == 0)
+            {
+                if (strcmp(argv[i+1], "laplace") == 0)
+                {
+                    opt = LAPLACE; 
+                }
+                else if (strcmp(argv[i+1], "laplace2") == 0)
+                {
+                    opt = LAPLACE_NC2; 
+                }
+                else if (strcmp(argv[i+1], "staggered") == 0)
+                {
+                    opt = STAGGERED; 
+                }
+                else if (strcmp(argv[i+1], "g5_staggered") == 0)
+                {
+                    opt = G5_STAGGERED; 
+                }
+                else if (strcmp(argv[i+1], "normal_staggered") == 0)
+                {
+                    opt = STAGGERED_NORMAL;
+                }
+                i++;
+            }
+            else if (strcmp(argv[i], "--null-operator") == 0)
+            {
+                if (strcmp(argv[i+1], "laplace") == 0)
+                {
+                    opt_null = LAPLACE; 
+                }
+                else if (strcmp(argv[i+1], "laplace2") == 0)
+                {
+                    opt_null = LAPLACE_NC2; 
+                }
+                else if (strcmp(argv[i+1], "staggered") == 0)
+                {
+                    opt_null = STAGGERED; 
+                }
+                else if (strcmp(argv[i+1], "g5_staggered") == 0)
+                {
+                    opt_null = G5_STAGGERED; 
+                }
+                else if (strcmp(argv[i+1], "normal_staggered") == 0)
+                {
+                    opt_null = STAGGERED_NORMAL;
+                }
                 i++;
             }
             else if (strcmp(argv[i], "--blocksize") == 0)
@@ -322,6 +370,10 @@ int main(int argc, char** argv)
             {
                 cout << argv[i] << " is not a valid flag.\n";
                 cout << "--square-size [32, 64, 128]            (default 32)\n";
+                cout << "--operator [laplace, laplace2, staggered\n";
+                cout << "       g5_staggered, normal_staggered] (default staggered)\n";
+                cout << "--null-operator [laplace, laplace2, staggered\n";
+                cout << "       g5_staggered, normal_staggered] (default staggered)\n";
                 cout << "--mass [mass]                          (default 1e-2)\n";
                 cout << "--blocksize [blocksize]                (default 4)\n";
                 cout << "--nvec [nvec]                          (default 4)\n";
@@ -376,6 +428,12 @@ int main(int argc, char** argv)
     if (opt == LAPLACE_NC2)
     {
         Nc = 2;
+    }
+    
+    // Unset eo for Laplace. 
+    if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
+    {
+        eo = 0;
     }
     
     // Describe the fine lattice. 
