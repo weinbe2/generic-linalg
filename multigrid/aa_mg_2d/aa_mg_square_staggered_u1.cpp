@@ -18,7 +18,6 @@
 #include "mg_real.h"
 #include "mg_complex.h"
 #include "u1_utils.h"
-#include "coordinate.h"
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -125,16 +124,6 @@ int main(int argc, char** argv)
     std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
     inversion_info invif;
     staggered_u1_op stagif;
-    
-    // Introducing coordinate functions slowly.
-    const int nd = 2;
-    int coord[nd];
-    for (i = 0; i < nd; i++)
-    {
-        coord[i] = 0;
-    }
-    int lattice_size[nd];
-    int color = 0;
     
     // Set parameters. 
     
@@ -498,14 +487,8 @@ int main(int argc, char** argv)
     int y_fine = lattice_size_y;
     int fine_size = x_fine*y_fine*Nc;
     
-    // COORD_VARIABLES
-    lattice_size[0] = x_fine;
-    lattice_size[1] = y_fine;
     
-    // Create a lattice object.
-    Lattice Lat(nd, lattice_size, Nc);
-    
-    cout << "[VOL]: X " << lattice_size[0] << " Y " << lattice_size[1] << " Volume " << Lat.get_volume();
+    cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << x_fine*y_fine;
     if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
     {
         cout << " Nc " << Nc;
@@ -514,13 +497,13 @@ int main(int argc, char** argv)
     
     // Do some allocation.
     // Initialize the lattice. Indexing: index = y*N + x.
-    lattice = new complex<double>[2*Lat.get_lattice_size()];
-    lhs = new complex<double>[Lat.get_lattice_size()];
-    rhs = new complex<double>[Lat.get_lattice_size()];   
-    check = new complex<double>[Lat.get_lattice_size()]; 
+    lattice = new complex<double>[2*fine_size];
+    lhs = new complex<double>[fine_size];
+    rhs = new complex<double>[fine_size];   
+    check = new complex<double>[fine_size]; 
     
     // In case we need a gauge transform.
-    complex<double>* gauge_trans = new complex<double>[Lat.get_lattice_size()];
+    complex<double>* gauge_trans = new complex<double>[fine_size];
     
     // Zero it out.
     zero<double>(lattice, 2*fine_size);
