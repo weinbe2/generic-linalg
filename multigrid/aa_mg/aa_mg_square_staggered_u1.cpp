@@ -148,8 +148,9 @@ int main(int argc, char** argv)
     // How are we generating null vectors?
     mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG
     
-    // L_x = L_y = Dimension for a square lattice.
-    int square_size = 32; // Can be set on command line with --square_size. 
+    // L_x = L_y = Dimension for a lattice.
+    int lattice_size_x = 32; // Can be set on command line with --lattice-size. 
+    int lattice_size_y = 32; 
     
     // Describe the staggered fermions.
     double MASS = 0.01; // Can be overridden on command line with --mass 
@@ -225,15 +226,17 @@ int main(int argc, char** argv)
     {
         if (strcmp(argv[i], "--help") == 0)
         {
-            cout << "--square-size [32, 64, 128]            (default 32)\n";
+            cout << "--lattice-size [32, 64, 128] {##}      (default 32x32)\n";
             cout << "--operator [laplace, laplace2, staggered\n";
             cout << "       g5_staggered, normal_staggered] (default staggered)\n";
             cout << "--null-operator [laplace, laplace2, staggered\n";
             cout << "       g5_staggered, normal_staggered] (default staggered)\n";
+            cout << "--null-solver [gcr, bicgstab, cg]      (default gcr)\n";
+            cout << "--null-precision [null prec]           (default 5e-5)\n";
+            cout << "--null-eo [yes, no]                    (default yes)\n";
             cout << "--mass [mass]                          (default 1e-2)\n";
             cout << "--blocksize [blocksize]                (default 4)\n";
             cout << "--nvec [nvec]                          (default 4)\n";
-            cout << "--null-precision [null prec]           (default 5e-5)\n";
             cout << "--nrefine [number coarse]              (default 1)\n";
             cout << "--gauge [unit, load, random]           (default load)\n";
             cout << "--gauge-transform [yes, no]            (default no)\n";
@@ -313,6 +316,34 @@ int main(int argc, char** argv)
                 null_precision = atof(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--null-solver") == 0)
+            {
+                if (strcmp(argv[i+1], "gcr") == 0)
+                {
+                    null_gen = NULL_GCR;
+                }
+                else if (strcmp(argv[i+1], "bicgstab") == 0)
+                {
+                    null_gen = NULL_BICGSTAB;
+                }
+                else if (strcmp(argv[i+1], "cg") == 0)
+                {
+                    null_gen = NULL_CG;
+                }
+                i++;
+            }
+            else if (strcmp(argv[i], "--null-eo") == 0)
+            {
+                if (strcmp(argv[i+1], "yes") == 0)
+                {
+                    eo = 1;
+                }
+                else
+                {
+                    eo = 0;
+                }
+                i++;
+            }
             else if (strcmp(argv[i], "--nrefine") == 0)
             {
                 n_refine = atoi(argv[i+1]);
@@ -351,9 +382,26 @@ int main(int argc, char** argv)
                 BETA = atof(argv[i+1]);
                 i++;
             }
-            else if (strcmp(argv[i], "--square-size") == 0)
+            else if (strcmp(argv[i], "--lattice-size") == 0)
             {
-                square_size = atoi(argv[i+1]);
+                lattice_size_x = atoi(argv[i+1]);
+                
+                if (i+2 != argc)
+                {
+                    if (argv[i+2][0] == '-' && argv[i+2][1] == '-') // look for --
+                    {
+                        lattice_size_y = lattice_size_x;
+                    }
+                    else // assume number
+                    {
+                        lattice_size_y = atoi(argv[i+2]);
+                        i++;
+                    }
+                }
+                else
+                {
+                    lattice_size_y = lattice_size_y; // At the end, don't try to grab the next element!
+                }
                 i++;
             }
             else if (strcmp(argv[i], "--npre-smooth") == 0)
@@ -369,15 +417,17 @@ int main(int argc, char** argv)
             else
             {
                 cout << argv[i] << " is not a valid flag.\n";
-                cout << "--square-size [32, 64, 128]            (default 32)\n";
+                cout << "--lattice-size [32, 64, 128] {##}      (default 32x32)\n";
                 cout << "--operator [laplace, laplace2, staggered\n";
                 cout << "       g5_staggered, normal_staggered] (default staggered)\n";
                 cout << "--null-operator [laplace, laplace2, staggered\n";
                 cout << "       g5_staggered, normal_staggered] (default staggered)\n";
+                cout << "--null-solver [gcr, bicgstab, cg]      (default gcr)\n";
+                cout << "--null-precision [null prec]           (default 5e-5)\n";
+                cout << "--null-eo [yes, no]                    (default yes)\n";
                 cout << "--mass [mass]                          (default 1e-2)\n";
                 cout << "--blocksize [blocksize]                (default 4)\n";
                 cout << "--nvec [nvec]                          (default 4)\n";
-                cout << "--null-precision [null prec]           (default 5e-5)\n";
                 cout << "--nrefine [number coarse]              (default 1)\n";
                 cout << "--gauge [unit, load, random]           (default load)\n";
                 cout << "--gauge-transform [yes, no]            (default no)\n";
@@ -437,8 +487,8 @@ int main(int argc, char** argv)
     }
     
     // Describe the fine lattice. 
-    int x_fine = square_size;
-    int y_fine = square_size;
+    int x_fine = lattice_size_x;
+    int y_fine = lattice_size_y;
     int fine_size = x_fine*y_fine*Nc;
     
     cout << "[VOL]: X " << x_fine << " Y " << y_fine << " Volume " << x_fine*y_fine;
@@ -493,6 +543,8 @@ int main(int argc, char** argv)
             cout << "[GAUGE]: Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
             break;
         case GAUGE_LOAD:
+            // Unit first in case loading fails.
+            unit_gauge_u1(lattice, x_fine, y_fine);
             internal_load_gauge_u1(lattice, x_fine, y_fine, BETA); // defined at end of file.
             break;
     }
@@ -880,7 +932,7 @@ int main(int argc, char** argv)
             for (j = 0; j < fine_size; j++)
             {
                 x = j % x_fine;
-                y = j / y_fine;
+                y = j / x_fine;
                 if ((x+y)%2 == 1)
                 {
                     mgstruct.null_vectors[0][i+mgstruct.n_vector/4][j] = mgstruct.null_vectors[0][i][j];
@@ -923,7 +975,7 @@ int main(int argc, char** argv)
                 for (j = 0; j < fine_size; j++)
                 {
                     x = j % x_fine;
-                    y = j / y_fine;
+                    y = j / x_fine;
                     if ((x+y)%2 == 1)
                     {
                         mgstruct.null_vectors[0][i+mgstruct.n_vector/2][j] = mgstruct.null_vectors[0][i][j];
@@ -1528,6 +1580,7 @@ int main(int argc, char** argv)
 
         // Well, maybe this will work?
         zero<double>(lhs, fine_size);
+        //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
         invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
         //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
 
