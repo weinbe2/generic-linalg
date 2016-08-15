@@ -235,7 +235,7 @@ int main(int argc, char** argv)
             cout << "       g5_staggered, normal_staggered] (default staggered)\n";
             cout << "--null-operator [laplace, laplace2, staggered\n";
             cout << "       g5_staggered, normal_staggered] (default staggered)\n";
-            cout << "--null-solver [gcr, bicgstab, cg]      (default gcr)\n";
+            cout << "--null-solver [gcr, bicgstab, cg]      (default bicgstab)\n";
             cout << "--null-precision [null prec]           (default 5e-5)\n";
             cout << "--null-eo [corner, yes, no]            (default yes)\n";
             cout << "--mass [mass]                          (default 1e-2)\n";
@@ -430,7 +430,7 @@ int main(int argc, char** argv)
                 cout << "       g5_staggered, normal_staggered] (default staggered)\n";
                 cout << "--null-operator [laplace, laplace2, staggered\n";
                 cout << "       g5_staggered, normal_staggered] (default staggered)\n";
-                cout << "--null-solver [gcr, bicgstab, cg]      (default gcr)\n";
+                cout << "--null-solver [gcr, bicgstab, cg]      (default bicgstab)\n";
                 cout << "--null-precision [null prec]           (default 5e-5)\n";
                 cout << "--null-eo [yes, no]                    (default yes)\n";
                 cout << "--mass [mass]                          (default 1e-2)\n";
