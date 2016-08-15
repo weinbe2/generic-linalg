@@ -18,7 +18,7 @@
 #include "mg_real.h"
 #include "mg_complex.h"
 #include "u1_utils.h"
-#include "coordinate.h"
+#include "lattice.h"
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -843,15 +843,8 @@ int main(int argc, char** argv)
                     }
                 }
             }
-            
-            // If we're using the staggered normal to generate, multiply the random source by gamma_5 D.
-            /*if (opt_null == STAGGERED_NORMAL)
-            {
-                copy<double>(Arand_guess, rand_guess, Lat.get_lattice_size());
-                square_staggered_gamma5_u1(rand_guess, Arand_guess, (void*)&stagif);
-                zero<double>(Arand_guess, Lat.get_lattice_size());
-            }*/
 
+            // Solve the residual equation. 
             zero<double>(Arand_guess, Lat.get_lattice_size());
             
             (*op_null)(Arand_guess, rand_guess, (void*)&stagif);

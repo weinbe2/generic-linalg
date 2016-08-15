@@ -13,7 +13,7 @@ using namespace std;
 #include "generic_vector.h"
 #include "mg.h"
 #include "mg_complex.h"
-#include "coordinate.h"
+#include "lattice.h"
 
 // General multigrid projector function!
 void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data)
