@@ -101,6 +101,19 @@ public:
         }
     }
     
+    // Return the length of dimension mu.
+    inline int get_lattice_dimension(int mu)
+    {
+        if (mu >= 0 && mu < nd)
+        {
+            return lattice[mu];
+        }
+        else
+        {
+            return -1;
+        }
+    }
+    
     inline int get_nd()
     {
         return nd;

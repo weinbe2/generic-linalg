@@ -1,5 +1,6 @@
 
 #include "mg.h"
+#include "coordinate.h"
 
 #ifndef MG_COMPLEX
 #define MG_COMPLEX
