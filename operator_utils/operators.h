@@ -1,0 +1,43 @@
+#ifndef U1_OPERATORS
+#define U1_OPERATORS
+
+struct staggered_u1_op
+{
+    complex<double> *lattice;
+    double mass;
+    int x_fine;
+    int y_fine; 
+    Lattice* Lat; 
+    int Nc; // only relevant for square laplace. 
+};
+
+
+// Square lattice.
+// Kinetic term for a 2D laplace w/ period bc. Applies lhs = A*rhs.
+// The unit vectors are e_1 = xhat, e_2 = yhat.
+void square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Square lattice.
+// Kinetic term for a 2D staggered w/ period bc. Applies lhs = A*rhs.
+// The unit vectors are e_1 = xhat, e_2 = yhat.
+// The "extra_data" doesn't include anything.
+// Apsi[x][y] = m psi[x,y] - U[y][x,x+1] 
+void square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Square lattice.
+// Kinetic term for a 2D staggered w/ period bc. Applies lhs = A*rhs.
+// The unit vectors are e_1 = xhat, e_2 = yhat.
+// The "extra_data" is a cast to a complex gauge_field[N*N*2], 
+//    loaded by the function read_lattice_u1. 
+// Apsi[x][y] = m psi[x,y] - U[y][x,x+1] 
+void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// \gamma_5
+void gamma_5(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Square \gamma_5 staggered 2d operator w/ u1 function.
+void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Staggered normal equations.
+void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
