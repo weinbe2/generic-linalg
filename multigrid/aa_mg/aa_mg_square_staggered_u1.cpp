@@ -118,7 +118,7 @@ int main(int argc, char** argv)
 {  
     // Declare some variables.
     cout << setiosflags(ios::scientific) << setprecision(6);
-    int i, j, x, y;
+    int i, j, k, x, y;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     double explicit_resid = 0.0;
@@ -818,14 +818,19 @@ int main(int argc, char** argv)
 
         for (i = 0; i < mgstruct.n_vector/(mgstruct.eo+1); i++)
         {
+            // Create a gaussian random source. 
             gaussian<double>(rand_guess, Lat.get_lattice_size(), generator);
             
             // Make orthogonal to previous solutions.
-            if (i > 0)
+            if (i > 0) // If there are vectors to orthogonalize against...
             {
-                for (j = 0; j < i; j++)
+                for (j = 0; j < i; j++) // Iterate over all of them...
                 {
-                    if (mgstruct.eo == 1)
+                    for (k = 0; k <= mgstruct.eo; k++) // And then iterate over even/odd or color!
+                    {
+                        orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j*(mgstruct.eo+1)+k], Lat.get_lattice_size());
+                    }
+                    /*if (mgstruct.eo == 1)
                     {
                         orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j], Lat.get_lattice_size()); 
                         orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j+mgstruct.n_vector/2], Lat.get_lattice_size()); 
@@ -840,7 +845,7 @@ int main(int argc, char** argv)
                     else // no eo.
                     {
                         orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j], Lat.get_lattice_size()); 
-                    }
+                    }*/
                 }
             }
 
@@ -854,25 +859,25 @@ int main(int argc, char** argv)
             {
                Arand_guess[j] = -Arand_guess[j]; 
             }
-            zero<double>(mgstruct.null_vectors[0][i], Lat.get_lattice_size());
+            zero<double>(mgstruct.null_vectors[0][(mgstruct.eo+1)*i], Lat.get_lattice_size());
 
             switch (null_gen)
             {
                 case NULL_GCR:
-                    minv_vector_gcr(mgstruct.null_vectors[0][i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
+                    minv_vector_gcr(mgstruct.null_vectors[0][(mgstruct.eo+1)*i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
                     break;
                 case NULL_BICGSTAB:
-                    minv_vector_bicgstab(mgstruct.null_vectors[0][i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
+                    minv_vector_bicgstab(mgstruct.null_vectors[0][(mgstruct.eo+1)*i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
                     break;
                 case NULL_CG:
-                    minv_vector_cg(mgstruct.null_vectors[0][i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
+                    minv_vector_cg(mgstruct.null_vectors[0][(mgstruct.eo+1)*i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
                     break;
             }
             
 
             for (j = 0; j < Lat.get_lattice_size(); j++)
             {
-                mgstruct.null_vectors[0][i][j] += rand_guess[j];
+                mgstruct.null_vectors[0][(mgstruct.eo+1)*i][j] += rand_guess[j];
             }
             
             // Aggregate in chirality (or corners) as needed, orthogonalize against previous vectors.  
@@ -882,29 +887,30 @@ int main(int argc, char** argv)
                 {
                     if (Lat.index_is_even(j))
                     {
-                        mgstruct.null_vectors[0][i+mgstruct.n_vector/2][j] = mgstruct.null_vectors[0][i][j];
-                        mgstruct.null_vectors[0][i][j] = 0.0;
+                        mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j];
+                        mgstruct.null_vectors[0][2*i][j] = 0.0;
                     }
                 }
-                normalize(mgstruct.null_vectors[0][i], Lat.get_lattice_size());
-                normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/2], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][2*i], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][2*i+1], Lat.get_lattice_size());
                 
+                // Orthogonalize against previous vectors. 
                 if (i > 0)
                 {
                     for (j = 0; j < i; j++)
                     {
                         // Check dot product before normalization.
                     cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
-                        abs(dot<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][j],Lat.get_lattice_size()))) << " " << 
-                        abs(dot<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/2], mgstruct.null_vectors[0][j+mgstruct.n_vector/2], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/2],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][j+mgstruct.n_vector/2],Lat.get_lattice_size()))) << "\n"; 
+                        abs(dot<double>(mgstruct.null_vectors[0][2*i], mgstruct.null_vectors[0][2*j], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][2*i],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][2*j],Lat.get_lattice_size()))) << " " << 
+                        abs(dot<double>(mgstruct.null_vectors[0][2*i+1], mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][2*i+1],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][2*j+1],Lat.get_lattice_size()))) << "\n"; 
                         
-                        orthogonal<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], Lat.get_lattice_size()); 
-                        orthogonal<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/2], mgstruct.null_vectors[0][j+mgstruct.n_vector/2], Lat.get_lattice_size()); 
+                        orthogonal<double>(mgstruct.null_vectors[0][2*i], mgstruct.null_vectors[0][2*j], Lat.get_lattice_size()); 
+                        orthogonal<double>(mgstruct.null_vectors[0][2*i+1], mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size()); 
                     }
                 }
                 
-                normalize(mgstruct.null_vectors[0][i], Lat.get_lattice_size());
-                normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/2], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][2*i], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][2*i+1], Lat.get_lattice_size());
 
             }
             else if (mgstruct.eo == 3) // corner
@@ -915,24 +921,24 @@ int main(int argc, char** argv)
                     Lat.index_to_coord(j, coord, nd);
                     if (coord[0]%2 == 1 && coord[1]%2 == 0)
                     {
-                        mgstruct.null_vectors[0][i+mgstruct.n_vector/4][j] = mgstruct.null_vectors[0][i][j];
-                        mgstruct.null_vectors[0][i][j] = 0.0;
+                        mgstruct.null_vectors[0][4*i+1][j] = mgstruct.null_vectors[0][4*i][j];
+                        mgstruct.null_vectors[0][4*i][j] = 0.0;
                     }
                     else if (coord[0]%2 == 0 && coord[1]%2 == 1)
                     {
-                        mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4][j] = mgstruct.null_vectors[0][i][j];
-                        mgstruct.null_vectors[0][i][j] = 0.0;
+                        mgstruct.null_vectors[0][4*i+2][j] = mgstruct.null_vectors[0][4*i][j];
+                        mgstruct.null_vectors[0][4*i][j] = 0.0;
                     }
                     else if (coord[0]%2 == 1 && coord[1]%2 == 1)
                     {
-                        mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4][j] = mgstruct.null_vectors[0][i][j];
-                        mgstruct.null_vectors[0][i][j] = 0.0;
+                        mgstruct.null_vectors[0][4*i+3][j] = mgstruct.null_vectors[0][4*i][j];
+                        mgstruct.null_vectors[0][4*i][j] = 0.0;
                     }
                 }
-                normalize(mgstruct.null_vectors[0][i], Lat.get_lattice_size());
-                normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], Lat.get_lattice_size());
-                normalize(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], Lat.get_lattice_size());
-                normalize(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][4*i], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][4*i+1], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][4*i+2], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][4*i+3], Lat.get_lattice_size());
 
                 if (i > 0)
                 {
@@ -940,24 +946,22 @@ int main(int argc, char** argv)
                     {
                         // Check dot product before normalization.
                         cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
-                            abs(dot<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][j],Lat.get_lattice_size()))) << " " << 
-                            abs(dot<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], mgstruct.null_vectors[0][j+mgstruct.n_vector/4], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/4],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][j+mgstruct.n_vector/4],Lat.get_lattice_size()))) << " " << 
-                            abs(dot<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4],Lat.get_lattice_size()))) << " " << 
-                            abs(dot<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4],Lat.get_lattice_size()))) << " " << "\n"; 
+                            abs(dot<double>(mgstruct.null_vectors[0][4*i], mgstruct.null_vectors[0][4*j], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][4*i],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][4*j],Lat.get_lattice_size()))) << " " << 
+                            abs(dot<double>(mgstruct.null_vectors[0][4*i+1], mgstruct.null_vectors[0][4*j+1], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][4*i+1],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][4*j+1],Lat.get_lattice_size()))) << " " << 
+                            abs(dot<double>(mgstruct.null_vectors[0][4*i+2], mgstruct.null_vectors[0][4*j+2], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][4*i+2],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][4*j+2],Lat.get_lattice_size()))) << " " << 
+                            abs(dot<double>(mgstruct.null_vectors[0][4*i+3], mgstruct.null_vectors[0][4*j+3], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][4*i+3],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][4*j+3],Lat.get_lattice_size()))) << " " << "\n"; 
 
-                        orthogonal<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], Lat.get_lattice_size()); 
-
-
-                        orthogonal<double>(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], mgstruct.null_vectors[0][j+mgstruct.n_vector/4], Lat.get_lattice_size()); 
-                        orthogonal<double>(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+2*mgstruct.n_vector/4], Lat.get_lattice_size()); 
-                        orthogonal<double>(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], mgstruct.null_vectors[0][j+3*mgstruct.n_vector/4], Lat.get_lattice_size()); 
+                        orthogonal<double>(mgstruct.null_vectors[0][4*i], mgstruct.null_vectors[0][4*j], Lat.get_lattice_size()); 
+                        orthogonal<double>(mgstruct.null_vectors[0][4*i+1], mgstruct.null_vectors[0][4*j+1], Lat.get_lattice_size()); 
+                        orthogonal<double>(mgstruct.null_vectors[0][4*i+2], mgstruct.null_vectors[0][4*j+2], Lat.get_lattice_size()); 
+                        orthogonal<double>(mgstruct.null_vectors[0][4*i+3], mgstruct.null_vectors[0][4*j+3], Lat.get_lattice_size()); 
                     }
                 }
 
-                normalize(mgstruct.null_vectors[0][i], Lat.get_lattice_size());
-                normalize(mgstruct.null_vectors[0][i+mgstruct.n_vector/4], Lat.get_lattice_size());
-                normalize(mgstruct.null_vectors[0][i+2*mgstruct.n_vector/4], Lat.get_lattice_size());
-                normalize(mgstruct.null_vectors[0][i+3*mgstruct.n_vector/4], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][4*i], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][4*i+1], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][4*i+2], Lat.get_lattice_size());
+                normalize(mgstruct.null_vectors[0][4*i+3], Lat.get_lattice_size());
 
             }
             else // none

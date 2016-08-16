@@ -109,7 +109,7 @@ int main(int argc, char** argv)
     
     string op_name;
     void (*op)(complex<double>*, complex<double>*, void*);
-    op = normal_staggered_u1;
+    op = square_staggered_u1; //op = normal_staggered_u1;
     op_name = "Normal Staggered U(1)";
     cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
     
@@ -257,7 +257,8 @@ int main(int argc, char** argv)
         prev = curr;
         
         // Perform inverse iteration.
-        invif = minv_vector_cg(lhs, rhs, fine_size, 500, outer_precision, op, (void*)&stagif, &verb);
+        //invif = minv_vector_cg(lhs, rhs, fine_size, 500, outer_precision, op, (void*)&stagif, &verb);
+        invif = minv_vector_bicgstab(lhs, rhs, fine_size, 500, outer_precision, op, (void*)&stagif, &verb);
         
         // Update Lambda.
         curr = dot<double>(rhs, lhs, fine_size)/norm2sq<double>(rhs, fine_size);
