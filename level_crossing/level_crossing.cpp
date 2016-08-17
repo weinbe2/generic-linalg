@@ -1,6 +1,6 @@
-// Perform inverse power iterations to get eigenvalues. 
-// Can also be used to get multiple eigenvalues. A real Lanczos algorithm would be better, but eh.
-// Only really works for hermitian positive definite operators. 
+// Calculate level crossings for the hermitian index staggered operator.
+// Uses inverse power iterations to get the eigenvalues of the operator squared,
+// then figure out if the proper eigenvalue is +/- sqrt(eigen).
 
 #include <iostream>
 #include <iomanip> // to set output precision.
@@ -27,6 +27,19 @@ using namespace std;
 // Custom routine to load gauge field.
 void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, double BETA);
 
+// Form the index operator squared.
+void staggered_index_operator_sq(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// A shifted versions of the index op for rayleigh quotients.
+void shift_op(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+struct shift_struct
+{
+    void* extra_data;
+    void (*op)(complex<double>* a, complex<double>* b, void* extra_data);
+    complex<double> shift;
+    int length; 
+};
+
 int main(int argc, char** argv)
 {  
     // Declare some variables.
@@ -34,10 +47,12 @@ int main(int argc, char** argv)
     int i, j, x, y;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
-    complex<double> *evals, **evecs; // Hold eigenvalues, eigenvectors. 
+    complex<double> *evals, *index_evals, **evecs; // Hold eigenvalues, eigenvectors. 
     complex<double> tmp; 
     double explicit_resid = 0.0;
-    double bnorm = 0.0;
+    double p_bnorm = 0.0;
+    double m_bnorm = 0.0;
+    double relnorm = 0.0;
     std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
     inversion_info invif;
     staggered_u1_op stagif;
@@ -120,9 +135,7 @@ int main(int argc, char** argv)
     
     
     string op_name;
-    void (*op)(complex<double>*, complex<double>*, void*);
-    op = square_staggered_normal_u1; //square_staggered; //square_staggered_u1; //op = normal_staggered_u1;
-    op_name = "Normal Staggered U(1)";
+    op_name = "Squared staggered index operator.";
     cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
     
     // Only relevant for free laplace test.
@@ -153,6 +166,7 @@ int main(int argc, char** argv)
     if (n_evals > 0)
     {
         evals = new complex<double>[n_evals];
+        index_evals = new complex<double>[n_evals];
         evecs = new complex<double>*[n_evals];
         for (i = 0; i < n_evals; i++)
         {
@@ -218,19 +232,36 @@ int main(int argc, char** argv)
         complex<double> curr, prev;
         curr = 1.0;
         prev = 0.5;
-
+        
         int counter = 0;
-        while (abs(1.0/curr - 1.0/prev)/abs(1.0/prev) > 1e-6)
+        while ((relnorm = abs(1.0/curr - 1.0/prev)/abs(1.0/prev)) > 1e-10)
         {
 
             prev = curr;
 
-            // Perform inverse iteration.
-            invif = minv_vector_cg(lhs, rhs, fine_size, 500, outer_precision, op, (void*)&stagif, &verb);
-            //invif = minv_vector_gcr(lhs, rhs, fine_size, 500, outer_precision, op, (void*)&stagif, &verb);
-
-            // Update Lambda.
-            curr = dot<double>(rhs, lhs, fine_size)/norm2sq<double>(rhs, fine_size);
+            // Switch over to rayleigh quotients at some point.
+            if (counter < 10 || relnorm > 1e-4)  // inverse iterations.
+            {
+                // Perform inverse iteration.
+                invif = minv_vector_cg(lhs, rhs, fine_size, 500, outer_precision,  staggered_index_operator_sq, (void*)&stagif, &verb);
+                //invif = minv_vector_gcr(lhs, rhs, fine_size, 500, outer_precision, op, (void*)&stagif, &verb);
+                
+                curr = dot<double>(rhs, lhs, fine_size)/norm2sq<double>(rhs, fine_size);
+            }
+            else // rayleigh
+            {
+                shift_struct sif;
+                sif.extra_data = (void*)&stagif;
+                sif.op = staggered_index_operator_sq;
+                sif.length = fine_size;
+                sif.shift = 1.0/curr;
+                
+                invif = minv_vector_cg(lhs, rhs, fine_size, 500, outer_precision, shift_op, (void*)&sif, &verb);
+                
+                normalize<double>(lhs, fine_size);
+                staggered_index_operator_sq(check, lhs, (void*)&stagif);
+                curr = 1.0/(dot<double>(lhs, check, fine_size)/norm2sq<double>(lhs, fine_size));
+            }
 
             // Reorthogonalize against previous vectors to avoid spurious re-introduction of eigenvalues.
             if (i > 0)
@@ -246,11 +277,35 @@ int main(int argc, char** argv)
 
             // Print
             cout << "[EVAL]: Val " << i << " Iteration " << counter++ << " Guess " << 1.0/curr << " RelResid " << abs(1.0/curr - 1.0/prev)/abs(1.0/prev) << "\n";
+            
         }
         
         // Copy vector back into eigenvectors array, save eigenvalue.
         copy<double>(evecs[i], rhs, fine_size);
         evals[i] = 1.0/curr; 
+        
+        // Okay, moment of truth: find if + or - is the right eigenvalue of the original unsquared op. 
+        
+        // First, try plus.
+        zero<double>(lhs, fine_size);
+        staggered_index_operator(lhs, evecs[i], (void*)&stagif);
+        p_bnorm = 0.0;
+        for (j = 0; j < fine_size; j++)
+        {
+            p_bnorm += real(conj(lhs[j] - sqrt(evals[i])*evecs[i][j])*(lhs[j] - sqrt(evals[i])*evecs[i][j]));
+        }
+        cout << "[EVAL]: Plus " << p_bnorm << " Minus ";
+        
+        // Next, try minus.
+        m_bnorm = 0.0;
+        for (j = 0; j < fine_size; j++)
+        {
+            m_bnorm += real(conj(lhs[j] + sqrt(evals[i])*evecs[i][j])*(lhs[j] + sqrt(evals[i])*evecs[i][j]));
+        }
+        cout << m_bnorm << "\n";
+        
+        index_evals[i] = (p_bnorm < m_bnorm) ? sqrt(evals[i]) : (-sqrt(evals[i]));
+        
     }
         
     // Sort and print eigenvalues. 
@@ -258,14 +313,18 @@ int main(int argc, char** argv)
     {
         for (j = 0; j < n_evals; j++)
         {
-            if (real(evals[i]) < real(evals[j])) { tmp = evals[i]; evals[i] = evals[j]; evals[j] = tmp; } 
+            if (real(index_evals[i]) < real(index_evals[j]))
+            {
+                tmp = evals[i]; evals[i] = evals[j]; evals[j] = tmp;
+                tmp = index_evals[i]; index_evals[i] = index_evals[j]; index_evals[j] = tmp;
+            }
         }
     }
     
     cout << "\n\nAll eigenvalues:\n";
     for (i = 0; i < n_evals; i++)
     {
-        cout << "[EVAL]: Val " << i << " Guess " << evals[i] << "\n";
+        cout << "[FINEVAL]: Mass " << MASS << " Num " << i << " SquareEval " << real(evals[i]) << " IndexEval " << real(index_evals[i]) << "\n";
     }
     
     // Free the lattice.
@@ -280,10 +339,35 @@ int main(int argc, char** argv)
     }
     delete[] evecs;
     delete[] evals; 
-    
+    delete[] index_evals; 
     
     return 0; 
 }
+
+// Hermitian index operator squared. 
+void staggered_index_operator_sq(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
+    
+    staggered_index_operator(tmp, rhs, extra_data);
+    staggered_index_operator(lhs, tmp, extra_data);
+    
+    delete[] tmp;
+    
+}
+    
+// A shifted versions of the index op for rayleigh quotients.
+void shift_op(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    shift_struct* sop = (shift_struct*)extra_data;
+    (*sop->op)(lhs, rhs, sop->extra_data);
+    for (int i = 0; i < sop->length; i++)
+    {
+        lhs[i] -= sop->shift*rhs[i];
+    }
+}
+
 
 // Custom routine to load gauge field.
 void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, double BETA)

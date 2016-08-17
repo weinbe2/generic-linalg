@@ -1,13 +1,15 @@
 #ifndef U1_OPERATORS
 #define U1_OPERATORS
 
+#include <complex>
+using namespace std;
+
 struct staggered_u1_op
 {
     complex<double> *lattice;
     double mass;
     int x_fine;
     int y_fine; 
-    Lattice* Lat; 
     int Nc; // only relevant for square laplace. 
 };
 
@@ -40,4 +42,16 @@ void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void
 
 // Staggered normal equations.
 void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Operators for symmetric shifts.
+void staggered_symmshift_x(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+void staggered_symmshift_y(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
+
+// Staggered index operator. (See arXiv 1410.5733, 1203.2560)
+void staggered_index_operator(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+
+
+
+#endif
 

@@ -1,6 +1,7 @@
 
-#include "operators.h"
+
 #include <complex>
+#include "operators.h"
 
 using namespace std;
 
@@ -213,3 +214,147 @@ void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void
     
     delete[] tmp;
 }
+
+// Operators for symmetric shifts.
+void staggered_symmshift_x(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Declare variables.
+    int i;
+    int x,y;
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* lattice = stagif->lattice;
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+
+    // For a 2D square lattice, the stencil is:
+    //   1 |  0    0   0 |
+    //   - | +1    0  +1 |  , where eta1 = (-1)^x
+    //   2 |  0    0   0 |
+    //
+    // e2 = yhat
+    // ^
+    // | 
+    // |-> e1 = xhat
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+
+        // + e1.
+        lhs[i] = lhs[i]+lattice[y*x_fine*2+x*2]*rhs[y*x_fine+((x+1)%x_fine)];
+
+        // - e1.
+        lhs[i] = lhs[i]+ conj(lattice[y*x_fine*2+((x+x_fine-1)%x_fine)*2])*rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+
+    }
+}
+
+
+void staggered_symmshift_y(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Declare variables.
+    int i;
+    int x,y;
+    double eta1; 
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* lattice = stagif->lattice;
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+
+    // For a 2D square lattice, the stencil is:
+    //   1 |  0 +eta1  0 |
+    //   - |  0    0   0 |  , where eta1 = (-1)^x
+    //   2 |  0 +eta1  0 |
+    //
+    // e2 = yhat
+    // ^
+    // | 
+    // |-> e1 = xhat
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        eta1 = 1 - 2*(x%2);
+
+        // + e2.
+        lhs[i] = lhs[i]+ eta1*lattice[y*x_fine*2+x*2+1]*rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]+ eta1*conj(lattice[((y+y_fine-1)%y_fine)*x_fine*2+x*2+1])*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+    }
+}
+
+// Staggered index operator. (See arXiv 1410.5733, 1203.2560)
+// The index operator is i D_st - m \Gamma_5, where \Gamma_5 = i/2 (\Gamma_1 \Gamma_2 - \Gamma_2 \Gamma_1), where those are the symmshifts. 
+void staggered_index_operator(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    int i;
+    complex<double> cplxI = complex<double>(0.0, 1.0);
+    complex<double> cplxId2 = complex<double>(0.0, 0.5);
+    
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    double mass = stagif->mass; 
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+    
+    complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
+    complex<double>* tmp2 = new complex<double>[stagif->x_fine*stagif->y_fine];
+    
+    // Zero out lhs.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+    }
+    
+    // First, apply i D_st. We need a massless kernel for this.
+    staggered_u1_op stag_nomass;
+    stag_nomass.x_fine = x_fine;
+    stag_nomass.y_fine = y_fine;
+    stag_nomass.mass = 0.0;
+    stag_nomass.lattice = stagif->lattice;
+    stag_nomass.Nc = stagif->Nc;
+    
+    square_staggered_u1(lhs, rhs, (void*)&stag_nomass);
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] *= cplxI; 
+    }
+    
+    
+    // Next, form -m i/2 \Gamma_1 \Gamma_2. 
+    
+    staggered_symmshift_y(tmp, rhs, extra_data);
+    staggered_symmshift_x(tmp2, tmp, extra_data);
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] -= mass*cplxId2*tmp2[i];
+    }
+    
+    // Last, form + mi/2 \Gamma_2 \Gamma_1.
+    
+    staggered_symmshift_x(tmp, rhs, extra_data);
+    staggered_symmshift_y(tmp2, tmp, extra_data);
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] += mass*cplxId2*tmp2[i];
+    }
+    
+    delete[] tmp;
+    delete[] tmp2; 
+}
+
