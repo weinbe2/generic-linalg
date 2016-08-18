@@ -78,7 +78,9 @@ int main(int argc, char** argv)
     // Number of eigenvalues to get.
     int n_evals = 1;
     
-    
+    // Load an external cfg?
+    char* load_cfg = NULL;
+    bool do_load = false; 
     
     /////////////////////////////////////////////
     // Get a few parameters from command line. //
@@ -91,6 +93,7 @@ int main(int argc, char** argv)
             cout << "--mass                                 (default 1e-2)\n";
             cout << "--square_size [32, 64, 128]            (default 32)\n";
             cout << "--n-evals [#]                          (default 1)\n";
+            cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
             return 0;
         }
         if (i+1 != argc)
@@ -115,12 +118,19 @@ int main(int argc, char** argv)
                 n_evals = atoi(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--load-cfg") == 0)
+            {
+                load_cfg = argv[i+1];
+                do_load = true;
+                i++;
+            }
             else
             {
                 cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
                 cout << "--mass                                 (default 1e-2)\n";
                 cout << "--square_size [32, 64, 128]            (default 32)\n";
                 cout << "--n-evals [#]                          (default 1)\n";
+                cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
                 return 0;
             }
         }
@@ -200,7 +210,15 @@ int main(int argc, char** argv)
     unit_gauge_u1(lattice, x_fine, y_fine);
     
     // Load the gauge field.
-    internal_load_gauge_u1(lattice, x_fine, y_fine, BETA);
+    if (do_load)
+    {
+        read_gauge_u1(lattice, x_fine, y_fine, load_cfg);
+        cout << "[GAUGE]: Loaded a U(1) gauge field from " << load_cfg << "\n";
+    }
+    else // various predefined cfgs. 
+    {
+        internal_load_gauge_u1(lattice, x_fine, y_fine, BETA);
+    }
     
     cout << "[GAUGE]: The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
     
@@ -240,7 +258,7 @@ int main(int argc, char** argv)
             prev = curr;
 
             // Switch over to rayleigh quotients at some point.
-            if (counter < 10 || relnorm > 1e-4)  // inverse iterations.
+            if (counter < 10 || relnorm > 1e-4 || counter > 100)  // inverse iterations.
             {
                 // Perform inverse iteration.
                 invif = minv_vector_cg(lhs, rhs, fine_size, 500, outer_precision,  staggered_index_operator_sq, (void*)&stagif, &verb);
