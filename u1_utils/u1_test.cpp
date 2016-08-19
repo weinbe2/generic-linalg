@@ -23,6 +23,8 @@ int main(int argc, char** argv)
     const int volume = x_len*y_len;
     const int gauge_volume = 2*volume;
     double beta = 3.0;
+    double alpha = 0.0; 
+    int n_iter = 1; 
     
     std::mt19937 generator (1337u);
     
@@ -44,7 +46,11 @@ int main(int argc, char** argv)
     for (beta = 100; beta > 1e-4; beta*=0.1)
     {
         gauss_gauge_u1(field1, x_len, y_len, generator, beta);
-        cout << "A gauge field with beta " << beta << " has average plaquette " << get_plaquette_u1(field1, x_len, y_len) << "\n";
+        cout << "A gauge field with beta " << beta << " has average plaquette " << get_plaquette_u1(field1, x_len, y_len);
+        
+        // Smear the field.
+        apply_ape_smear_u1(field2, field1, x_len, y_len, alpha, n_iter);
+        cout << " and, after " << n_iter << " iteration(s) of ape smearing with alpha=" << alpha << ", has plaquette " << get_plaquette_u1(field2, x_len, y_len) << " and topology " << get_topo_u1(field2, x_len, y_len) << "\n"; 
     }
     
     // Create a hot field.

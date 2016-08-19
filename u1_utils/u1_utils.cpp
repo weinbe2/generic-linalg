@@ -140,6 +140,52 @@ void apply_gauge_trans_u1(complex<double>* gauge_field, complex<double>* gauge_t
     }
 }
 
+// Apply ape smearing with parameter \alpha, n_iter times.
+// Based on code from Rich Brower
+void apply_ape_smear_u1(complex<double>* smeared_field, complex<double>* gauge_field, int x_len, int y_len, double alpha, int n_iter)
+{
+	int i, x, y; 
+	complex<double>* smeared_tmp = new complex<double>[x_len*y_len*2];
+	
+	for (i = 0; i < x_len*y_len*2; i++)
+	{
+		smeared_tmp[i] = gauge_field[i];
+	}
+	
+	// APE smearing: project back on U(1)
+	for (i = 0; i < n_iter; i++)
+	{
+		for (y = 0; y < y_len; y++)
+		{
+			for (x = 0; x < x_len; x++)
+			{
+				// x link.
+				smeared_field[y*x_len*2 + x*2 + 0] = smeared_tmp[y*x_len*2 + x*2 + 0];
+				smeared_field[y*x_len*2 + x*2 + 0] += alpha*smeared_tmp[y*x_len*2+x*2+1]*smeared_tmp[((y+1)%y_len)*x_len*2 + x*2 + 0]*conj(smeared_tmp[y*x_len*2+((x+1)%x_len)*2+1]);
+				smeared_field[y*x_len*2 + x*2 + 0] += alpha*conj(smeared_tmp[((y-1+y_len)%y_len)*x_len*2 + x*2 + 1])*smeared_tmp[((y-1+y_len)%y_len)*x_len*2 + x*2 + 0]*smeared_tmp[((y-1+y_len)%y_len)*x_len*2 + ((x+1)%x_len)*2 + 1];
+				
+				// y link.
+				smeared_field[y*x_len*2 + x*2 + 1] = smeared_tmp[y*x_len*2 + x*2 + 1];
+				smeared_field[y*x_len*2 + x*2 + 1] += alpha*conj(smeared_tmp[y*x_len*2 + ((x-1+x_len)%x_len)*2 + 0])*smeared_tmp[y*x_len*2 + ((x-1+x_len)%x_len)*2 + 1]*smeared_tmp[((y+1)%y_len)*x_len*2 + ((x-1+x_len)%x_len)*2 + 0];
+				smeared_field[y*x_len*2 + x*2 + 1] += alpha*smeared_tmp[y*x_len*2 + x*2 + 0]*smeared_tmp[y*x_len*2 + ((x+1)%x_len)*2 + 1]*conj(smeared_tmp[((y+1)%y_len)*x_len*2 + x*2 + 0]);
+			}
+		}
+		
+		// Project back to U(1).
+		for (x = 0; x < x_len*y_len*2; x++)
+		{
+			smeared_tmp[x] = polar(1.0, arg(smeared_field[x]));
+		}
+	}
+	
+	for (i = 0; i < x_len*y_len*2; i++)
+	{
+		smeared_field[i] = smeared_tmp[i];
+	}
+	
+	delete[] smeared_tmp; 
+}
+
 // Get average plaquette. 
 complex<double> get_plaquette_u1(complex<double>* gauge_field, int x_len, int y_len)
 {
@@ -158,6 +204,25 @@ complex<double> get_plaquette_u1(complex<double>* gauge_field, int x_len, int y_
     }
     return plaq / ((double)(x_len*y_len));
     
+}
+
+// Get the topological charge.
+double get_topo_u1(complex<double>* gauge_field, int x_len, int y_len)
+{
+	complex<double> w;
+	double top = 0.0;
+	
+	for (int y = 0; y < y_len; y++)
+	{
+		for (int x = 0; x < x_len; x++)
+		{
+			w = gauge_field[y*x_len*2 + x*2 + 0]*gauge_field[y*x_len*2 + ((x+1)%x_len)*2 + 1]*conj(gauge_field[((y+1)%y_len)*x_len*2 + x*2 + 0])*conj(gauge_field[y*x_len*2 + x*2 + 1]);
+			// top += imag(w);
+			top += arg(w); // Geometric value is an integer?
+		}
+	}
+	
+	return 0.5*top/PI;
 }
 
 

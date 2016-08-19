@@ -41,7 +41,14 @@ void rand_trans_u1(complex<double>* gauge_trans, int x_len, int y_len, std::mt19
 // u_i(x) = g(x) u_i(x) g^\dag(x+\hat{i})
 void apply_gauge_trans_u1(complex<double>* gauge_field, complex<double>* gauge_trans, int x_len, int y_len);
 
+// Apply ape smearing with parameter \alpha, n_iter times.
+// Based on code from Rich Brower
+void apply_ape_smear_u1(complex<double>* smeared_field, complex<double>* gauge_field, int x_len, int y_len, double alpha, int n_iter);
+
 // Get average plaquette
 complex<double> get_plaquette_u1(complex<double>* gauge_field, int x_len, int y_len);
 
+// Get the topological charge.
+double get_topo_u1(complex<double>* gauge_field, int x_len, int y_len);
+	
 #endif // U1_UTILS
