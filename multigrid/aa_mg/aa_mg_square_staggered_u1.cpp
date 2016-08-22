@@ -202,6 +202,7 @@ int main(int argc, char** argv)
     
     
     // Inner solver.
+    mg_multilevel_type mlevel_type = MLEVEL_SMOOTH; // MLEVEL_SMOOTH, MLEVEL_RECURSIVE --- do we smooth then go down, or smooth then krylov?
     inner_solver in_solve = GCR; //CR; //GCR; 
     double inner_precision = 1e-3;
     int inner_restart = 64;
@@ -242,6 +243,7 @@ int main(int argc, char** argv)
             cout << "--blocksize [blocksize]                (default 4)\n";
             cout << "--nvec [nvec]                          (default 4)\n";
             cout << "--nrefine [number coarse]              (default 1)\n";
+            cout << "--multi-strategy [smooth, recursive]   (default smooth)\n";
             cout << "--gauge [unit, load, random]           (default load)\n";
             cout << "--gauge-transform [yes, no]            (default no)\n";
             cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
@@ -357,6 +359,18 @@ int main(int argc, char** argv)
                 n_refine = atoi(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--multi-strategy") == 0)
+            {
+                if (strcmp(argv[i+1], "smooth") == 0)
+                {
+                    mlevel_type = MLEVEL_SMOOTH;
+                }
+                else if (strcmp(argv[i+1], "recursive") == 0)
+                {
+                    mlevel_type = MLEVEL_RECURSIVE; 
+                }
+                i++;
+            }
             else if (strcmp(argv[i], "--gauge") == 0)
             {
                 if (strcmp(argv[i+1], "unit") == 0)
@@ -437,6 +451,7 @@ int main(int argc, char** argv)
                 cout << "--blocksize [blocksize]                (default 4)\n";
                 cout << "--nvec [nvec]                          (default 4)\n";
                 cout << "--nrefine [number coarse]              (default 1)\n";
+                cout << "--multi-strategy [smooth, recursive]   (default smooth)\n";
                 cout << "--gauge [unit, load, random]           (default load)\n";
                 cout << "--gauge-transform [yes, no]            (default no)\n";
                 cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
@@ -538,7 +553,7 @@ int main(int argc, char** argv)
     inversion_verbose_struct verb;
     verb.verbosity = VERB_DETAIL;
     verb.verb_prefix = "[L1]: ";
-    verb.precond_verbosity = VERB_NONE;
+    verb.precond_verbosity = VERB_NONE; //VERB_DETAIL;
     verb.precond_verb_prefix = "Prec ";
     
     // Describe the gauge field. 
@@ -651,6 +666,7 @@ int main(int argc, char** argv)
     mgprecond.omega_smooth = omega_smooth; // What relaxation parameter should we use (MR only!)
     mgprecond.n_pre_smooth = pre_smooth; // 6 MR smoother steps before coarsening.
     mgprecond.n_post_smooth = post_smooth; // 6 MR smoother steps after refining.
+    mgprecond.mlevel_type = mlevel_type; // Do we smooth then go down, or smooth then start a new Krylov?
     mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MR, CG, GCR, BICGSTAB
     mgprecond.n_max = inner_max; // max number of steps to use for inner solver.
     mgprecond.n_restart = inner_restart; // frequency of restart (relevant for CG, GCR).

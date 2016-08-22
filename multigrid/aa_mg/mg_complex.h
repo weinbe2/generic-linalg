@@ -5,6 +5,13 @@
 #ifndef MG_COMPLEX
 #define MG_COMPLEX
 
+// For multilevel: smooth then down, or recursive Krylov?
+enum mg_multilevel_type
+{
+    MLEVEL_SMOOTH = 0,
+    MLEVEL_RECURSIVE = 1
+};
+
 // General multigrid projector function!
 void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
 
@@ -80,6 +87,9 @@ struct mg_precond_struct_complex
     
     // How many post-smooth steps?
     int n_post_smooth;
+    
+    // How do we do recursive MG?
+    mg_multilevel_type mlevel_type; // SMOOTH, RECURSIVE
     
     // What inner solver should we use?
     inner_solver in_solve_type; // MR, CG, CR, or GCR

@@ -195,7 +195,7 @@ inversion_info minv_vector_gcr_var_precond_restart(double  *phi, double  *phi0, 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
-  while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter;
   
@@ -384,7 +384,7 @@ inversion_info minv_vector_gcr_var_precond_restart(complex<double>  *phi, comple
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
-  while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   

@@ -596,7 +596,18 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         {
             printf("About to enter coarser solve.\n"); fflush(stdout);
             level_down(mgprecond->mgstruct);
-            mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data, verb);
+            
+            switch (mgprecond->mlevel_type)
+            {
+                case MLEVEL_SMOOTH:
+                    mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data, verb);
+                    break;
+                case MLEVEL_RECURSIVE:
+                    invif = minv_vector_gcr_var_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->n_restart, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, (void*)mgprecond, verb); 
+                    printf("[L%d]: Iterations %d RelRes %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
+                    break;
+            }
+            
             level_up(mgprecond->mgstruct);
             printf("Exited coarser solve.\n"); fflush(stdout);
         }
