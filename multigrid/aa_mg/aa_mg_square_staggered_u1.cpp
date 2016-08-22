@@ -57,6 +57,7 @@ enum mg_null_gen_type
     NULL_GCR = 0,                    // Generate null vectors with GCR
     NULL_BICGSTAB = 1,               // Generate null vectors with BiCGStab
     NULL_CG = 2,                    // Generate null vectors with CG
+    NULL_MR = 3,                     // Generate null vectors with MR
 };
 
 // What gauge field do we use? Load, random, unit?
@@ -155,7 +156,7 @@ int main(int argc, char** argv)
     mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
     // How are we generating null vectors?
-    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG
+    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MR
     
     // L_x = L_y = Dimension for a lattice.
     int lattice_size_x = 32; // Can be set on command line with --lattice-size. 
@@ -236,7 +237,7 @@ int main(int argc, char** argv)
             cout << "       g5_staggered, normal_staggered] (default staggered)\n";
             cout << "--null-operator [laplace, laplace2, staggered\n";
             cout << "       g5_staggered, normal_staggered] (default staggered)\n";
-            cout << "--null-solver [gcr, bicgstab, cg]      (default bicgstab)\n";
+            cout << "--null-solver [gcr, bicgstab, cg, mr]  (default bicgstab)\n";
             cout << "--null-precision [null prec]           (default 5e-5)\n";
             cout << "--null-eo [corner, yes, no]            (default yes)\n";
             cout << "--mass [mass]                          (default 1e-2)\n";
@@ -335,6 +336,10 @@ int main(int argc, char** argv)
                 else if (strcmp(argv[i+1], "cg") == 0)
                 {
                     null_gen = NULL_CG;
+                }
+                else if (strcmp(argv[i+1], "mr") == 0)
+                {
+                    null_gen = NULL_MR;
                 }
                 i++;
             }
@@ -888,6 +893,9 @@ int main(int argc, char** argv)
                 case NULL_CG:
                     minv_vector_cg(mgstruct.null_vectors[0][(mgstruct.eo+1)*i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
                     break;
+                case NULL_MR:
+                    minv_vector_mr(mgstruct.null_vectors[0][(mgstruct.eo+1)*i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
+                    break;
             }
             
 
@@ -1086,6 +1094,9 @@ int main(int argc, char** argv)
                             break;
                         case NULL_CG:
                             minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            break;
+                        case NULL_MR:
+                            minv_vector_mr(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                             break;
                     }
                     
