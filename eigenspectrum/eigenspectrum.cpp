@@ -38,15 +38,12 @@ int main(int argc, char** argv)
 {  
     // Declare some variables.
     cout << setiosflags(ios::scientific) << setprecision(6);
-    int i, j, x, y;
+    int i,j;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     complex<double> *evals, *index_evals, **evecs; // Hold eigenvalues, eigenvectors. 
     complex<double> tmp; 
-    double explicit_resid = 0.0;
-    double p_bnorm = 0.0;
-    double m_bnorm = 0.0;
-    double relnorm = 0.0;
+    complex<double>* tmp2; 
     std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
     inversion_info invif;
     staggered_u1_op stagif;
@@ -60,9 +57,8 @@ int main(int argc, char** argv)
     // Describe the staggered fermions.
     double MASS = 1e-2; // for Rayleigh Quotient. 
     
-    // Outer Inverter information.
-    double outer_precision = 5e-13; 
-    int outer_restart = 256; 
+    // Eigensolver precision.
+    double precision = 1e-7; 
     
     // What operator should we use?
     op_type opt = STAGGERED; // STAGGERED, LAPLACE, G5_STAGGERED, STAGGERED_NORMAL
@@ -272,9 +268,47 @@ int main(int argc, char** argv)
     
     // Make an arpack struct.
     arpack_dcn_t* ar_strc = arpack_dcn_init(fine_size, n_evals, max(2*n_evals + n_evals/2, 5)); // max eigenvectors, max internal vectors
-    arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, fine_size, n_evals, max(2*n_evals + n_evals/2, 5), 4000, "SM", 1e-7, 0.0, op, (void*)&stagif); 
+    char eigtype[3]; strcpy(eigtype, "SM"); // This could be SM (smallest magnitude).
+                 // This could also be LM (largest magnitude)
+                 // SR (smallest real), SI (smallest imaginary),
+                 // and similar for largest.
+    arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, fine_size, n_evals, max(2*n_evals + n_evals/2, 5), 4000, eigtype, precision, 0.0, op, (void*)&stagif); 
+    
+    // Print info about the eigensolve.
+    cout << "[ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+    cout << "[ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+    cout << "[ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
     
     // End of arpack bindings!
+    
+    // Sort eigenvalues (done differently depending on the operator).
+    for (i = 0; i < n_evals; i++)
+    {
+        for (j = 0; j < n_evals-1; j++)
+        {
+            switch (opt)
+            {
+                case STAGGERED:
+                    if (imag(evals[j]) > imag(evals[j+1]))
+                    {
+                        tmp = evals[j]; evals[j] = evals[j+1]; evals[j+1] = tmp;
+                        tmp2 = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tmp2;
+                    }
+                    break;
+                case LAPLACE:
+                case G5_STAGGERED:
+                case STAGGERED_NORMAL:
+                case STAGGERED_INDEX:
+                    if (real(evals[j]) > real(evals[j+1]))
+                    {
+                        tmp = evals[j]; evals[j] = evals[j+1]; evals[j+1] = tmp;
+                        tmp2 = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tmp2;
+                    }
+                    break; 
+            }
+        }
+    }
+                    
     
     cout << "\n\nAll eigenvalues:\n";
     for (i = 0; i < n_evals; i++)
