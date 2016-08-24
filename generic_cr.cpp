@@ -12,8 +12,10 @@
 #include <vector>
 #include <complex>
 
-#include "generic_inverters.h"
+#include "generic_traits.h"
 #include "generic_vector.h"
+
+#include "generic_cr.h"
 
 using namespace std; 
 

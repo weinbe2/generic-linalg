@@ -11,9 +11,10 @@
 #include <sstream>
 #include <complex>
 
-#include "generic_inverters.h"
-#include "generic_vector.h"
 #include "generic_traits.h"
+#include "generic_vector.h"
+
+#include "generic_cg.h"
 
 using namespace std;
 

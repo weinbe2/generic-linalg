@@ -11,8 +11,9 @@
 #include <sstream>
 #include <complex>
 
-#include "generic_inverters.h"
 #include "generic_vector.h"
+
+#include "generic_sor.h"
 
 using namespace std;
 

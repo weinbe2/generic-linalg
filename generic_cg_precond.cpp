@@ -11,8 +11,9 @@
 #include <sstream>
 #include <complex>
 
-#include "generic_inverters_precond.h"
 #include "generic_vector.h"
+
+#include "generic_cg_precond.h"
 
 using namespace std;
 

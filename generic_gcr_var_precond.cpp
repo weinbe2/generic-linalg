@@ -17,8 +17,9 @@
 #include <vector>
 #include <complex>
 
-#include "generic_inverters.h"
 #include "generic_vector.h"
+
+#include "generic_gcr_var_precond.h"
 
 using namespace std; 
 

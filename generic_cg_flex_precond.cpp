@@ -12,8 +12,9 @@
 #include <complex>
 #include <vector>
 
-#include "generic_inverters_precond.h"
 #include "generic_vector.h"
+
+#include "generic_cg_flex_precond.h"
 
 using namespace std;
 
