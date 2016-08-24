@@ -514,8 +514,8 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             case CG:
                 invif = minv_vector_cg(z1, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
-            case MR:
-                invif = minv_vector_mr(z1, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+            case MINRES:
+                invif = minv_vector_minres(z1, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
             case GCR: 
                 invif = minv_vector_gcr(z1, rhs, fine_size, mgprecond->n_pre_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
@@ -572,8 +572,8 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             {
                 case NONE: // The code can't reach here, anyway.
                     break;
-                case MR:
-                    invif = minv_vector_mr(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
+                case MINRES:
+                    invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
                     break;
                 case CG:
                     invif = minv_vector_cg(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
@@ -647,8 +647,8 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             case CG:
                 invif = minv_vector_cg(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
-            case MR:
-                invif = minv_vector_mr(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+            case MINRES:
+                invif = minv_vector_minres(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
             case GCR:
                 invif = minv_vector_gcr(z3, r2, fine_size, mgprecond->n_post_smooth, 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 

@@ -37,21 +37,21 @@ void identity_preconditioner(complex<double>* lhs, complex<double>* rhs, int siz
     }
 }
 
-// MR preconditioning function. 
-void mr_preconditioner(double* lhs, double* rhs, int size, void* extra_data, inversion_verbose_struct* verb)
+// MinRes preconditioning function. 
+void minres_preconditioner(double* lhs, double* rhs, int size, void* extra_data, inversion_verbose_struct* verb)
 {
-    mr_precond_struct_real* mps = (mr_precond_struct_real*)extra_data; 
+    minres_precond_struct_real* mps = (minres_precond_struct_real*)extra_data; 
     
-    // Run mps->nstep iterations of mr. 
-    minv_vector_mr(lhs, rhs, size, mps->n_step, mps->rel_res, mps->matrix_vector, mps->matrix_extra_data, verb);
+    // Run mps->nstep iterations of minres. 
+    minv_vector_minres(lhs, rhs, size, mps->n_step, mps->rel_res, mps->matrix_vector, mps->matrix_extra_data, verb);
 }
 
-void mr_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data, inversion_verbose_struct* verb)
+void minres_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, void* extra_data, inversion_verbose_struct* verb)
 {
-    mr_precond_struct_complex* mps = (mr_precond_struct_complex*)extra_data; 
+    minres_precond_struct_complex* mps = (minres_precond_struct_complex*)extra_data; 
     
-    // Run mps->nstep iterations of mr. 
-    minv_vector_mr(lhs, rhs, size, mps->n_step, mps->rel_res, mps->matrix_vector, mps->matrix_extra_data, verb);
+    // Run mps->nstep iterations of minres. 
+    minv_vector_minres(lhs, rhs, size, mps->n_step, mps->rel_res, mps->matrix_vector, mps->matrix_extra_data, verb);
 }
 
 // GCR preconditioning function. 

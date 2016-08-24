@@ -15,7 +15,6 @@
 #include "generic_vector.h"
 #include "verbosity.h"
 #include "mg.h"
-#include "mg_real.h"
 #include "mg_complex.h"
 #include "u1_utils.h"
 #include "lattice.h"
@@ -57,7 +56,7 @@ enum mg_null_gen_type
     NULL_GCR = 0,                    // Generate null vectors with GCR
     NULL_BICGSTAB = 1,               // Generate null vectors with BiCGStab
     NULL_CG = 2,                    // Generate null vectors with CG
-    NULL_MR = 3,                     // Generate null vectors with MR
+    NULL_MINRES = 3,                // Generate null vectors with MinRes
 };
 
 // What gauge field do we use? Load, random, unit?
@@ -156,7 +155,7 @@ int main(int argc, char** argv)
     mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
     // How are we generating null vectors?
-    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MR
+    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MINRES
     
     // L_x = L_y = Dimension for a lattice.
     int lattice_size_x = 32; // Can be set on command line with --lattice-size. 
@@ -215,7 +214,7 @@ int main(int argc, char** argv)
     
     // Smoother
     inner_solver in_smooth = GCR; //NONE; //GCR; BICGSTAB
-    double omega_smooth = 0.67; // for MR only. 
+    double omega_smooth = 0.67; // for MINRES only. 
     int pre_smooth = 6; // Can set on command line.
     int post_smooth = 6; // Can set on command line.
     
@@ -232,24 +231,24 @@ int main(int argc, char** argv)
     {
         if (strcmp(argv[i], "--help") == 0)
         {
-            cout << "--lattice-size [32, 64, 128] {##}      (default 32x32)\n";
+            cout << "--lattice-size [32, 64, 128] {##}          (default 32x32)\n";
             cout << "--operator [laplace, laplace2, staggered\n";
-            cout << "       g5_staggered, normal_staggered] (default staggered)\n";
+            cout << "       g5_staggered, normal_staggered]     (default staggered)\n";
             cout << "--null-operator [laplace, laplace2, staggered\n";
-            cout << "       g5_staggered, normal_staggered] (default staggered)\n";
-            cout << "--null-solver [gcr, bicgstab, cg, mr]  (default bicgstab)\n";
-            cout << "--null-precision [null prec]           (default 5e-5)\n";
-            cout << "--null-eo [corner, yes, no]            (default yes)\n";
-            cout << "--mass [mass]                          (default 1e-2)\n";
-            cout << "--blocksize [blocksize]                (default 4)\n";
-            cout << "--nvec [nvec]                          (default 4)\n";
-            cout << "--nrefine [number coarse]              (default 1)\n";
-            cout << "--multi-strategy [smooth, recursive]   (default smooth)\n";
-            cout << "--gauge [unit, load, random]           (default load)\n";
-            cout << "--gauge-transform [yes, no]            (default no)\n";
-            cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
-            cout << "--npre-smooth [presmooth steps]        (default 6)\n";
-            cout << "--npost-smooth [postsmooth steps]      (default 6)\n";
+            cout << "       g5_staggered, normal_staggered]     (default staggered)\n";
+            cout << "--null-solver [gcr, bicgstab, cg, minres]  (default bicgstab)\n";
+            cout << "--null-precision [null prec]               (default 5e-5)\n";
+            cout << "--null-eo [corner, yes, no]                (default yes)\n";
+            cout << "--mass [mass]                              (default 1e-2)\n";
+            cout << "--blocksize [blocksize]                    (default 4)\n";
+            cout << "--nvec [nvec]                              (default 4)\n";
+            cout << "--nrefine [number coarse]                  (default 1)\n";
+            cout << "--multi-strategy [smooth, recursive]       (default smooth)\n";
+            cout << "--gauge [unit, load, random]               (default load)\n";
+            cout << "--gauge-transform [yes, no]                (default no)\n";
+            cout << "--beta [3.0, 6.0, 10.0, 10000.0]           (default 6.0)\n";
+            cout << "--npre-smooth [presmooth steps]            (default 6)\n";
+            cout << "--npost-smooth [postsmooth steps]          (default 6)\n";
             return 0;
         }
         if (i+1 != argc)
@@ -337,9 +336,9 @@ int main(int argc, char** argv)
                 {
                     null_gen = NULL_CG;
                 }
-                else if (strcmp(argv[i+1], "mr") == 0)
+                else if (strcmp(argv[i+1], "minres") == 0)
                 {
-                    null_gen = NULL_MR;
+                    null_gen = NULL_MINRES;
                 }
                 i++;
             }
@@ -444,24 +443,24 @@ int main(int argc, char** argv)
             else
             {
                 cout << argv[i] << " is not a valid flag.\n";
-                cout << "--lattice-size [32, 64, 128] {##}      (default 32x32)\n";
+                cout << "--lattice-size [32, 64, 128] {##}          (default 32x32)\n";
                 cout << "--operator [laplace, laplace2, staggered\n";
-                cout << "       g5_staggered, normal_staggered] (default staggered)\n";
+                cout << "       g5_staggered, normal_staggered]     (default staggered)\n";
                 cout << "--null-operator [laplace, laplace2, staggered\n";
-                cout << "       g5_staggered, normal_staggered] (default staggered)\n";
-                cout << "--null-solver [gcr, bicgstab, cg]      (default bicgstab)\n";
-                cout << "--null-precision [null prec]           (default 5e-5)\n";
-                cout << "--null-eo [yes, no]                    (default yes)\n";
-                cout << "--mass [mass]                          (default 1e-2)\n";
-                cout << "--blocksize [blocksize]                (default 4)\n";
-                cout << "--nvec [nvec]                          (default 4)\n";
-                cout << "--nrefine [number coarse]              (default 1)\n";
-                cout << "--multi-strategy [smooth, recursive]   (default smooth)\n";
-                cout << "--gauge [unit, load, random]           (default load)\n";
-                cout << "--gauge-transform [yes, no]            (default no)\n";
-                cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
-                cout << "--npre-smooth [presmooth steps]        (default 6)\n";
-                cout << "--npost-smooth [postsmooth steps]      (default 6)\n";
+                cout << "       g5_staggered, normal_staggered]     (default staggered)\n";
+                cout << "--null-solver [gcr, bicgstab, cg, minres]  (default bicgstab)\n";
+                cout << "--null-precision [null prec]               (default 5e-5)\n";
+                cout << "--null-eo [corner, yes, no]                (default yes)\n";
+                cout << "--mass [mass]                              (default 1e-2)\n";
+                cout << "--blocksize [blocksize]                    (default 4)\n";
+                cout << "--nvec [nvec]                              (default 4)\n";
+                cout << "--nrefine [number coarse]                  (default 1)\n";
+                cout << "--multi-strategy [smooth, recursive]       (default smooth)\n";
+                cout << "--gauge [unit, load, random]               (default load)\n";
+                cout << "--gauge-transform [yes, no]                (default no)\n";
+                cout << "--beta [3.0, 6.0, 10.0, 10000.0]           (default 6.0)\n";
+                cout << "--npre-smooth [presmooth steps]            (default 6)\n";
+                cout << "--npost-smooth [postsmooth steps]          (default 6)\n";
                 return 0;
             }
         }
@@ -667,12 +666,12 @@ int main(int argc, char** argv)
     // Set up the MG preconditioner. 
     mg_precond_struct_complex mgprecond;
 
-    mgprecond.in_smooth_type = in_smooth; // What inner smoother? MR or GCR.
-    mgprecond.omega_smooth = omega_smooth; // What relaxation parameter should we use (MR only!)
-    mgprecond.n_pre_smooth = pre_smooth; // 6 MR smoother steps before coarsening.
-    mgprecond.n_post_smooth = post_smooth; // 6 MR smoother steps after refining.
+    mgprecond.in_smooth_type = in_smooth; // What inner smoother? MinRes or GCR.
+    mgprecond.omega_smooth = omega_smooth; // What relaxation parameter should we use (MinRes only!)
+    mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
+    mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
     mgprecond.mlevel_type = mlevel_type; // Do we smooth then go down, or smooth then start a new Krylov?
-    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MR, CG, GCR, BICGSTAB
+    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, GCR, BICGSTAB
     mgprecond.n_max = inner_max; // max number of steps to use for inner solver.
     mgprecond.n_restart = inner_restart; // frequency of restart (relevant for CG, GCR).
     mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
@@ -893,8 +892,8 @@ int main(int argc, char** argv)
                 case NULL_CG:
                     minv_vector_cg(mgstruct.null_vectors[0][(mgstruct.eo+1)*i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
                     break;
-                case NULL_MR:
-                    minv_vector_mr(mgstruct.null_vectors[0][(mgstruct.eo+1)*i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
+                case NULL_MINRES:
+                    minv_vector_minres(mgstruct.null_vectors[0][(mgstruct.eo+1)*i], Arand_guess, Lat.get_lattice_size(), null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
                     break;
             }
             
@@ -1095,8 +1094,8 @@ int main(int argc, char** argv)
                         case NULL_CG:
                             minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                             break;
-                        case NULL_MR:
-                            minv_vector_mr(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        case NULL_MINRES:
+                            minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                             break;
                     }
                     

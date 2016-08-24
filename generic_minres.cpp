@@ -18,7 +18,7 @@ using namespace std;
 
 // Assumes the symmetric part of the matrix is positive definite.
 // Taken from section 5.3.2 of Saad, 2nd Edition.
-inversion_info minv_vector_mr(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verbosity)
+inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verbosity)
 {
   // Initialize vectors.
   double *p, *r, *x;
@@ -113,20 +113,20 @@ inversion_info minv_vector_mr(double  *phi, double  *phi0, int size, int max_ite
   
   invif.resSq = truersq;
   invif.iter = k;
-  invif.name = "Minimum Residual (MR)";
+  invif.name = "Minimum Residual (MinRes)";
   return invif; // Convergence 
 } 
 
 // Version without overrelaxation parameter. 
-inversion_info minv_vector_mr(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verbosity)
+inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verbosity)
 {
-  return minv_vector_mr(phi, phi0, size, max_iter, eps, 1.0, matrix_vector, extra_info, verbosity);
+  return minv_vector_minres(phi, phi0, size, max_iter, eps, 1.0, matrix_vector, extra_info, verbosity);
 }
 
 
 // Assumes the Hermitian part of the matrix is positive definite.
 // Taken from section 5.3.2 of Saad, 2nd Edition.
-inversion_info minv_vector_mr(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity)
+inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, double omega, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity)
 {
   // Initialize vectors.
   complex<double> *p, *r, *x;
@@ -225,14 +225,14 @@ inversion_info minv_vector_mr(complex<double>  *phi, complex<double>  *phi0, int
   
   invif.resSq = truersq;
   invif.iter = k;
-  invif.name = "Minimum Residual (MR)";
+  invif.name = "Minimum Residual (MinRes)";
   return invif; // Convergence 
 } 
 
 // Version without overrelaxation parameter. 
-inversion_info minv_vector_mr(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity)
+inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity)
 {
-  return minv_vector_mr(phi, phi0, size, max_iter, eps, 1.0, matrix_vector, extra_info, verbosity);
+  return minv_vector_minres(phi, phi0, size, max_iter, eps, 1.0, matrix_vector, extra_info, verbosity);
 }
 
 
