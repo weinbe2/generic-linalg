@@ -1,6 +1,9 @@
 // ESW 2015-09-07
 // A simple wrapper around arpack functionality.
 
+#include "verbosity.h"
+#include "inverter_struct.h"
+
 // struct that gives information about the solve.
 typedef struct
 {
@@ -62,7 +65,7 @@ arpack_drs_t* arpack_drs_init(int maxn, int maxnev, int maxncv);
 // Returns information about the eigensolve. 
 // Arg 00: arpack_drs_t* arpack_str. [In/Out]. Initialized arpack.
 // Arg 01: double* eval. [In/Out] An nev length array of eigenvalues.
-// Arg 02: double* evec. [In/Out] An nev*n length array of eigenvectors.
+// Arg 02: double** evec. [In/Out] An nev*n length array of eigenvectors.
 // Arg 03: int n. Dimension of matrix.
 // Arg 04: int nev. Number of requested eigenvalues.
 // Arg 05: int ncv. Number of internal vectors.
@@ -73,7 +76,7 @@ arpack_drs_t* arpack_drs_init(int maxn, int maxnev, int maxncv);
 // Arg 10: void (*matrix_vector)(double*,double*,void*). Callback
 //           function. Arguments are rhs, lhs, extra_info.
 // Arg 11: void* extra_info passed to functions.
-arpack_solve_t arpack_drs_getev(arpack_drs_t* arpack_str, double* eval, double* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, double sigma, void (*matrix_vector)(double*,double*,void*), void* extra_info);
+arpack_solve_t arpack_drs_getev(arpack_drs_t* arpack_str, double* eval, double** evec, int n, int nev, int ncv, int maxitr, char* which, double tol, double sigma, void (*matrix_vector)(double*,double*,void*), void* extra_info);
 
 // Clean up the arpack_drs_t structure and free it. 
 void arpack_drs_free(arpack_drs_t** arpack_str);
@@ -134,7 +137,7 @@ arpack_dcn_t* arpack_dcn_init(int maxn, int maxnev, int maxncv);
 // Returns information about the eigensolve. 
 // Arg 00: arpack_dcn_t* arpack_str. [In/Out]. Initialized arpack.
 // Arg 01: complex<double>* eval. [In/Out] An nev length array of eigenvalues.
-// Arg 02: complex<double>* evec. [In/Out] An nev*n length array of eigenvectors.
+// Arg 02: complex<double>** evec. [In/Out] An nev*n length array of eigenvectors.
 // Arg 03: int n. Dimension of matrix.
 // Arg 04: int nev. Number of requested eigenvalues.
 // Arg 05: int ncv. Number of internal vectors.
@@ -145,7 +148,7 @@ arpack_dcn_t* arpack_dcn_init(int maxn, int maxnev, int maxncv);
 // Arg 10: void (*matrix_vector)(double*,double*,void*). Callback
 //           function. Arguments are rhs, lhs, extra_info.
 // Arg 11: void* extra_info passed to functions.
-arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
+arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>** evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info);
 
 // Get the requested number of eigenvalues and eigenvectors.
 // Returns information about the eigensolve. 
@@ -162,12 +165,12 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval,
 // Arg 09: complex<double> sigma. Set to 0.0 for now.
 // Arg 10: void (*matrix_vector)(double*,double*,void*). Callback
 //           function. Arguments are rhs, lhs, extra_info.
-// Arg 11: void (*minv_vector)(double*,double*,int,int,double,matrix_vector_p,double,void*). Callback function for matrix inversion.
+// Arg 11: void (*minv_vector)(double*,double*,int,int,double,matrix_vector_p,void*,inversion_verbose_struct*). Callback function for matrix inversion.
 // Arg 12: int maxitr_cg. Number of iterations for cg.
 // Arg 13: double tol_cg. CG precision.
 // Arg 14: void* extra_info passed to functions.
 typedef void(*matrix_vector_p)(complex<double>*,complex<double>*,void*); 
-arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), double (*minv_vector)(complex<double>*,complex<double>*,int,int,double,matrix_vector_p,complex<double>,void*), int maxitr_cg, double tol_cg ,void* extra_info);
+arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>** evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), inversion_info (*minv_vector)(complex<double>*,complex<double>*,int,int,double,matrix_vector_p,void*,inversion_verbose_struct*), int maxitr_cg, double tol_cg ,void* extra_info);
 
 // Clean up the arpack_drs_t structure and free it. 
 void arpack_dcn_free(arpack_dcn_t** arpack_str);

@@ -9,6 +9,8 @@ using std::complex;
 #include "arpack_extern.h"
 #include "arpack_interface.h"
 
+#include "generic_vector.h"
+
 /************************
 * Double Real Symmetric *
 ************************/
@@ -44,7 +46,7 @@ arpack_drs_t* arpack_drs_init(int maxn, int maxnev, int maxncv)
 	return ap_str; 
 }
 
-arpack_solve_t arpack_drs_getev(arpack_drs_t* arpack_str, double* eval, double* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, double sigma, void (*matrix_vector)(double*,double*,void*), void* extra_info)
+arpack_solve_t arpack_drs_getev(arpack_drs_t* arpack_str, double* eval, double** evec, int n, int nev, int ncv, int maxitr, char* which, double tol, double sigma, void (*matrix_vector)(double*,double*,void*), void* extra_info)
 {
    // To just copy and paste code.
    int maxn, maxnev, maxncv, ldv;
@@ -234,13 +236,7 @@ arpack_solve_t arpack_drs_getev(arpack_drs_t* arpack_str, double* eval, double* 
       for (i=0;i<nev;i++)
       {
          eval[i]=d[i];
-      }
-      for (i=0;i<nev;i++)
-      {
-         for (j=0;j<n;j++)
-         {
-            evec[i*n+j] = (v+i*ldv)[j];
-         }
+		  copy<double>(evec[i], (v+i*ldv), n);
       }
       
       return info_solve;
@@ -308,7 +304,7 @@ arpack_dcn_t* arpack_dcn_init(int maxn, int maxnev, int maxncv)
 	return ap_str; 
 }
 
-arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
+arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>** evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
 {
    // To just copy and paste code.
    int maxn, maxnev, maxncv, ldv;
@@ -511,13 +507,7 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval,
       for (i=0;i<nev;i++)
       {
          eval[i]=d[i];
-      }
-      for (i=0;i<nev;i++)
-      {
-         for (j=0;j<n;j++)
-         {
-            evec[i*n+j] = (v+i*ldv)[j];
-         }
+		 copy<double>(evec[i], (v+i*ldv), n);
       }
       
       return info_solve;
@@ -529,7 +519,27 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval,
    return info_solve;
 }
 
-arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), double (*minv_vector)(complex<double>*,complex<double>*,int,int,double,matrix_vector_p,complex<double>,void*), int maxitr_cg, double tol_cg ,void* extra_info)
+
+	// A shifted versions of the index op for rayleigh quotients.
+struct shift_struct
+{
+    void* extra_data;
+    void (*op)(complex<double>* a, complex<double>* b, void* extra_data);
+    complex<double> shift;
+    int length; 
+};
+
+void shift_op(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    shift_struct* sop = (shift_struct*)extra_data;
+    (*sop->op)(lhs, rhs, sop->extra_data);
+    for (int i = 0; i < sop->length; i++)
+    {
+        lhs[i] -= sop->shift*rhs[i];
+    }
+}
+
+arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>** evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), inversion_info (*minv_vector)(complex<double>*,complex<double>*,int,int,double,matrix_vector_p,void*,inversion_verbose_struct*), int maxitr_cg, double tol_cg ,void* extra_info)
 {
    // To just copy and paste code.
    int maxn, maxnev, maxncv, ldv;
@@ -545,6 +555,13 @@ arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* 
    double zero;
    arpack_solve_t info_solve; // Gets returned.
    int rvec; // Actually a boolean!
+	
+   // Create a shift invert structure.
+	shift_struct shifter;
+	shifter.extra_data = extra_info;
+	shifter.op = matrix_vector;
+	shifter.shift = sigma;
+	shifter.length = n; 
 
    // Initialize values that aren't passed!
    maxn = arpack_str->maxn;
@@ -645,7 +662,7 @@ arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* 
          // Call rhs = (A-sigma*I)^-1 *lhs. 
          
 		 
-         (*minv_vector)(lhs, rhs, n, maxitr_cg, tol_cg, matrix_vector, sigma, extra_info);
+         (*minv_vector)(lhs, rhs, n, maxitr_cg, tol_cg, shift_op, (void*)&shifter,0);
          //minv_vector_bicgstab_shift(rhs, lhs, n, maxitr_cg, 1e-7, &matrix_vector, sigma, extra_info);
          //(*matrix_vector)(lhs, rhs, extra_info);
          
@@ -735,13 +752,7 @@ arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* 
       for (i=0;i<nev;i++)
       {
          eval[i]=d[i];
-      }
-      for (i=0;i<nev;i++)
-      {
-         for (j=0;j<n;j++)
-         {
-            evec[i*n+j] = (v+i*ldv)[j];
-         }
+		  copy<double>(evec[i], (v+i*ldv), n);
       }
       
       return info_solve;

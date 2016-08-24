@@ -7,6 +7,8 @@
 using std::complex;
 
 #include "arpack_interface.h"
+#include "generic_vector.h"
+#include "generic_bicgstab.h"
 
 // Various maxima. This is used to allocate more than
 // enough memory.
@@ -32,10 +34,8 @@ typedef struct {
    
 
 // This function does the multiply!
-void mat_vec(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+void laplace_1d(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
-// Solves lhs = (A-sigma*I)^(-1) rhs with bicgstab
-double minv_vector_bicgstab_shift(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, void (*matrix_vector)(complex<double>*,complex<double>*,void*), complex<double> sigma, void* extra_info);
 
 int main(int argc, char** argv)
 {
@@ -48,7 +48,7 @@ int main(int argc, char** argv)
    complex<double> sigma; // Set to zero for now.
    laplace_1d_t sys_info; // Set the mass term and dim of matrix.
    arpack_solve_t info_solve; // Hold info on the solve.
-   complex<double> *evec, *eval; // Will hold eigenvalues, eigenvectors.
+   complex<double> **evec, *eval; // Will hold eigenvalues, eigenvectors.
    complex<double> *resid; // Hold residuals of eigenvalues.
    complex<double> *ax, *r; // Temporary space to hold vectors to compute
                    // residuals.
@@ -63,6 +63,7 @@ int main(int argc, char** argv)
    ncv = 40; // nev+2 < ncv < n.
    sys_info.mass = MASS;
    sys_info.ndim = NDIM;
+	
    
    // Configure calculating eigenvectors.
    maxitr = 4000; // 4000 iterations!
@@ -72,9 +73,13 @@ int main(int argc, char** argv)
                  // and similar for largest.
    tol = 1e-7; // 0 = machine precision.
    sigma = MASS*0.99; // Zero for now.
-
+	
    // Allocate space.
-   evec = new complex<double>[n*nev]; // eigenvals
+   evec = new complex<double>*[nev]; // eigenvals
+	for (i = 0; i < nev; i++)
+	{
+		evec[i] = new complex<double>[n];
+	}
    eval = new complex<double>[nev]; // eigenvecs
    resid = new complex<double>[nev]; // residuals
    ax = new complex<double>[n]; // temp vector.
@@ -90,7 +95,7 @@ int main(int argc, char** argv)
    // Get some eigenvalues and vectors!
    info_solve = arpack_dcn_getev(ar_strc, eval, evec, n, nev, ncv,
                               maxitr, which, tol, sigma,
-                              &mat_vec, (void*)(&sys_info));
+                              &laplace_1d, (void*)(&sys_info));
    
    printf("Got evals/evecs.\n"); fflush(stdout);         
    
@@ -110,7 +115,7 @@ int main(int argc, char** argv)
       for (i=0;i<info_solve.nconv;i++)
       {
          // Get pointer to start of i'th eigenvector.
-         complex<double> *evec_local = (evec+i*n);
+         complex<double> *evec_local = evec[i];
          
          // If you want to print it out, uncomment this.
          //for (int j=0;j<NDIM;j++)
@@ -119,7 +124,7 @@ int main(int argc, char** argv)
          //}
          
          // Get A*x, where x is an eigenvector.
-         mat_vec((complex<double>*)ax, evec_local, (void*)(&sys_info));
+         laplace_1d(ax, evec_local, (void*)(&sys_info));
          
          resid[i] = 0;
          
@@ -159,10 +164,10 @@ int main(int argc, char** argv)
    maxitr_cg = 4000;
    tol_cg = 1e-9;
    
-   // Get some eigenvalues and vectors!
+   // Get some eigenvalues and vectors using the shift-invert op. 
    info_solve = arpack_dcn_getev_sinv(ar_strc, eval, evec, n, nev, ncv,
                               maxitr, which, tol, sigma,
-                              &mat_vec, &minv_vector_bicgstab_shift, maxitr_cg, tol_cg, (void*)(&sys_info));
+                              &laplace_1d, &minv_vector_bicgstab, maxitr_cg, tol_cg, (void*)(&sys_info));
    
    printf("Got evals/evecs.\n"); fflush(stdout);         
    
@@ -182,7 +187,7 @@ int main(int argc, char** argv)
       for (i=0;i<info_solve.nconv;i++)
       {
          // Get pointer to start of i'th eigenvector.
-         complex<double> *evec_local = (evec+i*n);
+         complex<double> *evec_local = evec[i];
          
          // If you want to print it out, uncomment this.
          //for (int j=0;j<NDIM;j++)
@@ -191,7 +196,7 @@ int main(int argc, char** argv)
          //}
          
          // Get A*x, where x is an eigenvector.
-         mat_vec((complex<double>*)ax, evec_local, (void*)(&sys_info));
+         laplace_1d((complex<double>*)ax, evec_local, (void*)(&sys_info));
          
          resid[i] = 0;
          
@@ -224,6 +229,10 @@ int main(int argc, char** argv)
    }
    
    // Clean up!
+	for (i = 0; i < nev; i++)
+	{
+		delete[] evec[i];
+	}
    delete[] evec;
 	delete[] eval;
 	delete[] resid;
@@ -236,7 +245,7 @@ int main(int argc, char** argv)
 // matrix multiplication function!
 // Return lhs = A*rhs;
 
-void mat_vec(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+void laplace_1d(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
    // Apply the 1D Laplace eqn with a mass!
    
@@ -250,147 +259,8 @@ void mat_vec(complex<double>* lhs, complex<double>* rhs, void* extra_data)
    mass = system_info->mass;
    ndim = system_info->ndim;
          
-   // Non boundary case!
-   for (i=1;i<(ndim-1);i++)
+   for (i=0;i<ndim;i++)
    {
-      lhs[i] = (2+mass)*rhs[i]-rhs[i-1]-rhs[i+1];
+      lhs[i] = (2+mass)*rhs[i]-rhs[(i-1+ndim)%ndim]-rhs[(i+1)%ndim];
    }
-   // Boundary.
-   lhs[0] = (2+mass)*rhs[0]-rhs[1]-rhs[ndim-1];
-   lhs[ndim-1] = (2+mass)*rhs[ndim-1]-rhs[0]-rhs[ndim-2];
 }
-
-// Solves lhs = (A-sigma*I)^(-1) rhs using bicgstab
-double minv_vector_bicgstab_shift(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), complex<double> sigma, void* extra_info)
-{
-// BICGSTAB solutions to Mphi = b 
-//  see https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
-
-  // Initialize vectors.
-  complex<double> *r, *r0, *v, *p, *s, *t; 
-  complex<double> rho, rhoNew, alpha, beta, omega, tmp, ts; 
-  double rsq, ssq, bsqrt, truersq, tt; 
-  int k,i;
-
-  // Allocate memory.
-  r = new complex<double>[size*sizeof(complex<double>)];
-  r0 = new complex<double>[size*sizeof(complex<double>)];
-  v = new complex<double>[size*sizeof(complex<double>)];
-  p = new complex<double>[size*sizeof(complex<double>)];
-  s = new complex<double>[size*sizeof(complex<double>)];
-  t = new complex<double>[size*sizeof(complex<double>)];
-
-  // Initialize values.
-  rsq = 0.0; ssq = 0.0; bsqrt = 0.0; truersq = 0.0;
-
-  // Take advantage of initial guess in phi.
-  (*matrix_vector)(v, phi, extra_info);
-  for(i = 0; i<size; i++) {
-    r[i] = phi0[i] - v[i] + sigma*phi[i]; // 1. r0 = b-Ax0
-    r0[i] = r[i]; // 2. Assign rhat0 = r0.
-    rho = alpha = omega = 1.0; // 3. Assign initial values.
-    v[i] = p[i] = 0.0; // 4. v0 = p0 = 0.
-    bsqrt += real(conj(phi0[i])*phi0[i]); // Used to check if residual is small.
-  }
-  bsqrt = sqrt(bsqrt);
-
-  // iterate till convergence
-  for(k = 0; k< max_iter; k++) {
-    // 5.1. rhoNew = <rhat0, ri-1>
-    rhoNew = 0.0;
-    for (i = 0; i < size; i++) { rhoNew += conj(r0[i])*r[i]; }
-    
-    // 5.2. beta = (rhoNew/rho)(alpha/omega_i-1)
-    beta = (rhoNew/rho)*(alpha/omega);
-    rho = rhoNew;
-
-    // 5.3. p = r + beta(p - omega v)
-    for (i = 0; i < size; i++) {
-      p[i] = r[i] + beta*p[i] - beta*omega*v[i];
-    }
-    
-    // 5.4. v = (A+sigma*I)p
-    (*matrix_vector)(v, p, extra_info);
-    for (i = 0; i < size; i++) {
-      v[i] -= sigma*p[i];
-    }
-    
-    // 5.5. alpha = rho/<rhat0, v>
-    tmp = 0.0;
-    for (i = 0; i < size; i++) {
-      tmp += conj(r0[i])*v[i];
-    }
-    alpha = rho/tmp;
-    
-    // 5.6. s = r - alpha v
-    for (i = 0; i < size; i++) {
-      s[i] = r[i] - alpha*v[i];
-    }
-    
-    // 5.7. If ||s|| is sufficiently small, x = x+alpha p, quit.
-    ssq = 0.0;
-    for (i = 0; i < size; i++) {
-      ssq += real(conj(s[i])*s[i]);
-    }
-    if (sqrt(ssq) < eps*bsqrt)
-    {
-      // printf("Final rsq = %g\n", ssq);
-		for (i = 0; i < size; i++)
-		{
-      		phi[i] = phi[i] + alpha*p[i];
-		}
-      break;
-    }
-    
-    // 5.8. t = (A+sigma*I)s
-    (*matrix_vector)(t, s, extra_info);
-    for (i = 0; i < size; i++) {
-      t[i] -= sigma*s[i];
-    }
-    
-    // 4.9. omega = <t, s>/<t, t>;
-    ts = tt = 0.0;
-    for (i = 0; i < size; i++) {
-      ts += conj(t[i])*s[i];
-      tt += real(conj(t[i])*t[i]);
-    }
-    omega = ts/tt;
-    
-    // 4.10. x = x + alpha p + omega s
-    for (i = 0; i < size; i++) {
-      phi[i] = phi[i] + alpha*p[i] + omega*s[i];
-    }
-    
-    // 4.11. If x_i is accurate enough, then quit.
-    // We'll ignore this for now.
-    
-    // 4.12. r = s - omega t;
-    for (i = 0; i < size; i++) {
-      r[i] = s[i] - omega*t[i];
-    }
-    
-  } 
-    
-  if(k == max_iter) {
-    printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
-    return 0;// Failed convergence 
-  }
-  
-  (*matrix_vector)(v,phi,extra_info);
-  for(i=0; i < size; i++) truersq += real(conj(v[i] - sigma*phi[i] - phi0[i])*(v[i] - sigma*phi[i] - phi0[i]));
-  
-  // Free all the things!
-  free(r);
-  free(r0);
-  free(v);
-  free(p);
-  free(s);
-  free(t);
-
-
-  //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
-  return truersq; // Convergence 
-} 
-
-
-

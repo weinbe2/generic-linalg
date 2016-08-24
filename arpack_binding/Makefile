@@ -1,16 +1,18 @@
 .SUFFIXES:
-.SUFFIXES: .o .cpp
+.SUFFIXES: .o .c
 
 #============================================================
-TARGET	= rzn_example
 
-C_SOURCES = arpack_interface.cpp
-C_OBJS    = arpack_interface.o
-INCLUDES  = arpack_interface.h arpack_extern.h
+C_SOURCES = arpack_interface.cpp ../generic_bicgstab.cpp ../verbosity.cpp
+C_OBJS    = arpack_interface.o generic_bicgstab.o verbosity.o
+C_INCLUDES  = arpack_interface.h arpack_extern.h generic_vector.h
 C_LIBS    = -lm -larpack
 LIB       = -L/media/data/weinbe2/bin/arpack/install/lib/
+INCL      = -I../
+TARGET    = rzn_example
+
 CCX = g++
-CXXFLAGS =  -std=c++11 -O2 $(LIB)
+CXXFLAGS =  -std=c++11 -O2 -Wall $(LIB) $(INCL)
 #  = -DHAVE_CONFIG_H -I   -g -O2  -MT
 # -g -O2  $(INC)
 
@@ -18,18 +20,18 @@ CXXFLAGS =  -std=c++11 -O2 $(LIB)
 all: rzn_example
 
 %.o:%.cpp	$(INCLUDES)
-	$(CCX)  -c  $(CXXFLAGS) $(*:=.cpp)
+	$(CCX)  -c  $(CXXFLAGS) $(C_SOURCES)
 
-rzn_example :  $(C_OBJS)
+rzn_example : rzn_example.o $(C_OBJS)
 	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
 
 
 #============================================================
 
-ALL_SOURCES = Makefile $(C_SOURCES) $(INCLUDES)
+ALL_SOURCES = Makefile $(C_SOURCES) $(INCLUDES) $(TARGET)
 
 clean:
-	rm -f $(TARGET) $(C_OBJS) core 
+	rm -f $(TARGET) $(C_OBJS) rzn_example.o core 
 
 TAGS:	$(ALL_SOURCES)
 	etags $(ALL_SOURCES)
