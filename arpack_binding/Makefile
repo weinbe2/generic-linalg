@@ -3,8 +3,8 @@
 
 #============================================================
 
-C_SOURCES = arpack_interface.cpp ../generic_bicgstab.cpp ../verbosity.cpp
-C_OBJS    = arpack_interface.o generic_bicgstab.o verbosity.o
+C_SOURCES = arpack_interface.cpp ../generic_bicgstab.cpp
+C_OBJS    = arpack_interface.o generic_bicgstab.o
 C_INCLUDES  = arpack_interface.h arpack_extern.h generic_vector.h
 C_LIBS    = -lm -larpack
 LIB       = -L/media/data/weinbe2/bin/arpack/install/lib/
