@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <complex>
+#include <string.h>
 
 using std::complex;
 
@@ -43,7 +44,7 @@ int main(int argc, char** argv)
    int i, j; // Iterators.
    int n, nev, ncv; // matrix dimension, eigenvals, internal vals.
    int maxitr; // maximum number of iterations.
-   char* which; // Sets which part of spectrum to get.
+   char which[3]; // Sets which part of spectrum to get.
    double tol; // Set tolerance. 0 = machine.
    complex<double> sigma; // Set to zero for now.
    laplace_1d_t sys_info; // Set the mass term and dim of matrix.
@@ -67,7 +68,7 @@ int main(int argc, char** argv)
    
    // Configure calculating eigenvectors.
    maxitr = 4000; // 4000 iterations!
-   which = "SM"; // This could be SM (smallest magnitude).
+   strcpy(which, "SM"); // This could be SM (smallest magnitude).
                  // This could also be LM (largest magnitude)
                  // SR (smallest real), SI (smallest imaginary),
                  // and similar for largest.
@@ -157,7 +158,7 @@ int main(int argc, char** argv)
    }
    
    // Now redo it with shift invert!
-   which = "LM"; // This could be SM (smallest magnitude).
+   strcpy(which, "LM"); // This could be SM (smallest magnitude).
                  // This could also be LM (largest magnitude)
                  // SR (smallest real), SI (smallest imaginary),
                  // and similar for largest.

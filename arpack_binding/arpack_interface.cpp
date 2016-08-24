@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
+#include <string.h>
 #include <complex>
 
 using std::complex;
@@ -56,9 +58,9 @@ arpack_solve_t arpack_drs_getev(arpack_drs_t* arpack_str, double* eval, double**
    int ipntr[11];
    
    char bmat;
-   char* hwmny; // ESW addition: how many eigenvalues to get.
-   int ido, lworkl, info, ierr, ishfts, mode1, i, j;
-   double zero;
+   char hwmny[4]; // ESW addition: how many eigenvalues to get.
+   int ido, lworkl, info, ierr, ishfts, mode1, i;
+   //double zero;
    arpack_solve_t info_solve; // Gets returned.
    int rvec; // Actually a boolean!
 
@@ -75,12 +77,12 @@ arpack_solve_t arpack_drs_getev(arpack_drs_t* arpack_str, double* eval, double**
    resid = arpack_str->resid;
    select = arpack_str->select;
    
-   zero = 0.0;
+   //zero = 0.0;
    
    bmat = 'I'; // This is a standard problem, as opposed
                // to a generalized eigenvalue problem.
                
-   hwmny = "All"; // Get all eigenvalues.
+   strcpy(hwmny, "All"); // Get all eigenvalues.
    
    // Various error checking.
    if (n > maxn)
@@ -309,15 +311,15 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval,
    // To just copy and paste code.
    int maxn, maxnev, maxncv, ldv;
    complex<double> *v, *workl, *workd, *workev, *d, *resid;
-   double *rwork, *rd;
+   double *rwork; //, *rd;
    int *select;
    int iparam[11];
    int ipntr[14];
    
    char bmat;
    char hwmny; // ESW addition: how many eigenvalues to get.
-   int ido, lworkl, info, ierr, ishfts, mode1, i, j;
-   double zero;
+   int ido, lworkl, info, ierr, ishfts, mode1, i;
+   //double zero;
    arpack_solve_t info_solve; // Gets returned.
    int rvec; // Actually a boolean!
 
@@ -333,11 +335,11 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval,
    d = arpack_str->d;
    workev = arpack_str->workev;
    rwork = arpack_str->rwork;
-   rd = arpack_str->rd;
+   //rd = arpack_str->rd;
    resid = arpack_str->resid;
    select = arpack_str->select;
    
-   zero = 0.0;
+   //zero = 0.0;
    
    bmat = 'I'; // This is a standard problem, as opposed
                // to a generalized eigenvalue problem.
@@ -544,15 +546,15 @@ arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* 
    // To just copy and paste code.
    int maxn, maxnev, maxncv, ldv;
    complex<double> *v, *workl, *workd, *workev, *d, *resid;
-   double *rwork, *rd;
+   double *rwork; //, *rd;
    int *select;
    int iparam[11];
    int ipntr[14];
    
    char bmat;
    char hwmny; // ESW addition: how many eigenvalues to get.
-   int ido, lworkl, info, ierr, ishfts, mode1, i, j;
-   double zero;
+   int ido, lworkl, info, ierr, ishfts, mode1, i;
+   //double zero;
    arpack_solve_t info_solve; // Gets returned.
    int rvec; // Actually a boolean!
 	
@@ -575,11 +577,11 @@ arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* 
    d = arpack_str->d;
    workev = arpack_str->workev;
    rwork = arpack_str->rwork;
-   rd = arpack_str->rd;
+   //rd = arpack_str->rd;
    resid = arpack_str->resid;
    select = arpack_str->select;
    
-   zero = 0.0;
+   //zero = 0.0;
    
    bmat = 'I'; // This is a standard problem, as opposed
                // to a generalized eigenvalue problem.
