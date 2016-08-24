@@ -1,26 +1,28 @@
 .SUFFIXES:
-.SUFFIXES: .o .c
+.SUFFIXES: .o .cpp
 
 #============================================================
 TARGET	= rzn_example
 
-C_SOURCES = rzn_example.c arpack_interface.c
-C_OBJS    = rzn_example.o arpack_interface.o
+C_SOURCES = arpack_interface.cpp
+C_OBJS    = arpack_interface.o
 INCLUDES  = arpack_interface.h arpack_extern.h
+C_LIBS    = -lm -larpack
 LIB       = -L/media/data/weinbe2/bin/arpack/install/lib/
-CCX = gcc
-CXXFLAGS =  -std=c99 -g -O2 $(LIB)
+CCX = g++
+CXXFLAGS =  -std=c++11 -O2 $(LIB)
 #  = -DHAVE_CONFIG_H -I   -g -O2  -MT
 # -g -O2  $(INC)
 
 #============================================================
-all: $(TARGET)
+all: rzn_example
 
-.o:.c	$(INCLUDES)
-	$(CCX)  -c  $(CXXFLAGS) $(C_SOURCES) 
+%.o:%.cpp	$(INCLUDES)
+	$(CCX)  -c  $(CXXFLAGS) $(*:=.cpp)
 
-$(TARGET) :   $(C_OBJS)
-	$(CCX) $(C_OBJS) $(CXXFLAGS)  -o $(TARGET) -lm -larpack
+rzn_example :  $(C_OBJS)
+	$(CCX) $@.cpp $(CXXFLAGS)  -o $@ $(C_OBJS) $(C_LIBS)
+
 
 #============================================================
 

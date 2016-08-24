@@ -2,7 +2,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <complex.h>
+#include <complex>
+
+using std::complex;
 
 #include "arpack_extern.h"
 #include "arpack_interface.h"
@@ -18,7 +20,7 @@ arpack_drs_t* arpack_drs_init(int maxn, int maxnev, int maxncv)
 
    // Initialize and allocate structure.
    arpack_drs_t* ap_str;
-   ap_str = (arpack_drs_t*)malloc(sizeof(arpack_drs_t));
+   ap_str = new arpack_drs_t;
    
    // Set inputs.
    ap_str->maxn = maxn;
@@ -29,15 +31,17 @@ arpack_drs_t* arpack_drs_init(int maxn, int maxnev, int maxncv)
    ldv = maxn;
    
    // Allocate fixed memory arrays.
-   ap_str->v = (double*)malloc(ldv*maxncv*sizeof(double));
-   ap_str->d = (double*)malloc(maxncv*sizeof(double));
-   ap_str->workl = (double*)malloc(maxncv*(maxncv+8)*sizeof(double));
-   ap_str->workd = (double*)malloc(3*maxn*sizeof(double));
-   ap_str->resid = (double*)malloc(maxn*sizeof(double));
-   ap_str->select = (int*)malloc(maxn*sizeof(int));
+   ap_str->v = new double[ldv*maxncv];
+   ap_str->d = new double[maxncv];
+   ap_str->workl = new double[maxncv*(maxncv+8)];
+   ap_str->workd = new double[3*maxn];
+   ap_str->resid = new double[maxn];
+   ap_str->select = new int[maxn];
    
    // And we're allocated!
    ap_str->is_allocated = 1;
+	
+	return ap_str; 
 }
 
 arpack_solve_t arpack_drs_getev(arpack_drs_t* arpack_str, double* eval, double* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, double sigma, void (*matrix_vector)(double*,double*,void*), void* extra_info)
@@ -254,13 +258,13 @@ void arpack_drs_free(arpack_drs_t** arpack_str)
    arpack_drs_t* ap_str = *arpack_str;
    if (ap_str != NULL && ap_str->is_allocated == 1)
    {
-      free(ap_str->v);
-      free(ap_str->d);
-      free(ap_str->workl);
-      free(ap_str->workd);
-      free(ap_str->resid);
-      free(ap_str->select);
-      free(ap_str);
+      delete[] ap_str->v;
+      delete[] ap_str->d;
+      delete[] ap_str->workl;
+      delete[] ap_str->workd;
+      delete[] ap_str->resid;
+      delete[] ap_str->select;
+      delete ap_str;
       ap_str = NULL;
    }
 }
@@ -277,7 +281,7 @@ arpack_dcn_t* arpack_dcn_init(int maxn, int maxnev, int maxncv)
 
    // Initialize and allocate structure.
    arpack_dcn_t* ap_str;
-   ap_str = (arpack_dcn_t*)malloc(sizeof(arpack_dcn_t));
+   ap_str = new arpack_dcn_t; 
    
    // Set inputs.
    ap_str->maxn = maxn;
@@ -288,25 +292,27 @@ arpack_dcn_t* arpack_dcn_init(int maxn, int maxnev, int maxncv)
    ldv = maxn;
    
    // Allocate fixed memory arrays.
-   ap_str->v = (_Complex double*)malloc(ldv*maxncv*sizeof(_Complex double));
-   ap_str->d = (_Complex double*)malloc(maxncv*sizeof(_Complex double));
-   ap_str->workl = (_Complex double*)malloc((3*maxncv*maxncv+5*maxncv)*sizeof(double));
-   ap_str->workd = (_Complex double*)malloc(3*maxn*sizeof(_Complex double));
-   ap_str->workev = (_Complex double*)malloc(2*maxncv*sizeof(_Complex double));
-   ap_str->resid = (_Complex double*)malloc(maxn*sizeof(_Complex double));
-   ap_str->rwork = (double*)malloc(maxncv*sizeof(double));
-   ap_str->rd = (double*)malloc(maxncv*3*sizeof(double));
-   ap_str->select = (int*)malloc(maxn*sizeof(int));
+   ap_str->v = new complex<double>[ldv*maxncv];
+   ap_str->d = new complex<double>[maxncv];
+   ap_str->workl = new complex<double>[(3*maxncv*maxncv+5*maxncv)];
+   ap_str->workd = new complex<double>[3*maxn];
+   ap_str->workev = new complex<double>[2*maxncv];
+   ap_str->resid = new complex<double>[maxn];
+   ap_str->rwork = new double[maxncv];
+   ap_str->rd = new double[maxncv*3];
+   ap_str->select = new int[maxn];
    
    // And we're allocated!
    ap_str->is_allocated = 1;
+	
+	return ap_str; 
 }
 
-arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, _Complex double* eval, _Complex double* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, _Complex double sigma, void (*matrix_vector)(_Complex double*,_Complex double*,void*), void* extra_info)
+arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info)
 {
    // To just copy and paste code.
    int maxn, maxnev, maxncv, ldv;
-   _Complex double *v, *workl, *workd, *workev, *d, *resid;
+   complex<double> *v, *workl, *workd, *workev, *d, *resid;
    double *rwork, *rd;
    int *select;
    int iparam[11];
@@ -412,8 +418,8 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, _Complex double* eval,
          // and y starts at workd[ipntr[1]-1], where the -1 is
          // because C, not FORTRAN.
          
-         _Complex double* rhs = &(workd[ipntr[0]-1]);
-         _Complex double* lhs = &(workd[ipntr[1]-1]);
+         complex<double>* rhs = &(workd[ipntr[0]-1]);
+         complex<double>* lhs = &(workd[ipntr[1]-1]);
          
          // Call rhs = A*lhs. 
          
@@ -433,7 +439,7 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, _Complex double* eval,
    
    // Important: d is eigenvalues, v is eigenvectors.
    ARPACK(zneupd)(&rvec, &hwmny, select, d,
-                   v,  &ldv, &sigma, (_Complex double*)workev,
+                   v,  &ldv, &sigma, (complex<double>*)workev,
 				   &bmat, &n, which,
                    &nev, &tol, resid, &ncv, v,
                    &ldv, (int*)iparam, (int*)ipntr, workd,
@@ -473,7 +479,7 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, _Complex double* eval,
       for (int i=0;i<nconv;i++)
       {
          // Get pointer to start of i'th eigenvector.
-         _Complex double *evec = (v+i*ldv);
+         complex<double> *evec = (v+i*ldv);
          
          // If you want to print it out, uncomment this.
          for (int j=0;j<NDIM;j++)
@@ -482,10 +488,10 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, _Complex double* eval,
          }
          
          // Get A*x, where x is an eigenvector.
-         matrix_vector((_Complex double*)ax, evec);
+         matrix_vector((complex<double>*)ax, evec);
          
          resid_arr[i] = 0;
-         _Complex double z,zbar;
+         complex<double> z,zbar;
          
          // Get the norm squared.
          for (int j=0;j<NDIM;j++)
@@ -523,11 +529,11 @@ arpack_solve_t arpack_dcn_getev(arpack_dcn_t* arpack_str, _Complex double* eval,
    return info_solve;
 }
 
-arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, _Complex double* eval, _Complex double* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, _Complex double sigma, void (*matrix_vector)(_Complex double*,_Complex double*,void*), double (*minv_vector)(_Complex double*,_Complex double*,int,int,double,matrix_vector_p,_Complex double,void*), int maxitr_cg, double tol_cg ,void* extra_info)
+arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, complex<double>* eval, complex<double>* evec, int n, int nev, int ncv, int maxitr, char* which, double tol, complex<double> sigma, void (*matrix_vector)(complex<double>*,complex<double>*,void*), double (*minv_vector)(complex<double>*,complex<double>*,int,int,double,matrix_vector_p,complex<double>,void*), int maxitr_cg, double tol_cg ,void* extra_info)
 {
    // To just copy and paste code.
    int maxn, maxnev, maxncv, ldv;
-   _Complex double *v, *workl, *workd, *workev, *d, *resid;
+   complex<double> *v, *workl, *workd, *workev, *d, *resid;
    double *rwork, *rd;
    int *select;
    int iparam[11];
@@ -633,13 +639,14 @@ arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, _Complex double* 
          // and y starts at workd[ipntr[1]-1], where the -1 is
          // because C, not FORTRAN.
          
-         _Complex double* rhs = &(workd[ipntr[0]-1]);
-         _Complex double* lhs = &(workd[ipntr[1]-1]);
+         complex<double>* rhs = &(workd[ipntr[0]-1]);
+         complex<double>* lhs = &(workd[ipntr[1]-1]);
          
          // Call rhs = (A-sigma*I)^-1 *lhs. 
          
+		 
          (*minv_vector)(lhs, rhs, n, maxitr_cg, tol_cg, matrix_vector, sigma, extra_info);
-         //minv_vector_bicgstab_shift(rhs, lhs, NDIM, 4000, 1e-7, &matrix_vector, sigma, extra_info);
+         //minv_vector_bicgstab_shift(rhs, lhs, n, maxitr_cg, 1e-7, &matrix_vector, sigma, extra_info);
          //(*matrix_vector)(lhs, rhs, extra_info);
          
       }
@@ -656,7 +663,7 @@ arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, _Complex double* 
    
    // Important: d is eigenvalues, v is eigenvectors.
    ARPACK(zneupd)(&rvec, &hwmny, select, d,
-                   v,  &ldv, &sigma, (_Complex double*)workev,
+                   v,  &ldv, &sigma, (complex<double>*)workev,
 				   &bmat, &n, which,
                    &nev, &tol, resid, &ncv, v,
                    &ldv, (int*)iparam, (int*)ipntr, workd,
@@ -696,7 +703,7 @@ arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, _Complex double* 
       for (int i=0;i<nconv;i++)
       {
          // Get pointer to start of i'th eigenvector.
-         _Complex double *evec = (v+i*ldv);
+         complex<double> *evec = (v+i*ldv);
          
          // If you want to print it out, uncomment this.
          for (int j=0;j<NDIM;j++)
@@ -705,10 +712,10 @@ arpack_solve_t arpack_dcn_getev_sinv(arpack_dcn_t* arpack_str, _Complex double* 
          }
          
          // Get A*x, where x is an eigenvector.
-         matrix_vector((_Complex double*)ax, evec);
+         matrix_vector((complex<double>*)ax, evec);
          
          resid_arr[i] = 0;
-         _Complex double z,zbar;
+         complex<double> z,zbar;
          
          // Get the norm squared.
          for (int j=0;j<NDIM;j++)
@@ -753,16 +760,16 @@ void arpack_dcn_free(arpack_dcn_t** arpack_str)
    arpack_dcn_t* ap_str = *arpack_str;
    if (ap_str != NULL && ap_str->is_allocated == 1)
    {
-      free(ap_str->v);
-      free(ap_str->d);
-      free(ap_str->workl);
-      free(ap_str->workd);
-	  free(ap_str->workev);
-	  free(ap_str->rwork);
-	  free(ap_str->rd);
-      free(ap_str->resid);
-      free(ap_str->select);
-      free(ap_str);
+      delete[] ap_str->v;
+      delete[] ap_str->d;
+      delete[] ap_str->workl;
+      delete[] ap_str->workd;
+	  delete[] ap_str->workev;
+	  delete[] ap_str->rwork;
+	  delete[] ap_str->rd;
+      delete[] ap_str->resid;
+      delete[] ap_str->select;
+      delete ap_str;
       ap_str = NULL;
    }
 }

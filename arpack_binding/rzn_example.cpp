@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <complex.h>
+#include <complex>
+
+using std::complex;
 
 #include "arpack_interface.h"
 
@@ -30,10 +32,10 @@ typedef struct {
    
 
 // This function does the multiply!
-void matrix_vector(_Complex double* lhs, _Complex double* rhs, void* extra_data);
+void mat_vec(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
 // Solves lhs = (A-sigma*I)^(-1) rhs with bicgstab
-double minv_vector_bicgstab_shift(_Complex double  *phi, _Complex double  *phi0, int size, int max_iter, double res, void (*matrix_vector)(_Complex double*,_Complex double*,void*), _Complex double sigma, void* extra_info);
+double minv_vector_bicgstab_shift(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, void (*matrix_vector)(complex<double>*,complex<double>*,void*), complex<double> sigma, void* extra_info);
 
 int main(int argc, char** argv)
 {
@@ -43,12 +45,12 @@ int main(int argc, char** argv)
    int maxitr; // maximum number of iterations.
    char* which; // Sets which part of spectrum to get.
    double tol; // Set tolerance. 0 = machine.
-   _Complex double sigma; // Set to zero for now.
+   complex<double> sigma; // Set to zero for now.
    laplace_1d_t sys_info; // Set the mass term and dim of matrix.
    arpack_solve_t info_solve; // Hold info on the solve.
-   _Complex double *evec, *eval; // Will hold eigenvalues, eigenvectors.
-   _Complex double *resid; // Hold residuals of eigenvalues.
-   _Complex double *ax, *r; // Temporary space to hold vectors to compute
+   complex<double> *evec, *eval; // Will hold eigenvalues, eigenvectors.
+   complex<double> *resid; // Hold residuals of eigenvalues.
+   complex<double> *ax, *r; // Temporary space to hold vectors to compute
                    // residuals.
    int maxitr_cg; // Max number of iterations for cg.
    double tol_cg; // Tolerance for cg.
@@ -72,11 +74,11 @@ int main(int argc, char** argv)
    sigma = MASS*0.99; // Zero for now.
 
    // Allocate space.
-   evec = (_Complex double*)malloc(n*nev*sizeof(_Complex double)); // eigenvals
-   eval = (_Complex double*)malloc(nev*sizeof(_Complex double)); // eigenvecs
-   resid = (_Complex double*)malloc(nev*sizeof(_Complex double)); // residuals
-   ax = (_Complex double*)malloc(n*sizeof(_Complex double)); // temp vector.
-   r = (_Complex double*)malloc(n*sizeof(_Complex double)); // temp vector.
+   evec = new complex<double>[n*nev]; // eigenvals
+   eval = new complex<double>[nev]; // eigenvecs
+   resid = new complex<double>[nev]; // residuals
+   ax = new complex<double>[n]; // temp vector.
+   r = new complex<double>[n]; // temp vector.
    
    printf("Allocated.\n"); fflush(stdout);
    
@@ -88,7 +90,7 @@ int main(int argc, char** argv)
    // Get some eigenvalues and vectors!
    info_solve = arpack_dcn_getev(ar_strc, eval, evec, n, nev, ncv,
                               maxitr, which, tol, sigma,
-                              &matrix_vector, (void*)(&sys_info));
+                              &mat_vec, (void*)(&sys_info));
    
    printf("Got evals/evecs.\n"); fflush(stdout);         
    
@@ -108,7 +110,7 @@ int main(int argc, char** argv)
       for (i=0;i<info_solve.nconv;i++)
       {
          // Get pointer to start of i'th eigenvector.
-         _Complex double *evec_local = (evec+i*n);
+         complex<double> *evec_local = (evec+i*n);
          
          // If you want to print it out, uncomment this.
          //for (int j=0;j<NDIM;j++)
@@ -117,22 +119,17 @@ int main(int argc, char** argv)
          //}
          
          // Get A*x, where x is an eigenvector.
-         matrix_vector((_Complex double*)ax, evec_local, (void*)(&sys_info));
+         mat_vec((complex<double>*)ax, evec_local, (void*)(&sys_info));
          
          resid[i] = 0;
          
-         _Complex double z,zbar;
-         
+
          // Get the norm squared.
          for (j=0;j<NDIM;j++)
          {
-            z = (ax[j]-eval[i]*evec_local[j]);
-            zbar = creal(z)-cimag(z)*I;
-            resid[i] += z*zbar;
+			 resid[i] += real(conj(ax[j]-eval[i]*evec_local[j])*(ax[j]-eval[i]*evec_local[j]));
          }
-         z = eval[i];
-         zbar = creal(z)-cimag(z)*I;
-         resid[i] = sqrt(resid[i])/sqrt(z*zbar);
+         resid[i] = sqrt(resid[i])/(abs(eval[i])*abs(eval[i]));
       }
       
       printf("Got residuals.\n"); fflush(stdout);
@@ -144,12 +141,12 @@ int main(int argc, char** argv)
          // We compute the mode. This can overflow on some
          // ops, though, so we're careful of that.
          double tmp,tmp2; 
-         tmp = (creal(eval[i])-MASS)/4; 
+         tmp = (real(eval[i])-MASS)/4; 
          tmp2 = (tmp > 0 ? sqrt(tmp) : 0); // make sure tmp > 0
          tmp = (tmp2 < 1 ? (tmp2 > -1 ? asin(tmp2) : asin(-1.0)) : asin(1.0))*NDIM/PI; // make sure -1 < tmp2 < 1
          // tmp = NDIM/PI*asin(sqrt((d[i]-MASS)/4));
          
-         printf("%d\t%.8e\t%.8e\t%.8e\t%.8e\n", i+1, creal(eval[i]), cimag(eval[i]), creal(resid[i]), tmp);
+         printf("%d\t%.8e\t%.8e\t%.8e\t%.8e\n", i+1, real(eval[i]), imag(eval[i]), real(resid[i]), tmp);
       }
    
    }
@@ -165,7 +162,7 @@ int main(int argc, char** argv)
    // Get some eigenvalues and vectors!
    info_solve = arpack_dcn_getev_sinv(ar_strc, eval, evec, n, nev, ncv,
                               maxitr, which, tol, sigma,
-                              &matrix_vector, &minv_vector_bicgstab_shift, maxitr_cg, tol_cg, (void*)(&sys_info));
+                              &mat_vec, &minv_vector_bicgstab_shift, maxitr_cg, tol_cg, (void*)(&sys_info));
    
    printf("Got evals/evecs.\n"); fflush(stdout);         
    
@@ -185,7 +182,7 @@ int main(int argc, char** argv)
       for (i=0;i<info_solve.nconv;i++)
       {
          // Get pointer to start of i'th eigenvector.
-         _Complex double *evec_local = (evec+i*n);
+         complex<double> *evec_local = (evec+i*n);
          
          // If you want to print it out, uncomment this.
          //for (int j=0;j<NDIM;j++)
@@ -194,22 +191,17 @@ int main(int argc, char** argv)
          //}
          
          // Get A*x, where x is an eigenvector.
-         matrix_vector((_Complex double*)ax, evec_local, (void*)(&sys_info));
+         mat_vec((complex<double>*)ax, evec_local, (void*)(&sys_info));
          
          resid[i] = 0;
          
-         _Complex double z,zbar;
-         
+
          // Get the norm squared.
          for (j=0;j<NDIM;j++)
          {
-            z = (ax[j]-eval[i]*evec_local[j]);
-            zbar = creal(z)-cimag(z)*I;
-            resid[i] += z*zbar;
+			 resid[i] += real(conj(ax[j]-eval[i]*evec_local[j])*(ax[j]-eval[i]*evec_local[j]));
          }
-         z = eval[i];
-         zbar = creal(z)-cimag(z)*I;
-         resid[i] = sqrt(resid[i])/sqrt(z*zbar);
+         resid[i] = sqrt(resid[i])/(abs(eval[i])*abs(eval[i]));
       }
       
       printf("Got residuals.\n"); fflush(stdout);
@@ -221,22 +213,22 @@ int main(int argc, char** argv)
          // We compute the mode. This can overflow on some
          // ops, though, so we're careful of that.
          double tmp,tmp2; 
-         tmp = (creal(eval[i])-MASS)/4; 
+         tmp = (real(eval[i])-MASS)/4; 
          tmp2 = (tmp > 0 ? sqrt(tmp) : 0); // make sure tmp > 0
          tmp = (tmp2 < 1 ? (tmp2 > -1 ? asin(tmp2) : asin(-1.0)) : asin(1.0))*NDIM/PI; // make sure -1 < tmp2 < 1
          // tmp = NDIM/PI*asin(sqrt((d[i]-MASS)/4));
          
-         printf("%d\t%.8e\t%.8e\t%.8e\t%.8e\n", i+1, creal(eval[i]), cimag(eval[i]), creal(resid[i]), tmp);
+         printf("%d\t%.8e\t%.8e\t%.8e\t%.8e\n", i+1, real(eval[i]), imag(eval[i]), real(resid[i]), tmp);
       }
    
    }
    
    // Clean up!
-   free(evec);
-   free(eval);
-   free(resid);
-   free(ax);
-   free(r);
+   delete[] evec;
+	delete[] eval;
+	delete[] resid;
+	delete[] ax;
+	delete[] r;
    arpack_dcn_free(&ar_strc);
    
 }
@@ -244,7 +236,7 @@ int main(int argc, char** argv)
 // matrix multiplication function!
 // Return lhs = A*rhs;
 
-void matrix_vector(_Complex double* lhs, _Complex double* rhs, void* extra_data)
+void mat_vec(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
    // Apply the 1D Laplace eqn with a mass!
    
@@ -269,24 +261,24 @@ void matrix_vector(_Complex double* lhs, _Complex double* rhs, void* extra_data)
 }
 
 // Solves lhs = (A-sigma*I)^(-1) rhs using bicgstab
-double minv_vector_bicgstab_shift(_Complex double  *phi, _Complex double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(_Complex double*,_Complex double*,void*), _Complex double sigma, void* extra_info)
+double minv_vector_bicgstab_shift(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), complex<double> sigma, void* extra_info)
 {
 // BICGSTAB solutions to Mphi = b 
 //  see https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
 
   // Initialize vectors.
-  _Complex double *r, *r0, *v, *p, *s, *t; 
-  _Complex double rho, rhoNew, alpha, beta, omega, tmp, ts; 
+  complex<double> *r, *r0, *v, *p, *s, *t; 
+  complex<double> rho, rhoNew, alpha, beta, omega, tmp, ts; 
   double rsq, ssq, bsqrt, truersq, tt; 
   int k,i;
 
   // Allocate memory.
-  r = (_Complex double*)malloc(size*sizeof(_Complex double));
-  r0 = (_Complex double*)malloc(size*sizeof(_Complex double));
-  v = (_Complex double*)malloc(size*sizeof(_Complex double));
-  p = (_Complex double*)malloc(size*sizeof(_Complex double));
-  s = (_Complex double*)malloc(size*sizeof(_Complex double));
-  t = (_Complex double*)malloc(size*sizeof(_Complex double));
+  r = new complex<double>[size*sizeof(complex<double>)];
+  r0 = new complex<double>[size*sizeof(complex<double>)];
+  v = new complex<double>[size*sizeof(complex<double>)];
+  p = new complex<double>[size*sizeof(complex<double>)];
+  s = new complex<double>[size*sizeof(complex<double>)];
+  t = new complex<double>[size*sizeof(complex<double>)];
 
   // Initialize values.
   rsq = 0.0; ssq = 0.0; bsqrt = 0.0; truersq = 0.0;
@@ -298,7 +290,7 @@ double minv_vector_bicgstab_shift(_Complex double  *phi, _Complex double  *phi0,
     r0[i] = r[i]; // 2. Assign rhat0 = r0.
     rho = alpha = omega = 1.0; // 3. Assign initial values.
     v[i] = p[i] = 0.0; // 4. v0 = p0 = 0.
-    bsqrt += creal(conj(phi0[i])*phi0[i]); // Used to check if residual is small.
+    bsqrt += real(conj(phi0[i])*phi0[i]); // Used to check if residual is small.
   }
   bsqrt = sqrt(bsqrt);
 
@@ -338,7 +330,7 @@ double minv_vector_bicgstab_shift(_Complex double  *phi, _Complex double  *phi0,
     // 5.7. If ||s|| is sufficiently small, x = x+alpha p, quit.
     ssq = 0.0;
     for (i = 0; i < size; i++) {
-      ssq += creal(conj(s[i])*s[i]);
+      ssq += real(conj(s[i])*s[i]);
     }
     if (sqrt(ssq) < eps*bsqrt)
     {
@@ -360,7 +352,7 @@ double minv_vector_bicgstab_shift(_Complex double  *phi, _Complex double  *phi0,
     ts = tt = 0.0;
     for (i = 0; i < size; i++) {
       ts += conj(t[i])*s[i];
-      tt += creal(conj(t[i])*t[i]);
+      tt += real(conj(t[i])*t[i]);
     }
     omega = ts/tt;
     
@@ -385,7 +377,7 @@ double minv_vector_bicgstab_shift(_Complex double  *phi, _Complex double  *phi0,
   }
   
   (*matrix_vector)(v,phi,extra_info);
-  for(i=0; i < size; i++) truersq += creal(conj(v[i] - sigma*phi[i] - phi0[i])*(v[i] - sigma*phi[i] - phi0[i]));
+  for(i=0; i < size; i++) truersq += real(conj(v[i] - sigma*phi[i] - phi0[i])*(v[i] - sigma*phi[i] - phi0[i]));
   
   // Free all the things!
   free(r);
