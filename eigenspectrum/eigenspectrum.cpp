@@ -41,7 +41,7 @@ int main(int argc, char** argv)
     int i,j;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
-    complex<double> *evals, *index_evals, **evecs; // Hold eigenvalues, eigenvectors. 
+    complex<double> *evals, **evecs; // Hold eigenvalues, eigenvectors. 
     complex<double> tmp; 
     complex<double>* tmp2; 
     std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
@@ -71,6 +71,9 @@ int main(int argc, char** argv)
     // Number of eigenvalues to get.
     int n_evals = 1;
     
+    // Number of internal values to get. By default n_evals*2.5.
+    int n_cv = -1;
+    
     // Load an external cfg?
     char* load_cfg = NULL;
     bool do_load = false; 
@@ -88,6 +91,7 @@ int main(int argc, char** argv)
             cout << "--mass                                 (default 1e-2)\n";
             cout << "--lattice-size [32, 64, 128]           (default 32)\n";
             cout << "--n-evals [#]                          (default 1)\n";
+            cout << "--n-internal-vals [#]                  (default 2.5*n-evals)\n";
             cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
             return 0;
         }
@@ -137,6 +141,11 @@ int main(int argc, char** argv)
                 n_evals = atoi(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--n-internal-vals") == 0)
+            {
+                n_cv = atoi(argv[i+1]);
+                i++;
+            }
             else if (strcmp(argv[i], "--load-cfg") == 0)
             {
                 load_cfg = argv[i+1];
@@ -151,6 +160,7 @@ int main(int argc, char** argv)
                 cout << "--mass                                 (default 1e-2)\n";
                 cout << "--lattice-size [32, 64, 128]           (default 32)\n";
                 cout << "--n-evals [#]                          (default 1)\n";
+                cout << "--n-internal-vals [#]                  (default 2.5*n-evals)\n";
                 cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
                 return 0;
             }
@@ -220,7 +230,6 @@ int main(int argc, char** argv)
     if (n_evals > 0)
     {
         evals = new complex<double>[n_evals];
-        index_evals = new complex<double>[n_evals];
         evecs = new complex<double>*[n_evals];
         for (i = 0; i < n_evals; i++)
         {
@@ -233,7 +242,13 @@ int main(int argc, char** argv)
         cout << "ERROR! Negative number of eigenvalues requested.\n";
         return 0;
     }
-    cout << "[EVAL]: NEval " << n_evals << "\n";
+    
+    // Check that number of internal vals is sane.
+    if (n_cv == -1 || n_cv < n_evals)
+    {
+        n_cv = (2*n_evals + n_evals/2);
+    }
+    cout << "[EVAL]: NEval " << n_evals << " Internal vals " << n_cv << "\n";
     
     // Fill stagif.
     stagif.lattice = lattice;
@@ -269,12 +284,12 @@ int main(int argc, char** argv)
     // Okay! Time to pull in the arpack bindings. 
     
     // Make an arpack struct.
-    arpack_dcn_t* ar_strc = arpack_dcn_init(fine_size, n_evals, max(2*n_evals + n_evals/2, 5)); // max eigenvectors, max internal vectors
+    arpack_dcn_t* ar_strc = arpack_dcn_init(fine_size, n_evals, n_cv); // max eigenvectors, max internal vectors
     char eigtype[3]; strcpy(eigtype, "SM"); // This could be SM (smallest magnitude).
                  // This could also be LM (largest magnitude)
                  // SR (smallest real), SI (smallest imaginary),
                  // and similar for largest.
-    arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, fine_size, n_evals, max(2*n_evals + n_evals/2, 5), 4000, eigtype, precision, 0.0, op, (void*)&stagif); 
+    arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, fine_size, n_evals, n_cv, 4000, eigtype, precision, 0.0, op, (void*)&stagif); 
     
     // Print info about the eigensolve.
     cout << "[ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
@@ -330,7 +345,6 @@ int main(int argc, char** argv)
     }
     delete[] evecs;
     delete[] evals; 
-    delete[] index_evals; 
     
     return 0; 
 }
