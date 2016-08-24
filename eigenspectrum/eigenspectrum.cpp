@@ -184,9 +184,11 @@ int main(int argc, char** argv)
         case STAGGERED_NORMAL:
             op_name = "Staggered U(1) Normal";
             op = square_staggered_normal_u1;
+            break; 
         case STAGGERED_INDEX:
             op_name = "Staggered U(1) Index Operator";
             op = staggered_index_operator;
+            break; 
     }
     cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
     
