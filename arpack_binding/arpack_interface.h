@@ -1,6 +1,9 @@
 // ESW 2015-09-07
 // A simple wrapper around arpack functionality.
 
+#include <complex>
+using std::complex;
+
 #include "verbosity.h"
 #include "inverter_struct.h"
 
