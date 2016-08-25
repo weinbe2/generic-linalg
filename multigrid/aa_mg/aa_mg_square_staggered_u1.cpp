@@ -87,7 +87,8 @@ enum blocking_strategy
 {
     BLOCK_NONE = 0,                   // Block fully.
     BLOCK_EO = 1,                     // Even/odd
-    BLOCK_CORNER = 2                  // Corners
+    BLOCK_CORNER = 2,                 // Corners
+    BLOCK_TOPO = 3                    // Chirality defined by taste singlet
 };
 
 // Custom routine to load gauge field.
@@ -128,6 +129,7 @@ int main(int argc, char** argv)
     int i, j, k, x, y;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
+    complex<double> *tmp, *tmp2; // For temporary space. 
     double explicit_resid = 0.0;
     double bnorm = 0.0;
     std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
@@ -249,7 +251,7 @@ int main(int argc, char** argv)
             cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
             cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
             cout << "--null-precision [null prec]                  (default 5e-5)\n";
-            cout << "--null-eo [corner, yes, no]                   (default yes)\n";
+            cout << "--null-eo [corner, yes, no, topo]             (default yes)\n";
             cout << "--mass [mass]                                 (default 1e-2)\n";
             cout << "--blocksize [blocksize]                       (default 4)\n";
             cout << "--nvec [nvec]                                 (default 4)\n";
@@ -372,6 +374,10 @@ int main(int argc, char** argv)
                 {
                     bstrat = BLOCK_CORNER; // corners
                 }
+                else if (strcmp(argv[i+1], "topo") == 0)
+                {
+                    bstrat = BLOCK_TOPO; // chirality as defined by taste singlet. 
+                }
                 else // none.
                 {
                     bstrat = BLOCK_NONE; // fully reduce. 
@@ -475,7 +481,7 @@ int main(int argc, char** argv)
                 cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
                 cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
                 cout << "--null-precision [null prec]                  (default 5e-5)\n";
-                cout << "--null-eo [corner, yes, no]                   (default yes)\n";
+                cout << "--null-eo [corner, yes, no, topo]             (default yes)\n";
                 cout << "--mass [mass]                                 (default 1e-2)\n";
                 cout << "--blocksize [blocksize]                       (default 4)\n";
                 cout << "--nvec [nvec]                                 (default 4)\n";
@@ -564,6 +570,8 @@ int main(int argc, char** argv)
     lhs = new complex<double>[Lat.get_lattice_size()];
     rhs = new complex<double>[Lat.get_lattice_size()];   
     check = new complex<double>[Lat.get_lattice_size()]; 
+    tmp = new complex<double>[Lat.get_lattice_size()];
+    tmp2 = new complex<double>[Lat.get_lattice_size()];
     
     // In case we need a gauge transform.
     complex<double>* gauge_trans = new complex<double>[Lat.get_lattice_size()];
@@ -574,6 +582,8 @@ int main(int argc, char** argv)
     zero<double>(lhs, Lat.get_lattice_size());
     zero<double>(check, Lat.get_lattice_size());
     zero<double>(gauge_trans, Lat.get_lattice_size());
+    zero<double>(tmp, Lat.get_lattice_size());
+    zero<double>(tmp2, Lat.get_lattice_size());
     //
     
     // Fill stagif.
@@ -688,6 +698,7 @@ int main(int argc, char** argv)
             null_partitions = 1;
             break;
         case BLOCK_EO:
+        case BLOCK_TOPO:
             mgstruct.n_vector = 2*n_null_vector;
             null_partitions = 2;
             break;
@@ -988,6 +999,60 @@ int main(int argc, char** argv)
                     normalize(mgstruct.null_vectors[0][2*i], Lat.get_lattice_size());
                     normalize(mgstruct.null_vectors[0][2*i+1], Lat.get_lattice_size());
                     break;
+                case BLOCK_TOPO:
+                    // Form vectors from (1 \pm \Gamma_5)/2.
+                    
+                    // Form \Gamma_5 null.
+                    
+                    // i/2 \Gamma_1 \Gamma_2
+                    zero<double>(tmp, Lat.get_lattice_size());
+                    zero<double>(tmp2, Lat.get_lattice_size());
+                    staggered_symmshift_y(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
+                    staggered_symmshift_x(tmp2, tmp, (void*)&stagif);
+                    for (j = 0; j < Lat.get_lattice_size(); j++)
+                    {
+                        mgstruct.null_vectors[0][2*i+1][j] += complex<double>(0.0,0.5)*tmp2[j];
+                    }
+                    
+                    // -i/2 \Gamma_2 \Gamma_1
+                    zero<double>(tmp, Lat.get_lattice_size());
+                    zero<double>(tmp2, Lat.get_lattice_size());
+                    staggered_symmshift_x(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
+                    staggered_symmshift_y(tmp2, tmp, (void*)&stagif);
+                    for (j = 0; j < Lat.get_lattice_size(); j++)
+                    {
+                        mgstruct.null_vectors[0][2*i+1][j] -= complex<double>(0.0,0.5)*tmp2[j];
+                    }
+                    
+                    // Form the two projectors.
+                    for (j = 0; j < Lat.get_lattice_size(); j++)
+                    {
+                        mgstruct.null_vectors[0][2*i][j] = 0.5*(mgstruct.null_vectors[0][2*i][j]+mgstruct.null_vectors[0][2*i+1][j]);
+                        mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j]-mgstruct.null_vectors[0][2*i+1][j];
+                    }
+                    
+                    normalize(mgstruct.null_vectors[0][2*i], Lat.get_lattice_size());
+                    normalize(mgstruct.null_vectors[0][2*i+1], Lat.get_lattice_size());
+
+                    // Orthogonalize against previous vectors. 
+                    if (i > 0)
+                    {
+                        for (j = 0; j < i; j++)
+                        {
+                            // Check dot product before normalization.
+                        cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
+                            abs(dot<double>(mgstruct.null_vectors[0][2*i], mgstruct.null_vectors[0][2*j], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][2*i],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][2*j],Lat.get_lattice_size()))) << " " << 
+                            abs(dot<double>(mgstruct.null_vectors[0][2*i+1], mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][2*i+1],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][2*j+1],Lat.get_lattice_size()))) << "\n"; 
+
+                            orthogonal<double>(mgstruct.null_vectors[0][2*i], mgstruct.null_vectors[0][2*j], Lat.get_lattice_size()); 
+                            orthogonal<double>(mgstruct.null_vectors[0][2*i+1], mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size()); 
+                        }
+                    }
+
+                    normalize(mgstruct.null_vectors[0][2*i], Lat.get_lattice_size());
+                    normalize(mgstruct.null_vectors[0][2*i+1], Lat.get_lattice_size());
+                    
+                    break;
                 case BLOCK_CORNER:
 
                     for (j = 0; j < Lat.get_lattice_size(); j++)
@@ -1164,6 +1229,7 @@ int main(int argc, char** argv)
                     switch (bstrat)
                     {
                         case BLOCK_EO:
+                        case BLOCK_TOPO:
                             for (j = 0; j < mgstruct.curr_fine_size; j++)
                             {
                                 int c = j % mgstruct.n_vector; // What color index do we have?
@@ -1679,6 +1745,8 @@ int main(int argc, char** argv)
     delete[] lhs;
     delete[] rhs;
     delete[] check;
+    delete[] tmp;
+    delete[] tmp2;
     delete[] gauge_trans;
     
     // Clean up!
