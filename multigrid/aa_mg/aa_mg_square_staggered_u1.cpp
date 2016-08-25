@@ -232,6 +232,9 @@ int main(int argc, char** argv)
                        // For heatbath gauge field, corresponds to non-compact beta.
                        // Can be set on command line with --beta.
     
+    // Load an external cfg?
+    char* load_cfg = NULL;
+    bool do_load = false; 
     
     /////////////////////////////////////////////
     // Get a few parameters from command line. //
@@ -258,6 +261,7 @@ int main(int argc, char** argv)
             cout << "--beta [3.0, 6.0, 10.0, 10000.0]           (default 6.0)\n";
             cout << "--npre-smooth [presmooth steps]            (default 6)\n";
             cout << "--npost-smooth [postsmooth steps]          (default 6)\n";
+            cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
             return 0;
         }
         if (i+1 != argc)
@@ -449,6 +453,12 @@ int main(int argc, char** argv)
                 post_smooth = atof(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--load-cfg") == 0)
+            {
+                load_cfg = argv[i+1];
+                do_load = true;
+                i++;
+            }
             else
             {
                 cout << argv[i] << " is not a valid flag.\n";
@@ -470,6 +480,7 @@ int main(int argc, char** argv)
                 cout << "--beta [3.0, 6.0, 10.0, 10000.0]           (default 6.0)\n";
                 cout << "--npre-smooth [presmooth steps]            (default 6)\n";
                 cout << "--npost-smooth [postsmooth steps]          (default 6)\n";
+                cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
                 return 0;
             }
         }
@@ -584,7 +595,16 @@ int main(int argc, char** argv)
         case GAUGE_LOAD:
             // Unit first in case loading fails.
             unit_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1));
-            internal_load_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), BETA); // defined at end of file.
+            // Load the gauge field.
+            if (do_load)
+            {
+                read_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), load_cfg);
+                cout << "[GAUGE]: Loaded a U(1) gauge field from " << load_cfg << "\n";
+            }
+            else // various predefined cfgs. 
+            {
+                internal_load_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), BETA); // defined at end of file.
+            }
             break;
     }
     
