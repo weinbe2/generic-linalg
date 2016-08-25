@@ -93,7 +93,8 @@ enum op_type
     LAPLACE = 1,
     LAPLACE_NC2 = 2,
     G5_STAGGERED = 3,
-    STAGGERED_NORMAL = 4
+    STAGGERED_NORMAL = 4,
+    STAGGERED_INDEX = 5
 };
 
 enum src_type
@@ -234,25 +235,25 @@ int main(int argc, char** argv)
     {
         if (strcmp(argv[i], "--help") == 0)
         {
-            cout << "--lattice-size [32, 64, 128] {##}          (default 32x32)\n";
+            cout << "--lattice-size [32, 64, 128] {##}             (default 32x32)\n";
             cout << "--operator [laplace, laplace2, staggered\n";
-            cout << "       g5_staggered, normal_staggered]     (default staggered)\n";
+            cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
             cout << "--null-operator [laplace, laplace2, staggered\n";
-            cout << "       g5_staggered, normal_staggered]     (default staggered)\n";
-            cout << "--null-solver [gcr, bicgstab, cg, minres]  (default bicgstab)\n";
-            cout << "--null-precision [null prec]               (default 5e-5)\n";
-            cout << "--null-eo [corner, yes, no]                (default yes)\n";
-            cout << "--mass [mass]                              (default 1e-2)\n";
-            cout << "--blocksize [blocksize]                    (default 4)\n";
-            cout << "--nvec [nvec]                              (default 4)\n";
-            cout << "--nrefine [number coarse]                  (default 1)\n";
-            cout << "--multi-strategy [smooth, recursive]       (default smooth)\n";
-            cout << "--gauge [unit, load, random]               (default load)\n";
-            cout << "--gauge-transform [yes, no]                (default no)\n";
-            cout << "--beta [3.0, 6.0, 10.0, 10000.0]           (default 6.0)\n";
-            cout << "--npre-smooth [presmooth steps]            (default 6)\n";
-            cout << "--npost-smooth [postsmooth steps]          (default 6)\n";
-            cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
+            cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
+            cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
+            cout << "--null-precision [null prec]                  (default 5e-5)\n";
+            cout << "--null-eo [corner, yes, no]                   (default yes)\n";
+            cout << "--mass [mass]                                 (default 1e-2)\n";
+            cout << "--blocksize [blocksize]                       (default 4)\n";
+            cout << "--nvec [nvec]                                 (default 4)\n";
+            cout << "--nrefine [number coarse]                     (default 1)\n";
+            cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
+            cout << "--gauge [unit, load, random]                  (default load)\n";
+            cout << "--gauge-transform [yes, no]                   (default no)\n";
+            cout << "--beta [3.0, 6.0, 10.0, 10000.0]              (default 6.0)\n";
+            cout << "--npre-smooth [presmooth steps]               (default 6)\n";
+            cout << "--npost-smooth [postsmooth steps]             (default 6)\n";
+            cout << "--load-cfg [path]                             (default do not load, overrides beta)\n";
             return 0;
         }
         if (i+1 != argc)
@@ -284,6 +285,10 @@ int main(int argc, char** argv)
                 {
                     opt = STAGGERED_NORMAL;
                 }
+                else if (strcmp(argv[i+1], "index") == 0)
+                {
+                    opt = STAGGERED_INDEX;
+                }
                 i++;
             }
             else if (strcmp(argv[i], "--null-operator") == 0)
@@ -307,6 +312,10 @@ int main(int argc, char** argv)
                 else if (strcmp(argv[i+1], "normal_staggered") == 0)
                 {
                     opt_null = STAGGERED_NORMAL;
+                }
+                else if (strcmp(argv[i+1], "index") == 0)
+                {
+                    opt_null = STAGGERED_INDEX;
                 }
                 i++;
             }
@@ -452,26 +461,25 @@ int main(int argc, char** argv)
             }
             else
             {
-                cout << argv[i] << " is not a valid flag.\n";
-                cout << "--lattice-size [32, 64, 128] {##}          (default 32x32)\n";
+                cout << "--lattice-size [32, 64, 128] {##}             (default 32x32)\n";
                 cout << "--operator [laplace, laplace2, staggered\n";
-                cout << "       g5_staggered, normal_staggered]     (default staggered)\n";
+                cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
                 cout << "--null-operator [laplace, laplace2, staggered\n";
-                cout << "       g5_staggered, normal_staggered]     (default staggered)\n";
-                cout << "--null-solver [gcr, bicgstab, cg, minres]  (default bicgstab)\n";
-                cout << "--null-precision [null prec]               (default 5e-5)\n";
-                cout << "--null-eo [corner, yes, no]                (default yes)\n";
-                cout << "--mass [mass]                              (default 1e-2)\n";
-                cout << "--blocksize [blocksize]                    (default 4)\n";
-                cout << "--nvec [nvec]                              (default 4)\n";
-                cout << "--nrefine [number coarse]                  (default 1)\n";
-                cout << "--multi-strategy [smooth, recursive]       (default smooth)\n";
-                cout << "--gauge [unit, load, random]               (default load)\n";
-                cout << "--gauge-transform [yes, no]                (default no)\n";
-                cout << "--beta [3.0, 6.0, 10.0, 10000.0]           (default 6.0)\n";
-                cout << "--npre-smooth [presmooth steps]            (default 6)\n";
-                cout << "--npost-smooth [postsmooth steps]          (default 6)\n";
-                cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
+                cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
+                cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
+                cout << "--null-precision [null prec]                  (default 5e-5)\n";
+                cout << "--null-eo [corner, yes, no]                   (default yes)\n";
+                cout << "--mass [mass]                                 (default 1e-2)\n";
+                cout << "--blocksize [blocksize]                       (default 4)\n";
+                cout << "--nvec [nvec]                                 (default 4)\n";
+                cout << "--nrefine [number coarse]                     (default 1)\n";
+                cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
+                cout << "--gauge [unit, load, random]                  (default load)\n";
+                cout << "--gauge-transform [yes, no]                   (default no)\n";
+                cout << "--beta [3.0, 6.0, 10.0, 10000.0]              (default 6.0)\n";
+                cout << "--npre-smooth [presmooth steps]               (default 6)\n";
+                cout << "--npost-smooth [postsmooth steps]             (default 6)\n";
+                cout << "--load-cfg [path]                             (default do not load, overrides beta)\n";
                 return 0;
             }
         }
@@ -508,6 +516,11 @@ int main(int argc, char** argv)
         case STAGGERED_NORMAL:
             op_name = "Staggered U(1) Normal";
             op = square_staggered_normal_u1;
+            break;
+        case STAGGERED_INDEX:
+            op_name = "Staggered U(1) Index Operator";
+            op = staggered_index_operator;
+            break;
     }
     cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
     
@@ -639,7 +652,12 @@ int main(int argc, char** argv)
             op_null_name = "Staggered U(1) Normal";
             op_null = square_staggered_normal_u1;
             break;
+        case STAGGERED_INDEX:
+            op_name = "Staggered U(1) Index Operator";
+            op = staggered_index_operator;
+            break;
     }
+    
     cout << "[OP]: Null Gen Operator " << op_null_name << "\n";
     
     // Build an mg_struct.
