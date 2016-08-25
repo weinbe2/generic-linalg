@@ -69,7 +69,7 @@ int main(int argc, char** argv)
                        // Can be set on command line with --beta.
     
     // Number of eigenvalues to get.
-    int n_evals = 1;
+    int n_evals = 6;
     
     // Number of internal values to get. By default n_evals*2.5.
     int n_cv = -1;
@@ -90,7 +90,7 @@ int main(int argc, char** argv)
             cout << "       normal_staggered, index]        (default staggered)\n";
             cout << "--mass                                 (default 1e-2)\n";
             cout << "--lattice-size [32, 64, 128]           (default 32)\n";
-            cout << "--n-evals [#]                          (default 1)\n";
+            cout << "--n-evals [#]                          (default 6)\n";
             cout << "--n-internal-vals [#]                  (default 2.5*n-evals)\n";
             cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
             return 0;
@@ -131,7 +131,7 @@ int main(int argc, char** argv)
                 MASS = atof(argv[i+1]);
                 i++;
             }
-            else if (strcmp(argv[i], "--square_size") == 0)
+            else if (strcmp(argv[i], "--lattice-size") == 0)
             {
                 square_size = atoi(argv[i+1]);
                 i++;
@@ -280,6 +280,7 @@ int main(int argc, char** argv)
     }
     
     cout << "[GAUGE]: The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
+    cout << "[GAUGE]: The topological charge is " << get_topo_u1(lattice, x_fine, y_fine) << ".\n";
     
     // Okay! Time to pull in the arpack bindings. 
     
