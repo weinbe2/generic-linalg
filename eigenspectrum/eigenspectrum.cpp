@@ -184,8 +184,8 @@ int main(int argc, char** argv)
             op_name = "Staggered U(1)";
             break;
         case LAPLACE:
-            op_name = "Free Laplace";
-            op = square_laplace;
+            op_name = "Laplace U(1)";
+            op = square_laplace_u1;
             break;
         case G5_STAGGERED:
             op_name = "Gamma_5 Staggered U(1)";

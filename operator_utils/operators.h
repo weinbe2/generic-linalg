@@ -19,6 +19,9 @@ struct staggered_u1_op
 // The unit vectors are e_1 = xhat, e_2 = yhat.
 void square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
+// Square laplacian w/ u1. 
+void square_laplace_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
 // Square lattice.
 // Kinetic term for a 2D staggered w/ period bc. Applies lhs = A*rhs.
 // The unit vectors are e_1 = xhat, e_2 = yhat.
