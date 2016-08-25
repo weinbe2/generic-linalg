@@ -27,6 +27,13 @@
 #include "lattice.h"
 #include "operators.h"
 
+// Are we checking eigenvalues?
+//#define EIGEN_TEST
+
+#ifdef EIGEN_TEST
+#include "arpack_interface.h"
+#endif
+
 // Do restrict/prolong test?
 //#define PDAGP_TEST
 

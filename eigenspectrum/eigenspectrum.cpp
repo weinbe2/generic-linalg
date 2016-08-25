@@ -291,6 +291,7 @@ int main(int argc, char** argv)
                  // SR (smallest real), SI (smallest imaginary),
                  // and similar for largest.
     arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, fine_size, n_evals, n_cv, 4000, eigtype, precision, 0.0, op, (void*)&stagif); 
+    arpack_dcn_free(&ar_strc);
     
     // Print info about the eigensolve.
     cout << "[ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
