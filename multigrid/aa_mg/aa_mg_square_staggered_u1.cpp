@@ -10,10 +10,17 @@
 #include <cstring> // should be replaced by using sstream
 
 
-#include "generic_inverters.h"
-#include "generic_inverters_precond.h"
 #include "generic_vector.h"
 #include "verbosity.h"
+
+#include "generic_bicgstab.h"
+#include "generic_cg.h"
+#include "generic_cr.h"
+#include "generic_gcr.h"
+#include "generic_minres.h"
+#include "generic_cg_flex_precond.h"
+#include "generic_gcr_var_precond.h"
+
 #include "mg.h"
 #include "mg_complex.h"
 #include "u1_utils.h"
