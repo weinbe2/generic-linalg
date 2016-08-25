@@ -28,7 +28,7 @@
 #include "operators.h"
 
 // Are we checking eigenvalues?
-//#define EIGEN_TEST
+#define EIGEN_TEST
 
 #ifdef EIGEN_TEST
 #include "arpack_interface.h"
@@ -1351,6 +1351,114 @@ int main(int argc, char** argv)
         }
     }
 #endif // PRINT_NULL_VECTOR
+    
+    
+#ifdef EIGEN_TEST
+    
+    // Test some eigenvectors!
+    // Generate min(volume/4, 128) eigenvectors.
+    int n_eigen = min(Lat.get_lattice_size()/4, 128);
+    int n_cv = n_eigen*2 + n_eigen/2;
+    
+    complex<double>* evals = new complex<double>[n_eigen];
+    complex<double>** evecs = new complex<double>*[n_eigen];
+    for (i = 0; i < n_eigen; i++)
+    {
+        evecs[i] = new complex<double>[Lat.get_lattice_size()];
+    }
+    
+    arpack_dcn_t* ar_strc = arpack_dcn_init(Lat.get_lattice_size(), n_eigen, n_cv); // max eigenvectors, internal vecs
+    char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
+    arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, Lat.get_lattice_size(), n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, op, (void*)&stagif); 
+    arpack_dcn_free(&ar_strc);
+    
+    // Print info about the eigensolve.
+    cout << "[ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+    cout << "[ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+    cout << "[ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+    
+    // End of arpack bindings!
+    
+    // Sort eigenvalues (done differently depending on the operator).
+    for (i = 0; i < n_eigen; i++)
+    {
+        for (j = 0; j < n_eigen-1; j++)
+        {
+            switch (opt)
+            {
+                case STAGGERED:
+                    if (imag(evals[j]) > imag(evals[j+1]))
+                    {
+                        complex<double> teval = evals[j]; evals[j] = evals[j+1]; evals[j+1] = teval;
+                        complex<double>* tevec = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tevec;
+                    }
+                    break;
+                case LAPLACE:
+                case LAPLACE_NC2:
+                case G5_STAGGERED:
+                case STAGGERED_NORMAL:
+                case STAGGERED_INDEX:
+                    if (real(evals[j]) > real(evals[j+1]))
+                    {
+                        complex<double> teval = evals[j]; evals[j] = evals[j+1]; evals[j+1] = teval;
+                        complex<double>* tevec = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tevec;
+                    }
+                    break; 
+            }
+        }
+    }
+    
+    cout << "\n\nAll eigenvalues:\n";
+    for (i = 0; i < n_eigen; i++)
+    {
+        cout << "[FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[i] << "\n";
+        normalize<double>(evecs[i], Lat.get_lattice_size());
+    }
+    
+    // Test overlap of null vectors with eigenvectors.
+    // Formally, this is looking at the magnitude of (1 - P^\dag P) eigenvector.
+    complex<double>* evec_Pdag = new complex<double>[mgstruct.curr_coarse_size];
+    complex<double>* evec_PPdag = new complex<double>[mgstruct.curr_fine_size];
+    
+    /*for (i = 0; i < mgstruct.curr_fine_size; i++)
+    {
+        cout << evecs[0][i] << " " << mgstruct.null_vectors[0][0][i] << "\n";
+    }*/
+    
+    for (i = 0; i < n_eigen; i++)
+    {
+        // Zero out.
+        zero<double>(evec_Pdag, mgstruct.curr_coarse_size);
+        zero<double>(evec_PPdag, mgstruct.curr_fine_size);
+        
+        // Restrict eigenvector.
+        restrict(evec_Pdag, evecs[i], &mgstruct);
+        
+        // Prolong.
+        prolong(evec_PPdag, evec_Pdag, &mgstruct);
+        
+        // Subtract off eigenvector, take norm.
+        for (j = 0; j < mgstruct.curr_fine_size; j++)
+        {
+            evec_PPdag[j] -= evecs[i][j];
+        }
+        
+        cout << "[L1_1mPPDAG]: Num " << i << " Overlap " << sqrt(norm2sq<double>(evec_PPdag, mgstruct.curr_fine_size)) << "\n";
+    }
+    
+    delete[] evec_Pdag;
+    delete[] evec_PPdag;
+    
+    for (i = 0; i < n_eigen; i++)
+    {
+        delete[] evecs[i];
+    }
+    delete[] evecs;
+    delete[] evals;
+    
+    return 0; 
+    
+#endif // EIGEN_TEST
     
 #ifdef PDAGP_TEST
     {

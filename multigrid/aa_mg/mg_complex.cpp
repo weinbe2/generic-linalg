@@ -309,7 +309,7 @@ void block_orthonormalize(mg_operator_struct_complex* mgstruct)
                             int fine_site = y*mgstruct->curr_x_fine*mgstruct->curr_dof_fine + x*mgstruct->curr_dof_fine + dof;
 
                             // Dot product.
-                            dot_prod = conj(null_vectors[m][fine_site])*null_vectors[curr_dof_coarse][fine_site];
+                            dot_prod += conj(null_vectors[m][fine_site])*null_vectors[curr_dof_coarse][fine_site];
                         }
                     }
                 }
