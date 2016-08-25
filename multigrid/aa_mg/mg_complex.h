@@ -53,7 +53,6 @@ struct mg_operator_struct_complex
     int* blocksize_y; // How much to block in y direction. 
     int Nc; // What's Nc on the top level? Square laplace only.
     
-    int eo; // 0 if no even-odd blocking, 1 if we use even-odd blocking. 
     int n_vector; // Number of vectors. 
     complex<double>*** null_vectors; // Holds the null vectors. First index level, second n_vector, third size.
     void (*matrix_vector)(complex<double>*, complex<double>*, void*);
