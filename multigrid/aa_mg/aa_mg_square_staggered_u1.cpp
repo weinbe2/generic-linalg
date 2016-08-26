@@ -452,7 +452,7 @@ int main(int argc, char** argv)
                 }
                 else
                 {
-                    lattice_size_y = lattice_size_y; // At the end, don't try to grab the next element!
+                    lattice_size_y = lattice_size_x; // At the end, don't try to grab the next element!
                 }
                 i++;
             }
@@ -1375,9 +1375,9 @@ int main(int argc, char** argv)
         arpack_dcn_free(&ar_strc);
 
         // Print info about the eigensolve.
-        cout << "[ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
-        cout << "[ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
-        cout << "[ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+        cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+        cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+        cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
 
         // End of arpack bindings!
 
@@ -1413,7 +1413,7 @@ int main(int argc, char** argv)
         cout << "\n\nAll eigenvalues:\n";
         for (i = 0; i < n_eigen; i++)
         {
-            cout << "[FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[i] << "\n";
+            cout << "[L" << lev+1 << "_FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[i] << "\n";
             normalize<double>(evecs[i], mgstruct.curr_fine_size);
         }
 
