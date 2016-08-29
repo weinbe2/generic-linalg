@@ -134,6 +134,10 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
   if(k == max_iter) {
     //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
+	  for (i = 0; i < size; i++)
+	  {
+		  phi[i] = phi[i] + alpha*p[i];
+    }
   }
   else
   {
@@ -280,6 +284,10 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   if(k == max_iter) {
     //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
+    for (i = 0; i < size; i++)
+	  {
+		  phi[i] = phi[i] + alpha*p[i];
+    }
   }
   else
   {

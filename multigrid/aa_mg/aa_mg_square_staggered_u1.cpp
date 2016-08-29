@@ -122,6 +122,35 @@ enum src_type
     int Nc; // only relevant for square laplace. 
 };*/
 
+// Print usage. 
+void display_usage()
+{
+    cout << "--help\n";
+    cout << "--lattice-size [32, 64, 128] {##}             (default 32x32)\n";
+    cout << "--operator [laplace, laplace2, staggered\n";
+    cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
+    cout << "--null-operator [laplace, laplace2, staggered\n";
+    cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
+    cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
+    cout << "--null-precision [null prec]                  (default 5e-5)\n";
+    cout << "--null-eo [corner, yes, no, topo]             (default yes)\n";
+    cout << "--null-global-ortho-conj [yes, no]            (default yes)\n";
+    cout << "--mass [mass]                                 (default 1e-2)\n";
+    cout << "--blocksize [blocksize]                       (default 4)\n";
+    cout << "--nvec [nvec]                                 (default 4)\n";
+    cout << "--nrefine [number coarse]                     (default 1)\n";
+    cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
+    cout << "--gauge [unit, load, random]                  (default load)\n";
+    cout << "--gauge-transform [yes, no]                   (default no)\n";
+    cout << "--beta [3.0, 6.0, 10.0, 10000.0]              (default 6.0)\n";
+    cout << "--npre-smooth [presmooth steps]               (default 6)\n";
+    cout << "--npost-smooth [postsmooth steps]             (default 6)\n";
+    cout << "--load-cfg [path]                             (default do not load, overrides beta)\n";
+#ifdef EIGEN_TEST
+    cout << "--do-eigentest [yes, no]                      (default no)\n";
+#endif // EIGEN_TEST
+}
+
 int main(int argc, char** argv)
 {  
     // Declare some variables.
@@ -165,6 +194,9 @@ int main(int argc, char** argv)
     
     // How are we generating null vectors?
     mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MINRES
+    
+    // Do we globally orthogonalize null vectors both against previous null vectors and their conjugate?
+    bool do_global_ortho_conj = true;
     
     // L_x = L_y = Dimension for a lattice.
     int lattice_size_x = 32; // Can be set on command line with --lattice-size. 
@@ -237,6 +269,11 @@ int main(int argc, char** argv)
     char* load_cfg = NULL;
     bool do_load = false; 
     
+#ifdef EIGEN_TEST
+    bool do_eigentest = false;
+    
+#endif // EIGEN_TEST 
+    
     /////////////////////////////////////////////
     // Get a few parameters from command line. //
     /////////////////////////////////////////////
@@ -244,25 +281,7 @@ int main(int argc, char** argv)
     {
         if (strcmp(argv[i], "--help") == 0)
         {
-            cout << "--lattice-size [32, 64, 128] {##}             (default 32x32)\n";
-            cout << "--operator [laplace, laplace2, staggered\n";
-            cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
-            cout << "--null-operator [laplace, laplace2, staggered\n";
-            cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
-            cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
-            cout << "--null-precision [null prec]                  (default 5e-5)\n";
-            cout << "--null-eo [corner, yes, no, topo]             (default yes)\n";
-            cout << "--mass [mass]                                 (default 1e-2)\n";
-            cout << "--blocksize [blocksize]                       (default 4)\n";
-            cout << "--nvec [nvec]                                 (default 4)\n";
-            cout << "--nrefine [number coarse]                     (default 1)\n";
-            cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
-            cout << "--gauge [unit, load, random]                  (default load)\n";
-            cout << "--gauge-transform [yes, no]                   (default no)\n";
-            cout << "--beta [3.0, 6.0, 10.0, 10000.0]              (default 6.0)\n";
-            cout << "--npre-smooth [presmooth steps]               (default 6)\n";
-            cout << "--npost-smooth [postsmooth steps]             (default 6)\n";
-            cout << "--load-cfg [path]                             (default do not load, overrides beta)\n";
+            display_usage();
             return 0;
         }
         if (i+1 != argc)
@@ -384,6 +403,18 @@ int main(int argc, char** argv)
                 }
                 i++;
             }
+            else if (strcmp(argv[i], "--null-global-ortho-conj") == 0)
+            {
+                if (strcmp(argv[i+1], "yes") == 0)
+                {
+                    do_global_ortho_conj = true; // yes, globally orthogonalize null vectors against previous and conj.
+                }
+                else if (strcmp(argv[i+1], "no") == 0)
+                {
+                    do_global_ortho_conj = false;
+                }
+                i++;
+            }
             else if (strcmp(argv[i], "--nrefine") == 0)
             {
                 n_refine = atoi(argv[i+1]);
@@ -472,27 +503,23 @@ int main(int argc, char** argv)
                 do_load = true;
                 i++;
             }
+#ifdef EIGEN_TEST
+            else if (strcmp(argv[i], "--do-eigentest") == 0)
+            {
+                if (strcmp(argv[i+1], "yes") == 0)
+                {
+                    do_eigentest = true;
+                }
+                else
+                {
+                    do_eigentest = false;
+                }
+                i++;
+            }
+#endif // EIGENTEST
             else
             {
-                cout << "--lattice-size [32, 64, 128] {##}             (default 32x32)\n";
-                cout << "--operator [laplace, laplace2, staggered\n";
-                cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
-                cout << "--null-operator [laplace, laplace2, staggered\n";
-                cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
-                cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
-                cout << "--null-precision [null prec]                  (default 5e-5)\n";
-                cout << "--null-eo [corner, yes, no, topo]             (default yes)\n";
-                cout << "--mass [mass]                                 (default 1e-2)\n";
-                cout << "--blocksize [blocksize]                       (default 4)\n";
-                cout << "--nvec [nvec]                                 (default 4)\n";
-                cout << "--nrefine [number coarse]                     (default 1)\n";
-                cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
-                cout << "--gauge [unit, load, random]                  (default load)\n";
-                cout << "--gauge-transform [yes, no]                   (default no)\n";
-                cout << "--beta [3.0, 6.0, 10.0, 10000.0]              (default 6.0)\n";
-                cout << "--npre-smooth [presmooth steps]               (default 6)\n";
-                cout << "--npost-smooth [postsmooth steps]             (default 6)\n";
-                cout << "--load-cfg [path]                             (default do not load, overrides beta)\n";
+                display_usage();
                 return 0;
             }
         }
@@ -912,6 +939,12 @@ int main(int argc, char** argv)
                     for (k = 0; k < null_partitions; k++) // And then iterate over even/odd or corners!
                     {
                         orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j*null_partitions+k], Lat.get_lattice_size());
+                        if (do_global_ortho_conj)
+                        {
+                            conj<double>(mgstruct.null_vectors[0][j*null_partitions+k], Lat.get_lattice_size());
+                            orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j*null_partitions+k], Lat.get_lattice_size());
+                            conj<double>(mgstruct.null_vectors[0][j*null_partitions+k], Lat.get_lattice_size());
+                        }
                     }
                     /*if (mgstruct.eo == 1)
                     {
@@ -993,6 +1026,15 @@ int main(int argc, char** argv)
 
                             orthogonal<double>(mgstruct.null_vectors[0][2*i], mgstruct.null_vectors[0][2*j], Lat.get_lattice_size()); 
                             orthogonal<double>(mgstruct.null_vectors[0][2*i+1], mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size()); 
+                            if (do_global_ortho_conj)
+                            {
+                                conj<double>(mgstruct.null_vectors[0][2*j], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size());
+                                orthogonal<double>(mgstruct.null_vectors[0][2*i], mgstruct.null_vectors[0][2*j], Lat.get_lattice_size()); 
+                                orthogonal<double>(mgstruct.null_vectors[0][2*i+1], mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size()); 
+                                conj<double>(mgstruct.null_vectors[0][2*j], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size());
+                            }
                         }
                     }
 
@@ -1046,6 +1088,15 @@ int main(int argc, char** argv)
 
                             orthogonal<double>(mgstruct.null_vectors[0][2*i], mgstruct.null_vectors[0][2*j], Lat.get_lattice_size()); 
                             orthogonal<double>(mgstruct.null_vectors[0][2*i+1], mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size()); 
+                            if (do_global_ortho_conj)
+                            {
+                                conj<double>(mgstruct.null_vectors[0][2*j], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size());
+                                orthogonal<double>(mgstruct.null_vectors[0][2*i], mgstruct.null_vectors[0][2*j], Lat.get_lattice_size()); 
+                                orthogonal<double>(mgstruct.null_vectors[0][2*i+1], mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size()); 
+                                conj<double>(mgstruct.null_vectors[0][2*j], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][2*j+1], Lat.get_lattice_size());
+                            }
                         }
                     }
 
@@ -1095,6 +1146,21 @@ int main(int argc, char** argv)
                             orthogonal<double>(mgstruct.null_vectors[0][4*i+1], mgstruct.null_vectors[0][4*j+1], Lat.get_lattice_size()); 
                             orthogonal<double>(mgstruct.null_vectors[0][4*i+2], mgstruct.null_vectors[0][4*j+2], Lat.get_lattice_size()); 
                             orthogonal<double>(mgstruct.null_vectors[0][4*i+3], mgstruct.null_vectors[0][4*j+3], Lat.get_lattice_size()); 
+                            if (do_global_ortho_conj)
+                            {
+                                conj<double>(mgstruct.null_vectors[0][4*j], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][4*j+1], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][4*j+2], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][4*j+3], Lat.get_lattice_size());
+                                orthogonal<double>(mgstruct.null_vectors[0][4*i], mgstruct.null_vectors[0][4*j], Lat.get_lattice_size()); 
+                                orthogonal<double>(mgstruct.null_vectors[0][4*i+1], mgstruct.null_vectors[0][4*j+1], Lat.get_lattice_size()); 
+                                orthogonal<double>(mgstruct.null_vectors[0][4*i+2], mgstruct.null_vectors[0][4*j+2], Lat.get_lattice_size()); 
+                                orthogonal<double>(mgstruct.null_vectors[0][4*i+3], mgstruct.null_vectors[0][4*j+3], Lat.get_lattice_size()); 
+                                conj<double>(mgstruct.null_vectors[0][4*j], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][4*j+1], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][4*j+2], Lat.get_lattice_size());
+                                conj<double>(mgstruct.null_vectors[0][4*j+3], Lat.get_lattice_size());
+                            }
                         }
                     }
 
@@ -1115,6 +1181,12 @@ int main(int argc, char** argv)
                             abs(dot<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], Lat.get_lattice_size())/sqrt(norm2sq<double>(mgstruct.null_vectors[0][i],Lat.get_lattice_size())*norm2sq<double>(mgstruct.null_vectors[0][j],Lat.get_lattice_size()))) << "\n"; 
 
                             orthogonal<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], Lat.get_lattice_size()); 
+                            if (do_global_ortho_conj)
+                            {
+                                conj<double>(mgstruct.null_vectors[0][j], Lat.get_lattice_size());
+                                orthogonal<double>(mgstruct.null_vectors[0][i], mgstruct.null_vectors[0][j], Lat.get_lattice_size()); 
+                                conj<double>(mgstruct.null_vectors[0][j], Lat.get_lattice_size());
+                            }
                         }
                     }
                     normalize(mgstruct.null_vectors[0][i], Lat.get_lattice_size());
@@ -1177,6 +1249,12 @@ int main(int argc, char** argv)
                             for (k = 0; k < null_partitions; k++) // And then iterate over even/odd or corners!
                             {
                                 orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                if (do_global_ortho_conj)
+                                {
+                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                    orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                }
                             }
                             /*
                             if (mgstruct.eo == 1)
@@ -1254,11 +1332,21 @@ int main(int argc, char** argv)
                                 {
                                     // Check dot product before normalization.
                                     cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
-                                        abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i], mgstruct.null_vectors[mgstruct.curr_level][2*j], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][2*j],mgstruct.curr_fine_size))) << " " << 
-                                        abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i+1], mgstruct.null_vectors[mgstruct.curr_level][2*j+1], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i+1],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][2*j+1],mgstruct.curr_fine_size))) << "\n"; 
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i], mgstruct.null_vectors[mgstruct.curr_level][2*j], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][2*j],mgstruct.curr_fine_size))) << " " << 
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i+1], mgstruct.null_vectors[mgstruct.curr_level][2*j+1], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i+1],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][2*j+1],mgstruct.curr_fine_size))) << "\n"; 
 
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i], mgstruct.null_vectors[mgstruct.curr_level][2*j], mgstruct.curr_fine_size); 
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i+1], mgstruct.null_vectors[mgstruct.curr_level][2*j+1], mgstruct.curr_fine_size); 
+                                    if (do_global_ortho_conj)
+                                    {
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][2*j], mgstruct.curr_fine_size);
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][2*j+1], mgstruct.curr_fine_size);
                                         orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i], mgstruct.null_vectors[mgstruct.curr_level][2*j], mgstruct.curr_fine_size); 
                                         orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i+1], mgstruct.null_vectors[mgstruct.curr_level][2*j+1], mgstruct.curr_fine_size); 
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][2*j], mgstruct.curr_fine_size);
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][2*j+1], mgstruct.curr_fine_size);
+                                    }
+                                    
                                 }
 
 
@@ -1280,9 +1368,16 @@ int main(int argc, char** argv)
                                 {
                                     // Check dot product before normalization.
                                     cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
-                                        abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][i],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][j],mgstruct.curr_fine_size))) << "\n"; 
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][i],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][j],mgstruct.curr_fine_size))) << "\n"; 
 
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size); 
+                                    if (do_global_ortho_conj)
+                                    if (do_global_ortho_conj)
+                                    {
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size);
                                         orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size); 
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j], mgstruct.curr_fine_size);
+                                    }
                                 }
                             }
 
@@ -1355,152 +1450,167 @@ int main(int argc, char** argv)
     
 #ifdef EIGEN_TEST
     
-    for (int lev = 0; lev < mgstruct.n_refine; lev++)
+    if (do_eigentest)
     {
-        // Test some eigenvectors!
-        // Generate min(volume/4, 128) eigenvectors.
-        int n_eigen = min(mgstruct.curr_fine_size/4, 128);
-        int n_cv = n_eigen*2 + n_eigen/2;
-
-        complex<double>* evals = new complex<double>[n_eigen];
-        complex<double>** evecs = new complex<double>*[n_eigen];
-        for (i = 0; i < n_eigen; i++)
+        for (int lev = 0; lev < mgstruct.n_refine; lev++)
         {
-            evecs[i] = new complex<double>[mgstruct.curr_fine_size];
-        }
+            // Test some eigenvectors!
+            // Generate min(volume/4, 128) eigenvectors.
+            int n_eigen = mgstruct.curr_fine_size/2;//min(mgstruct.curr_fine_size/4, 128);
+            int n_cv = mgstruct.curr_fine_size; //n_eigen*2 + n_eigen/2;
 
-        arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
-        char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
-        arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, mgstruct.curr_fine_size, n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
-        arpack_dcn_free(&ar_strc);
-
-        // Print info about the eigensolve.
-        cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
-        cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
-        cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
-
-        // End of arpack bindings!
-
-        // Sort eigenvalues (done differently depending on the operator).
-        for (i = 0; i < n_eigen; i++)
-        {
-            for (j = 0; j < n_eigen-1; j++)
+            complex<double>* evals = new complex<double>[mgstruct.curr_fine_size];
+            complex<double>** evecs = new complex<double>*[mgstruct.curr_fine_size];
+            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
             {
-                switch (opt)
+                evecs[i] = new complex<double>[mgstruct.curr_fine_size];
+            }
+
+            
+            // Get low mag half
+            arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
+            char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
+            arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, mgstruct.curr_fine_size, n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+            //arpack_dcn_free(&ar_strc);
+
+            // Print info about the eigensolve.
+            cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+            
+            // Get high mag half
+            //arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
+            strcpy(eigtype, "LM"); // Smallest magnitude eigenvalues.
+            info_solve = arpack_dcn_getev(ar_strc, evals+(mgstruct.curr_fine_size/2), evecs+(mgstruct.curr_fine_size/2), mgstruct.curr_fine_size, n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+            arpack_dcn_free(&ar_strc);
+
+            // Print info about the eigensolve.
+            cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+
+            // End of arpack bindings!
+
+            // Sort eigenvalues (done differently depending on the operator).
+            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
+            {
+                for (j = 0; j < mgstruct.curr_fine_size /*n_eigen*/ -1; j++)
                 {
-                    case STAGGERED:
-                        if (imag(evals[j]) > imag(evals[j+1]))
-                        {
-                            complex<double> teval = evals[j]; evals[j] = evals[j+1]; evals[j+1] = teval;
-                            complex<double>* tevec = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tevec;
-                        }
-                        break;
-                    case LAPLACE:
-                    case LAPLACE_NC2:
-                    case G5_STAGGERED:
-                    case STAGGERED_NORMAL:
-                    case STAGGERED_INDEX:
-                        if (real(evals[j]) > real(evals[j+1]))
-                        {
-                            complex<double> teval = evals[j]; evals[j] = evals[j+1]; evals[j+1] = teval;
-                            complex<double>* tevec = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tevec;
-                        }
-                        break; 
+                    switch (opt)
+                    {
+                        case STAGGERED:
+                            if (abs(imag(evals[j])) > abs(imag(evals[j+1])))
+                            {
+                                complex<double> teval = evals[j]; evals[j] = evals[j+1]; evals[j+1] = teval;
+                                complex<double>* tevec = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tevec;
+                            }
+                            break;
+                        case LAPLACE:
+                        case LAPLACE_NC2:
+                        case G5_STAGGERED:
+                        case STAGGERED_NORMAL:
+                        case STAGGERED_INDEX:
+                            if (abs(real(evals[j])) > abs(real(evals[j+1])))
+                            {
+                                complex<double> teval = evals[j]; evals[j] = evals[j+1]; evals[j+1] = teval;
+                                complex<double>* tevec = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tevec;
+                            }
+                            break; 
+                    }
                 }
             }
-        }
-
-        cout << "\n\nAll eigenvalues:\n";
-        for (i = 0; i < n_eigen; i++)
-        {
-            cout << "[L" << lev+1 << "_FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[i] << "\n";
-            normalize<double>(evecs[i], mgstruct.curr_fine_size);
-        }
-
-        complex<double>* evec_Pdag = new complex<double>[mgstruct.curr_coarse_size];
-        complex<double>* evec_Pdag2 = new complex<double>[mgstruct.curr_coarse_size];
-        complex<double>* evec_PPdag = new complex<double>[mgstruct.curr_fine_size];
-
-        // Test overlap of null vectors with eigenvectors.
-        // Formally, this is looking at the magnitude of (1 - P P^\dag) eigenvector.
-
-        for (i = 0; i < n_eigen; i++)
-        {
-            // Zero out.
-            zero<double>(evec_Pdag, mgstruct.curr_coarse_size);
-            zero<double>(evec_PPdag, mgstruct.curr_fine_size);
-
-            // Restrict eigenvector.
-            restrict(evec_Pdag, evecs[i], &mgstruct);
-
-            // Prolong.
-            prolong(evec_PPdag, evec_Pdag, &mgstruct);
-
-            // Subtract off eigenvector, take norm.
-            for (j = 0; j < mgstruct.curr_fine_size; j++)
+            
+            
+            cout << "\n\nAll eigenvalues:\n";
+            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
             {
-                evec_PPdag[j] -= evecs[i][j];
+                cout << "[L" << lev+1 << "_FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[i] << "\n";
+                normalize<double>(evecs[i], mgstruct.curr_fine_size);
             }
 
-            cout << "[L" << lev+1 << "_1mPPDAG]: Num " << i << " Overlap " << sqrt(norm2sq<double>(evec_PPdag, mgstruct.curr_fine_size)) << "\n";
-        }
+            complex<double>* evec_Pdag = new complex<double>[mgstruct.curr_coarse_size];
+            complex<double>* evec_Pdag2 = new complex<double>[mgstruct.curr_coarse_size];
+            complex<double>* evec_PPdag = new complex<double>[mgstruct.curr_fine_size];
 
-        // Test how good of a preconditioner the coarse operator is.
-        // Formally, this is looking at the magnitude of (1 - P ( P^\dag A P )^(-1) P^\dag A) eigenvector.
-        for (i = 0; i < n_eigen; i++)
-        {
-            // Zero out.
-            zero<double>(evec_Pdag, mgstruct.curr_coarse_size);
-            zero<double>(evec_Pdag2, mgstruct.curr_coarse_size);
-            zero<double>(evec_PPdag, mgstruct.curr_fine_size);
+            // Test overlap of null vectors with eigenvectors.
+            // Formally, this is looking at the magnitude of (1 - P P^\dag) eigenvector.
 
-            // Apply A.
-            fine_square_staggered(evec_PPdag, evecs[i], (void*)&mgstruct);
-
-            // Restrict.
-            restrict(evec_Pdag, evec_PPdag, &mgstruct);
-
-            // Invert A_coarse against it.
-            invif = minv_vector_gcr_restart(evec_Pdag2, evec_Pdag, mgstruct.curr_coarse_size, 10000, 1e-7, 64, coarse_square_staggered, (void*)&mgstruct);
-
-            // Prolong.
-            zero<double>(evec_PPdag, mgstruct.curr_coarse_size);
-            prolong(evec_PPdag, evec_Pdag2, &mgstruct);
-
-            // Subtract off eigenvector, take norm.
-            for (j = 0; j < mgstruct.curr_fine_size; j++)
+            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
             {
-                evec_PPdag[j] -= evecs[i][j];
+                // Zero out.
+                zero<double>(evec_Pdag, mgstruct.curr_coarse_size);
+                zero<double>(evec_PPdag, mgstruct.curr_fine_size);
+
+                // Restrict eigenvector.
+                restrict(evec_Pdag, evecs[i], &mgstruct);
+
+                // Prolong.
+                prolong(evec_PPdag, evec_Pdag, &mgstruct);
+
+                // Subtract off eigenvector, take norm.
+                for (j = 0; j < mgstruct.curr_fine_size; j++)
+                {
+                    evec_PPdag[j] -= evecs[i][j];
+                }
+
+                cout << "[L" << lev+1 << "_1mPPDAG]: Num " << i << " Overlap " << sqrt(norm2sq<double>(evec_PPdag, mgstruct.curr_fine_size)) << "\n";
             }
 
-            cout << "[L" << lev+1 << "_1mP_Ac_PDAG_A]: Num " << i << " Overlap " << sqrt(norm2sq<double>(evec_PPdag, mgstruct.curr_fine_size)) << "\n";
+            // Test how good of a preconditioner the coarse operator is.
+            // Formally, this is looking at the magnitude of (1 - P ( P^\dag A P )^(-1) P^\dag A) eigenvector.
+            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
+            {
+                // Zero out.
+                zero<double>(evec_Pdag, mgstruct.curr_coarse_size);
+                zero<double>(evec_Pdag2, mgstruct.curr_coarse_size);
+                zero<double>(evec_PPdag, mgstruct.curr_fine_size);
+
+                // Apply A.
+                fine_square_staggered(evec_PPdag, evecs[i], (void*)&mgstruct);
+
+                // Restrict.
+                restrict(evec_Pdag, evec_PPdag, &mgstruct);
+
+                // Invert A_coarse against it.
+                invif = minv_vector_gcr_restart(evec_Pdag2, evec_Pdag, mgstruct.curr_coarse_size, 10000, 1e-7, 64, coarse_square_staggered, (void*)&mgstruct);
+
+                // Prolong.
+                zero<double>(evec_PPdag, mgstruct.curr_coarse_size);
+                prolong(evec_PPdag, evec_Pdag2, &mgstruct);
+
+                // Subtract off eigenvector, take norm.
+                for (j = 0; j < mgstruct.curr_fine_size; j++)
+                {
+                    evec_PPdag[j] -= evecs[i][j];
+                }
+
+                cout << "[L" << lev+1 << "_1mP_Ac_PDAG_A]: Num " << i << " Overlap " << sqrt(norm2sq<double>(evec_PPdag, mgstruct.curr_fine_size)) << "\n";
+            }
+
+
+            delete[] evec_Pdag;
+            delete[] evec_PPdag;
+            delete[] evec_Pdag2;
+
+            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
+            {
+                delete[] evecs[i];
+            }
+            delete[] evecs;
+            delete[] evals;
+
+            if (lev < mgstruct.n_refine-1)
+            {
+                level_down(&mgstruct);
+            }
         }
 
-
-        delete[] evec_Pdag;
-        delete[] evec_PPdag;
-        delete[] evec_Pdag2;
-
-        for (i = 0; i < n_eigen; i++)
+        for (int lev = mgstruct.n_refine-2; lev >= 0; lev--)
         {
-            delete[] evecs[i];
+            level_up(&mgstruct);
         }
-        delete[] evecs;
-        delete[] evals;
-        
-        if (lev < mgstruct.n_refine-1)
-        {
-            level_down(&mgstruct);
-        }
-    }
     
-    for (int lev = mgstruct.n_refine-2; lev >= 0; lev--)
-    {
-        level_up(&mgstruct);
-    }
-    
-    return 0; 
-    
+    } // do_eigentest
 #endif // EIGEN_TEST
     
 #ifdef PDAGP_TEST
