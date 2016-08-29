@@ -134,7 +134,7 @@ void display_usage()
     cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
     cout << "--null-precision [null prec]                  (default 5e-5)\n";
     cout << "--null-eo [corner, yes, no, topo]             (default yes)\n";
-    cout << "--null-global-ortho-conj [yes, no]            (default yes)\n";
+    cout << "--null-global-ortho-conj [yes, no]            (default no, it only helps in some weird fluke cases)\n";
     cout << "--mass [mass]                                 (default 1e-2)\n";
     cout << "--blocksize [blocksize]                       (default 4)\n";
     cout << "--nvec [nvec]                                 (default 4)\n";
@@ -195,9 +195,6 @@ int main(int argc, char** argv)
     // How are we generating null vectors?
     mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MINRES
     
-    // Do we globally orthogonalize null vectors both against previous null vectors and their conjugate?
-    bool do_global_ortho_conj = true;
-    
     // L_x = L_y = Dimension for a lattice.
     int lattice_size_x = 32; // Can be set on command line with --lattice-size. 
     int lattice_size_y = 32; 
@@ -241,6 +238,9 @@ int main(int argc, char** argv)
                            // Can be overriden on command line with --nvec
     int null_max_iter = 500;
     double null_precision = 5e-5; //5e-4; // Can be overriden on command line with --null-precision
+    
+    // Do we globally orthogonalize null vectors both against previous null vectors and their conjugate?
+    bool do_global_ortho_conj = false;
     
     
     // Inner solver.
@@ -1356,8 +1356,76 @@ int main(int argc, char** argv)
                             normalize(mgstruct.null_vectors[mgstruct.curr_level][2*i+1], mgstruct.curr_fine_size);
                             break;
                         case BLOCK_CORNER:
-                            cout << "ERROR! Need to implement corner aggregation for coarse levels.\n";
-                            return 0;
+                            for (j = 0; j < mgstruct.curr_fine_size; j++)
+                            {
+                                int c = j % mgstruct.n_vector; // What color index do we have?
+                                                               // 0 to mgstruct.n_vector/2-1 is even, else is odd.
+                                //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
+                                //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
+
+                                // If c is even, it's from an even vector, otherwise it's from an odd vector!
+
+                                if (c%4 == 1)
+                                {
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i+1][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
+                                }
+                                else if (c%4 == 2)
+                                {
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i+2][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
+                                }
+                                else if (c%4 == 3)
+                                {
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i+3][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
+                                }
+                            }
+                            normalize(mgstruct.null_vectors[mgstruct.curr_level][4*i], mgstruct.curr_fine_size);
+                            normalize(mgstruct.null_vectors[mgstruct.curr_level][4*i+1], mgstruct.curr_fine_size);
+                            normalize(mgstruct.null_vectors[mgstruct.curr_level][4*i+2], mgstruct.curr_fine_size);
+                            normalize(mgstruct.null_vectors[mgstruct.curr_level][4*i+3], mgstruct.curr_fine_size);
+                            
+                            if (i > 0)
+                            {
+                                for (j = 0; j < i; j++)
+                                {
+                                    // Check dot product before normalization.
+                                    cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: " <<
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i], mgstruct.null_vectors[mgstruct.curr_level][4*j], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j],mgstruct.curr_fine_size))) << " " << 
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+1], mgstruct.null_vectors[mgstruct.curr_level][4*j+1], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+1],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j+1],mgstruct.curr_fine_size))) << " " <<
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+2], mgstruct.null_vectors[mgstruct.curr_level][4*j+2], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+2],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j+2],mgstruct.curr_fine_size))) << " " << 
+                                    abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+3], mgstruct.null_vectors[mgstruct.curr_level][4*j+3], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+3],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j+3],mgstruct.curr_fine_size))) << "\n"; 
+
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i], mgstruct.null_vectors[mgstruct.curr_level][4*j], mgstruct.curr_fine_size); 
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+1], mgstruct.null_vectors[mgstruct.curr_level][4*j+1], mgstruct.curr_fine_size); 
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+2], mgstruct.null_vectors[mgstruct.curr_level][4*j+2], mgstruct.curr_fine_size); 
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+3], mgstruct.null_vectors[mgstruct.curr_level][4*j+3], mgstruct.curr_fine_size); 
+                                    if (do_global_ortho_conj)
+                                    {
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j], mgstruct.curr_fine_size);
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j+1], mgstruct.curr_fine_size);
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j+2], mgstruct.curr_fine_size);
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j+3], mgstruct.curr_fine_size);
+                                        orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i], mgstruct.null_vectors[mgstruct.curr_level][2*j], mgstruct.curr_fine_size); 
+                                        orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+1], mgstruct.null_vectors[mgstruct.curr_level][2*j+1], mgstruct.curr_fine_size); 
+                                        orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+2], mgstruct.null_vectors[mgstruct.curr_level][2*j], mgstruct.curr_fine_size); 
+                                        orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][4*i+3], mgstruct.null_vectors[mgstruct.curr_level][2*j+1], mgstruct.curr_fine_size); 
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j], mgstruct.curr_fine_size);
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j+1], mgstruct.curr_fine_size);
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j+2], mgstruct.curr_fine_size);
+                                        conj<double>(mgstruct.null_vectors[mgstruct.curr_level][4*j+3], mgstruct.curr_fine_size);
+                                    }
+                                    
+                                }
+
+
+                            }
+
+                            normalize(mgstruct.null_vectors[mgstruct.curr_level][4*i], mgstruct.curr_fine_size);
+                            normalize(mgstruct.null_vectors[mgstruct.curr_level][4*i+1], mgstruct.curr_fine_size);
+                            normalize(mgstruct.null_vectors[mgstruct.curr_level][4*i+2], mgstruct.curr_fine_size);
+                            normalize(mgstruct.null_vectors[mgstruct.curr_level][4*i+3], mgstruct.curr_fine_size);
                             break;
                         case BLOCK_NONE:
                             normalize(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
