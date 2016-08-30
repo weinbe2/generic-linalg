@@ -149,6 +149,8 @@ void display_usage()
     cout << "--load-cfg [path]                             (default do not load, overrides beta)\n";
 #ifdef EIGEN_TEST
     cout << "--do-eigentest [yes, no]                      (default no)\n";
+    cout << "--n-ev [all, # smallest]                      (default all)\n";
+    cout << "--n-cv [#]                                    (default min(all, 2.5*n-ev))\n";
 #endif // EIGEN_TEST
 }
 
@@ -274,6 +276,8 @@ int main(int argc, char** argv)
 #ifdef EIGEN_TEST
     bool do_eigentest = false;
     
+    int set_eigen = -1; // default for generating all eigenvalues.
+    int set_cv = -1; // default for generating all eigenvalues, or 
 #endif // EIGEN_TEST 
     
     /////////////////////////////////////////////
@@ -521,6 +525,24 @@ int main(int argc, char** argv)
                 {
                     do_eigentest = false;
                 }
+                i++;
+            }
+            else if (strcmp(argv[i], "--n-ev") == 0)
+            {
+                if (strcmp(argv[i+1], "all") == 0)
+                {
+                    set_eigen = -1;
+                    set_cv = -1;
+                }
+                else
+                {
+                    set_eigen = atoi(argv[i+1]);
+                }
+                i++;
+            }
+            else if (strcmp(argv[i], "--n-cv") == 0)
+            {
+                set_cv = atoi(argv[i+1]);
                 i++;
             }
 #endif // EIGENTEST
@@ -1222,215 +1244,6 @@ int main(int argc, char** argv)
             level_up(&mgstruct);
         }
         
-        /*
-
-        mgstruct.matrix_vector = op; // Reset op to solved op.
-        
-        // Do we need to generate more levels?
-        if (mgstruct.n_refine > 1)
-        {
-            mgstruct.matrix_vector = op_null; // Trick op to null gen op.
-            for (int n = 1; n < mgstruct.n_refine; n++)
-            {
-                level_down(&mgstruct);
-                cout << "curr_fine_size: " << mgstruct.curr_fine_size << "\n";
-                
-                // Let's give it a whirl?!
-                // We generate null vectors by solving Ax = 0, with a
-                // gaussian initial guess.
-                // For sanity with the residual, we really solve Ax = -Ax_0,
-                // where x has a zero initial guess, x_0 is a random vector.
-                complex<double>* c_rand_guess = new complex<double>[mgstruct.curr_fine_size];
-                complex<double>* c_Arand_guess = new complex<double>[mgstruct.curr_fine_size];
-
-                // Generate null vectors with the current level. 
-                for (i = 0; i < mgstruct.n_vector/null_partitions; i++)
-                {
-                    gaussian<double>(c_rand_guess, mgstruct.curr_fine_size, generator);
-                    
-                    // Make orthogonal to previous solutions.
-                    if (i > 0)
-                    {
-                        for (j = 0; j < i; j++)
-                        {
-                            for (k = 0; k < null_partitions; k++) // And then iterate over even/odd or corners!
-                            {
-                                orthogonal<double>(c_rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                if (do_global_ortho_conj)
-                                {
-                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                    orthogonal<double>(c_rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                }
-                            }
-                        }
-                    }
-
-                    zero<double>(c_Arand_guess, mgstruct.curr_fine_size); 
-                    fine_square_staggered(c_Arand_guess, c_rand_guess, (void*)&mgstruct);
-                    
-                    
-                    for (j = 0; j < mgstruct.curr_fine_size; j++)
-                    {
-                       c_Arand_guess[j] = -c_Arand_guess[j]; 
-                    }
-                    
-                    zero<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], mgstruct.curr_fine_size);
-                    
-                    switch (null_gen)
-                    {
-                        case NULL_GCR:
-                            minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
-                            break;
-                        case NULL_BICGSTAB:
-                            minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
-                            break;
-                        case NULL_CG:
-                            minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
-                            break;
-                        case NULL_MINRES:
-                            minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], c_Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
-                            break;
-                    }
-                    
-
-                    for (j = 0; j < mgstruct.curr_fine_size; j++)
-                    {
-                        mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i][j] += c_rand_guess[j];
-                    }
-
-
-                    // Aggregate in chirality, orthogonalize against previous vectors.
-                    switch (bstrat)
-                    {
-                        case BLOCK_EO:
-                        case BLOCK_TOPO:
-                            for (j = 0; j < mgstruct.curr_fine_size; j++)
-                            {
-                                int c = j % mgstruct.n_vector; // What color index do we have?
-                                                               // 0 to mgstruct.n_vector/2-1 is even, else is odd.
-                                //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
-                                //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
-
-                                // If c is even, it's from an even vector, otherwise it's from an odd vector!
-
-                                if (c%2 == 1)
-                                {
-                                    mgstruct.null_vectors[mgstruct.curr_level][2*i+1][j] = mgstruct.null_vectors[mgstruct.curr_level][2*i][j];
-                                    mgstruct.null_vectors[mgstruct.curr_level][2*i][j] = 0.0;
-                                }
-                            }
-                            break;
-                        case BLOCK_CORNER:
-                            for (j = 0; j < mgstruct.curr_fine_size; j++)
-                            {
-                                int c = j % mgstruct.n_vector; // What color index do we have?
-                                                               // 0 to mgstruct.n_vector/2-1 is even, else is odd.
-                                //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
-                                //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
-
-                                // If c is even, it's from an even vector, otherwise it's from an odd vector!
-
-                                if (c%4 == 1)
-                                {
-                                    mgstruct.null_vectors[mgstruct.curr_level][4*i+1][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
-                                    mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
-                                }
-                                else if (c%4 == 2)
-                                {
-                                    mgstruct.null_vectors[mgstruct.curr_level][4*i+2][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
-                                    mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
-                                }
-                                else if (c%4 == 3)
-                                {
-                                    mgstruct.null_vectors[mgstruct.curr_level][4*i+3][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
-                                    mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
-                                }
-                            }
-                            
-                            break;
-                        case BLOCK_NONE:
-                            // Nothing to do here...
-                            break;
-                    }
-                    
-                    // Normalize solution.
-                    for (k = 0; k < null_partitions; k++)
-                    {
-                        normalize(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.curr_fine_size);
-                    }
-                    
-                    if (i > 0)
-                    {
-                        for (j = 0; j < i; j++)
-                        {
-                            // Check dot product before normalization.
-                            cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: ";
-                            for (k = 0; k < null_partitions; k++)
-                            {
-                                cout << abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k],mgstruct.curr_fine_size))) << " "; 
-
-                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size); 
-                                if (do_global_ortho_conj)
-                                {
-                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size);
-                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size); 
-                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size);
-                                }
-                            }
-                            cout << "\n";
-
-                        }
-
-
-                    }
-
-                    // Normalize solution.
-                    for (k = 0; k < null_partitions; k++)
-                    {
-                        normalize(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.curr_fine_size);
-                    }
-
-                }
-
-                delete[] c_rand_guess; 
-                delete[] c_Arand_guess; 
-         
-                block_orthonormalize(&mgstruct); 
-                
-                // Print vector.
-                /*
-                cout << "\n\nPrinting null vectors:\n"; 
-                for (int n = 0; n < mgstruct.n_vector; n++)
-                {
-                    cout << "\nVector " << n << "\n";
-                    for (int y = 0; y < mgstruct.curr_y_fine; y++)
-                    {
-                        for (int x = 0; x < mgstruct.curr_x_fine; x++)
-                        {
-                            cout << "(";
-                            for (int c = 0; c < mgstruct.n_vector; c++)
-                            {
-                                cout << mgstruct.null_vectors[mgstruct.curr_level][n][y*mgstruct.curr_x_fine*mgstruct.curr_dof_fine+x*mgstruct.curr_dof_fine+c] << ",";
-                            }
-                            cout << ") ";
-                        }
-                        cout << "\n";
-                    }
-                }*/
-            //}
-            
-            // Un-pop to the finest level.
-            //for (i = 1; i < mgstruct.n_refine; i++)
-            //{
-            //    level_up(&mgstruct);
-            //}
-            
-            //mgstruct.matrix_vector = op; // Reset op to solved op.
-        //}
-        
-        // Reset the mass.
-        //stagif.mass = MASS; 
         
     } // end skipping generation if we're only doing a top level or smoother test. 
     
@@ -1460,47 +1273,104 @@ int main(int argc, char** argv)
     {
         for (int lev = 0; lev < mgstruct.n_refine; lev++)
         {
-            // Test some eigenvectors!
-            // Generate min(volume/4, 128) eigenvectors.
-            int n_eigen = mgstruct.curr_fine_size/2;//min(mgstruct.curr_fine_size/4, 128);
-            int n_cv = mgstruct.curr_fine_size; //n_eigen*2 + n_eigen/2;
-
-            complex<double>* evals = new complex<double>[mgstruct.curr_fine_size];
-            complex<double>** evecs = new complex<double>*[mgstruct.curr_fine_size];
-            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
+            int n_eigen = 0;
+            int n_cv = 0;
+            complex<double>* evals = 0;
+            complex<double>** evecs = 0;
+            
+            if (set_eigen == -1 && set_cv == -1) // generate all eigenvalues, eigenvectors. 
             {
-                evecs[i] = new complex<double>[mgstruct.curr_fine_size];
+                // Allocate space for all eigenvalues, eigenvectors. 
+                n_eigen = mgstruct.curr_fine_size;
+                n_cv = mgstruct.curr_fine_size; 
+                cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen << " Number of cv: " << n_cv << "\n";
+                
+                evals = new complex<double>[mgstruct.curr_fine_size];
+                evecs = new complex<double>*[mgstruct.curr_fine_size];
+                for (i = 0; i < n_eigen; i++)
+                {
+                    evecs[i] = new complex<double>[mgstruct.curr_fine_size];
+                }
+                
+                // Get low mag half
+                arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen/2, n_cv); // max eigenvectors, internal vecs
+                char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
+                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, mgstruct.curr_fine_size, n_eigen/2, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+                //arpack_dcn_free(&ar_strc);
+
+                // Print info about the eigensolve.
+                cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+
+                // Get high mag half
+                //arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
+                strcpy(eigtype, "LM"); // Smallest magnitude eigenvalues.
+                info_solve = arpack_dcn_getev(ar_strc, evals+(mgstruct.curr_fine_size/2), evecs+(mgstruct.curr_fine_size/2), mgstruct.curr_fine_size, n_eigen/2, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+                arpack_dcn_free(&ar_strc);
+
+                // Print info about the eigensolve.
+                cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+
+                // End of arpack bindings!   
+            }
+            else if (set_eigen != -1 && set_cv == -1) // generate n_eigen eigenvalues, min(mgstruct.curr_fine_size, 2.5 n_eigen) cv.
+            {
+                n_eigen = set_eigen;
+                n_cv = min(mgstruct.curr_fine_size, 2*n_eigen + n_eigen/2);
+                cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen << " Number of cv: " << n_cv << "\n";
+                
+                evals = new complex<double>[n_eigen];
+                evecs = new complex<double>*[n_eigen];
+                for (i = 0; i < n_eigen; i++)
+                {
+                    evecs[i] = new complex<double>[mgstruct.curr_fine_size];
+                }
+                
+                // Get low mag half
+                arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
+                char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
+                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, mgstruct.curr_fine_size, n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+                arpack_dcn_free(&ar_strc);
+                
+                // Print info about the eigensolve.
+                cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+                
+            }
+            else // generate n_eigen eigenvalues, min(mgstruct.curr_fine_size, n_cv) cv.
+            {
+                n_eigen = set_eigen;
+                n_cv = set_cv;
+                
+                cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen << " Number of cv: " << n_cv << "\n";
+                
+                evals = new complex<double>[n_eigen];
+                evecs = new complex<double>*[n_eigen];
+                for (i = 0; i < n_eigen; i++)
+                {
+                    evecs[i] = new complex<double>[mgstruct.curr_fine_size];
+                }
+                
+                // Get low mag half
+                arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
+                char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
+                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, mgstruct.curr_fine_size, n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+                arpack_dcn_free(&ar_strc);
+                
+                // Print info about the eigensolve.
+                cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
             }
 
-            
-            // Get low mag half
-            arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
-            char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
-            arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, mgstruct.curr_fine_size, n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
-            //arpack_dcn_free(&ar_strc);
-
-            // Print info about the eigensolve.
-            cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
-            cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
-            cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
-            
-            // Get high mag half
-            //arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
-            strcpy(eigtype, "LM"); // Smallest magnitude eigenvalues.
-            info_solve = arpack_dcn_getev(ar_strc, evals+(mgstruct.curr_fine_size/2), evecs+(mgstruct.curr_fine_size/2), mgstruct.curr_fine_size, n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
-            arpack_dcn_free(&ar_strc);
-
-            // Print info about the eigensolve.
-            cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
-            cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
-            cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
-
-            // End of arpack bindings!
-
             // Sort eigenvalues (done differently depending on the operator).
-            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
+            for (i = 0; i < n_eigen; i++)
             {
-                for (j = 0; j < mgstruct.curr_fine_size /*n_eigen*/ -1; j++)
+                for (j = 0; j < n_eigen-1; j++)
                 {
                     switch (opt)
                     {
@@ -1528,7 +1398,7 @@ int main(int argc, char** argv)
             
             
             cout << "\n\nAll eigenvalues:\n";
-            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
+            for (i = 0; i < n_eigen; i++)
             {
                 cout << "[L" << lev+1 << "_FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[i] << "\n";
                 normalize<double>(evecs[i], mgstruct.curr_fine_size);
@@ -1541,7 +1411,7 @@ int main(int argc, char** argv)
             // Test overlap of null vectors with eigenvectors.
             // Formally, this is looking at the magnitude of (1 - P P^\dag) eigenvector.
 
-            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
+            for (i = 0; i < n_eigen; i++)
             {
                 // Zero out.
                 zero<double>(evec_Pdag, mgstruct.curr_coarse_size);
@@ -1564,7 +1434,7 @@ int main(int argc, char** argv)
 
             // Test how good of a preconditioner the coarse operator is.
             // Formally, this is looking at the magnitude of (1 - P ( P^\dag A P )^(-1) P^\dag A) eigenvector.
-            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
+            for (i = 0; i < n_eigen; i++)
             {
                 // Zero out.
                 zero<double>(evec_Pdag, mgstruct.curr_coarse_size);
@@ -1598,7 +1468,7 @@ int main(int argc, char** argv)
             delete[] evec_PPdag;
             delete[] evec_Pdag2;
 
-            for (i = 0; i < mgstruct.curr_fine_size /*n_eigen*/; i++)
+            for (i = 0; i < n_eigen; i++)
             {
                 delete[] evecs[i];
             }
