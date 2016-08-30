@@ -920,211 +920,311 @@ int main(int argc, char** argv)
     if (!(my_test == TOP_LEVEL_ONLY || my_test == SMOOTHER_ONLY))
     {
         // Generate top level!
+        cout << "[NULLVEC]: About to generate null vectors.\n";
         
-        printf("About to generate null vector.\n"); fflush(stdout);
+        mgstruct.matrix_vector = op_null; // Trick op to null gen op.
         
-        // We generate null vectors by solving Ax = 0, with a
-        // gaussian initial guess.
-        // For sanity with the residual, we really solve Ax = -Ax_0,
-        // where x has a zero initial guess, x_0 is a random vector.
-        complex<double>* rand_guess = new complex<double>[mgstruct.curr_fine_size];
-        complex<double>* Arand_guess = new complex<double>[mgstruct.curr_fine_size];
-    
         // Temporarily set the mass to 1e-4 for the null vector generation. 
         stagif.mass = null_mass;
-
-        for (i = 0; i < mgstruct.n_vector/null_partitions; i++)
+        
+        // Back up verbosity string.
+        std::string verb_string = verb.verb_prefix;
+        
+        for (int n = 0; n < mgstruct.n_refine; n++)
         {
-            // Create a gaussian random source. 
-            gaussian<double>(rand_guess, mgstruct.curr_fine_size, generator);
-            
-            // Make orthogonal to previous solutions.
-            if (i > 0) // If there are vectors to orthogonalize against...
+            if (n != 0)
             {
-                for (j = 0; j < i; j++) // Iterate over all of them...
+                level_down(&mgstruct);
+            }
+            
+            cout << "[L" << mgstruct.curr_level+1 << "_NULLVEC]: Current fine size is " << mgstruct.curr_fine_size << "\n";
+            
+            // Update verb_prefix temporarily.
+            verb.verb_prefix = "[L" + to_string(mgstruct.curr_level+1) + "_NULLVEC]: ";
+            
+            // We generate null vectors by solving Ax = 0, with a
+            // gaussian initial guess.
+            // For sanity with the residual, we really solve Ax = -Ax_0,
+            // where x has a zero initial guess, x_0 is a random vector.
+            complex<double>* rand_guess = new complex<double>[mgstruct.curr_fine_size];
+            complex<double>* Arand_guess = new complex<double>[mgstruct.curr_fine_size];
+
+            for (i = 0; i < mgstruct.n_vector/null_partitions; i++)
+            {
+                // Create a gaussian random source. 
+                gaussian<double>(rand_guess, mgstruct.curr_fine_size, generator);
+
+                // Make orthogonal to previous solutions.
+                if (i > 0) // If there are vectors to orthogonalize against...
                 {
-                    for (k = 0; k < null_partitions; k++) // And then iterate over even/odd or corners!
+                    for (j = 0; j < i; j++) // Iterate over all of them...
                     {
-                        orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j*null_partitions+k], mgstruct.curr_fine_size);
-                        if (do_global_ortho_conj)
+                        for (k = 0; k < null_partitions; k++) // And then iterate over even/odd or corners!
                         {
-                            conj<double>(mgstruct.null_vectors[0][j*null_partitions+k], mgstruct.curr_fine_size);
-                            orthogonal<double>(rand_guess, mgstruct.null_vectors[0][j*null_partitions+k], mgstruct.curr_fine_size);
-                            conj<double>(mgstruct.null_vectors[0][j*null_partitions+k], mgstruct.curr_fine_size);
+                            orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                            if (do_global_ortho_conj)
+                            {
+                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                            }
                         }
                     }
                 }
-            }
 
-            // Solve the residual equation. 
-            zero<double>(Arand_guess, mgstruct.curr_fine_size);
-            
-            (*op_null)(Arand_guess, rand_guess, (void*)&stagif);
-            
-            //square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
-            for (j = 0; j < mgstruct.curr_fine_size; j++)
-            {
-               Arand_guess[j] = -Arand_guess[j]; 
-            }
-            zero<double>(mgstruct.null_vectors[0][null_partitions*i], mgstruct.curr_fine_size);
+                // Solve the residual equation. 
+                zero<double>(Arand_guess, mgstruct.curr_fine_size);
 
-            switch (null_gen)
-            {
-                case NULL_GCR:
-                    minv_vector_gcr(mgstruct.null_vectors[0][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
-                    break;
-                case NULL_BICGSTAB:
-                    minv_vector_bicgstab(mgstruct.null_vectors[0][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
-                    break;
-                case NULL_CG:
-                    minv_vector_cg(mgstruct.null_vectors[0][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
-                    break;
-                case NULL_MINRES:
-                    minv_vector_minres(mgstruct.null_vectors[0][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, op_null, (void*)&stagif, &verb); 
-                    break;
-            }
-            
+                fine_square_staggered(Arand_guess, rand_guess, (void*)&mgstruct);
 
-            for (j = 0; j < mgstruct.curr_fine_size; j++)
-            {
-                mgstruct.null_vectors[0][null_partitions*i][j] += rand_guess[j];
-            }
-            
-            // Aggregate in chirality (or corners) as needed.  
-            switch (bstrat)
-            {
-                case BLOCK_EO:
-                    for (j = 0; j < mgstruct.curr_fine_size; j++)
-                    {
-                        if (Lat.index_is_even(j))
-                        {
-                            mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j];
-                            mgstruct.null_vectors[0][2*i][j] = 0.0;
-                        }
-                    }
-                    break;
-                case BLOCK_TOPO:
-                    // Form vectors from (1 \pm \Gamma_5)/2.
-                    
-                    // Form \Gamma_5 null.
-                    
-                    // i/2 \Gamma_1 \Gamma_2
-                    zero<double>(tmp, mgstruct.curr_fine_size);
-                    zero<double>(tmp2, mgstruct.curr_fine_size);
-                    staggered_symmshift_y(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
-                    staggered_symmshift_x(tmp2, tmp, (void*)&stagif);
-                    for (j = 0; j < mgstruct.curr_fine_size; j++)
-                    {
-                        mgstruct.null_vectors[0][2*i+1][j] += complex<double>(0.0,0.5)*tmp2[j];
-                    }
-                    
-                    // -i/2 \Gamma_2 \Gamma_1
-                    zero<double>(tmp, mgstruct.curr_fine_size);
-                    zero<double>(tmp2, mgstruct.curr_fine_size);
-                    staggered_symmshift_x(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
-                    staggered_symmshift_y(tmp2, tmp, (void*)&stagif);
-                    for (j = 0; j < mgstruct.curr_fine_size; j++)
-                    {
-                        mgstruct.null_vectors[0][2*i+1][j] -= complex<double>(0.0,0.5)*tmp2[j];
-                    }
-                    
-                    // Form the two projectors.
-                    for (j = 0; j < mgstruct.curr_fine_size; j++)
-                    {
-                        mgstruct.null_vectors[0][2*i][j] = 0.5*(mgstruct.null_vectors[0][2*i][j]+mgstruct.null_vectors[0][2*i+1][j]);
-                        mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j]-mgstruct.null_vectors[0][2*i+1][j];
-                    }
-                    
-                    
-                    break;
-                case BLOCK_CORNER:
-
-                    for (j = 0; j < mgstruct.curr_fine_size; j++)
-                    {
-                        // Find x and y component. 
-                        Lat.index_to_coord(j, coord, nd);
-                        if (coord[0]%2 == 1 && coord[1]%2 == 0)
-                        {
-                            mgstruct.null_vectors[0][4*i+1][j] = mgstruct.null_vectors[0][4*i][j];
-                            mgstruct.null_vectors[0][4*i][j] = 0.0;
-                        }
-                        else if (coord[0]%2 == 0 && coord[1]%2 == 1)
-                        {
-                            mgstruct.null_vectors[0][4*i+2][j] = mgstruct.null_vectors[0][4*i][j];
-                            mgstruct.null_vectors[0][4*i][j] = 0.0;
-                        }
-                        else if (coord[0]%2 == 1 && coord[1]%2 == 1)
-                        {
-                            mgstruct.null_vectors[0][4*i+3][j] = mgstruct.null_vectors[0][4*i][j];
-                            mgstruct.null_vectors[0][4*i][j] = 0.0;
-                        }
-                    }
-                    break;
-                case BLOCK_NONE:
-                    // Nothing special to do.
-                    break;
-            }
-            
-            // Normalize new vectors.
-            for (k = 0; k < null_partitions; k++)
-            {
-                normalize(mgstruct.null_vectors[0][null_partitions*i+k], mgstruct.curr_fine_size);
-            }
-
-            // Orthogonalize against previous vectors. 
-            if (i > 0)
-            {
-                for (j = 0; j < i; j++)
+                //square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
+                for (j = 0; j < mgstruct.curr_fine_size; j++)
                 {
-                    cout << "[NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: "; 
-                    for (k = 0; k < null_partitions; k++)
-                    {
-                        // Check dot product before normalization.
-                        cout << abs(dot<double>(mgstruct.null_vectors[0][null_partitions*i+k], mgstruct.null_vectors[0][null_partitions*j+k], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[0][null_partitions*i+k],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[0][null_partitions*j+k],mgstruct.curr_fine_size))) << " ";
+                   Arand_guess[j] = -Arand_guess[j]; 
+                }
+                zero<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], mgstruct.curr_fine_size);
 
-                        orthogonal<double>(mgstruct.null_vectors[0][null_partitions*i+k], mgstruct.null_vectors[0][null_partitions*j+k], mgstruct.curr_fine_size); 
-                        if (do_global_ortho_conj)
+                
+                switch (null_gen)
+                {
+                    case NULL_GCR:
+                        minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        break;
+                    case NULL_BICGSTAB:
+                        minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        break;
+                    case NULL_CG:
+                        minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        break;
+                    case NULL_MINRES:
+                        minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        break;
+                }
+
+
+                for (j = 0; j < mgstruct.curr_fine_size; j++)
+                {
+                    mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i][j] += rand_guess[j];
+                }
+
+                // Aggregate in chirality (or corners) as needed.  
+                // This is handled differently if we're on the top level or further down. 
+                if (mgstruct.curr_level == 0) // top level routines
+                {
+                    switch (bstrat)
+                    {
+                        case BLOCK_EO:
+                            for (j = 0; j < mgstruct.curr_fine_size; j++)
+                            {
+                                if (Lat.index_is_even(j))
+                                {
+                                    mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j];
+                                    mgstruct.null_vectors[0][2*i][j] = 0.0;
+                                }
+                            }
+                            break;
+                        case BLOCK_TOPO:
+                            // Form vectors from (1 \pm \Gamma_5)/2.
+
+                            // Form \Gamma_5 null.
+
+                            // i/2 \Gamma_1 \Gamma_2
+                            zero<double>(tmp, mgstruct.curr_fine_size);
+                            zero<double>(tmp2, mgstruct.curr_fine_size);
+                            staggered_symmshift_y(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
+                            staggered_symmshift_x(tmp2, tmp, (void*)&stagif);
+                            for (j = 0; j < mgstruct.curr_fine_size; j++)
+                            {
+                                mgstruct.null_vectors[0][2*i+1][j] += complex<double>(0.0,0.5)*tmp2[j];
+                            }
+
+                            // -i/2 \Gamma_2 \Gamma_1
+                            zero<double>(tmp, mgstruct.curr_fine_size);
+                            zero<double>(tmp2, mgstruct.curr_fine_size);
+                            staggered_symmshift_x(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
+                            staggered_symmshift_y(tmp2, tmp, (void*)&stagif);
+                            for (j = 0; j < mgstruct.curr_fine_size; j++)
+                            {
+                                mgstruct.null_vectors[0][2*i+1][j] -= complex<double>(0.0,0.5)*tmp2[j];
+                            }
+
+                            // Form the two projectors.
+                            for (j = 0; j < mgstruct.curr_fine_size; j++)
+                            {
+                                mgstruct.null_vectors[0][2*i][j] = 0.5*(mgstruct.null_vectors[0][2*i][j]+mgstruct.null_vectors[0][2*i+1][j]);
+                                mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j]-mgstruct.null_vectors[0][2*i+1][j];
+                            }
+
+
+                            break;
+                        case BLOCK_CORNER:
+
+                            for (j = 0; j < mgstruct.curr_fine_size; j++)
+                            {
+                                // Find x and y component. 
+                                Lat.index_to_coord(j, coord, nd);
+                                if (coord[0]%2 == 1 && coord[1]%2 == 0)
+                                {
+                                    mgstruct.null_vectors[0][4*i+1][j] = mgstruct.null_vectors[0][4*i][j];
+                                    mgstruct.null_vectors[0][4*i][j] = 0.0;
+                                }
+                                else if (coord[0]%2 == 0 && coord[1]%2 == 1)
+                                {
+                                    mgstruct.null_vectors[0][4*i+2][j] = mgstruct.null_vectors[0][4*i][j];
+                                    mgstruct.null_vectors[0][4*i][j] = 0.0;
+                                }
+                                else if (coord[0]%2 == 1 && coord[1]%2 == 1)
+                                {
+                                    mgstruct.null_vectors[0][4*i+3][j] = mgstruct.null_vectors[0][4*i][j];
+                                    mgstruct.null_vectors[0][4*i][j] = 0.0;
+                                }
+                            }
+                            break;
+                        case BLOCK_NONE:
+                            // Nothing special to do.
+                            break;
+                    }
+                }
+                else // not on the top level
+                {
+                    switch (bstrat)
+                    {
+                        case BLOCK_EO:
+                        case BLOCK_TOPO:
+                            for (j = 0; j < mgstruct.curr_fine_size; j++)
+                            {
+                                int c = j % mgstruct.n_vector; // What color index do we have?
+                                                               // 0 to mgstruct.n_vector/2-1 is even, else is odd.
+                                //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
+                                //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
+
+                                // If c is even, it's from an even vector, otherwise it's from an odd vector!
+
+                                if (c%2 == 1)
+                                {
+                                    mgstruct.null_vectors[mgstruct.curr_level][2*i+1][j] = mgstruct.null_vectors[mgstruct.curr_level][2*i][j];
+                                    mgstruct.null_vectors[mgstruct.curr_level][2*i][j] = 0.0;
+                                }
+                            }
+                            break;
+                        case BLOCK_CORNER:
+                            for (j = 0; j < mgstruct.curr_fine_size; j++)
+                            {
+                                int c = j % mgstruct.n_vector; // What color index do we have?
+                                                               // 0 to mgstruct.n_vector/2-1 is even, else is odd.
+                                //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
+                                //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
+
+                                // If c is even, it's from an even vector, otherwise it's from an odd vector!
+
+                                if (c%4 == 1)
+                                {
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i+1][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
+                                }
+                                else if (c%4 == 2)
+                                {
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i+2][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
+                                }
+                                else if (c%4 == 3)
+                                {
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i+3][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
+                                    mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
+                                }
+                            }
+                            
+                            break;
+                        case BLOCK_NONE:
+                            // Nothing to do here...
+                            break;
+                    }
+                }
+
+                // Normalize new vectors.
+                for (k = 0; k < null_partitions; k++)
+                {
+                    normalize(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.curr_fine_size);
+                }
+
+                // Orthogonalize against previous vectors. 
+                if (i > 0)
+                {
+                    for (j = 0; j < i; j++)
+                    {
+                        cout << "[L" << mgstruct.curr_level+1 << "_NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: "; 
+                        for (k = 0; k < null_partitions; k++)
                         {
-                            conj<double>(mgstruct.null_vectors[0][null_partitions*j+k], mgstruct.curr_fine_size);
-                            orthogonal<double>(mgstruct.null_vectors[0][null_partitions*i+k], mgstruct.null_vectors[0][null_partitions*j+k], mgstruct.curr_fine_size); 
-                            conj<double>(mgstruct.null_vectors[0][null_partitions*j+k], mgstruct.curr_fine_size);
+                            // Check dot product before normalization.
+                            cout << abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k],mgstruct.curr_fine_size))) << " ";
+
+                            orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.null_vectors[0][null_partitions*j+k], mgstruct.curr_fine_size); 
+                            if (do_global_ortho_conj)
+                            {
+                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size);
+                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.null_vectors[0][null_partitions*j+k], mgstruct.curr_fine_size); 
+                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size);
+                            }
                         }
+                        cout << "\n";
+                    }
+                }
+
+                // Normalize again.
+                for (k = 0; k < null_partitions; k++)
+                {
+                    normalize(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.curr_fine_size);
+                }
+            }
+
+            delete[] rand_guess; 
+            delete[] Arand_guess; 
+
+
+
+    #ifdef PRINT_NULL_VECTOR
+            // Print vector.
+            /*
+            cout << "\n\nPrinting null vectors:\n"; 
+            for (int n = 0; n < mgstruct.n_vector; n++)
+            {
+                cout << "\nVector " << n << "\n";
+                for (int y = 0; y < mgstruct.curr_y_fine; y++)
+                {
+                    for (int x = 0; x < mgstruct.curr_x_fine; x++)
+                    {
+                        cout << "(";
+                        for (int c = 0; c < mgstruct.n_vector; c++)
+                        {
+                            cout << mgstruct.null_vectors[mgstruct.curr_level][n][y*mgstruct.curr_x_fine*mgstruct.curr_dof_fine+x*mgstruct.curr_dof_fine+c] << ",";
+                        }
+                        cout << ") ";
                     }
                     cout << "\n";
                 }
-            }
+            }*/
+    #endif // PRINT_NULL_VECTOR
 
-            // Normalize again.
-            for (k = 0; k < null_partitions; k++)
-            {
-                normalize(mgstruct.null_vectors[0][null_partitions*i+k], mgstruct.curr_fine_size);
-            }
+            cout << "[MG]: Performing block orthonormalize of null vectors...\n";
+            block_orthonormalize(&mgstruct); 
+            
         }
-
-        delete[] rand_guess; 
-        delete[] Arand_guess; 
-
-
-    
-#ifdef PRINT_NULL_VECTOR
-        cout << "Check projector:\n"; 
-        for (int n = 0; n < mgstruct.n_vector; n++)
+        
+        // Reset the tricks we've done. 
+        
+        mgstruct.matrix_vector = op; // Reset op to solved op.
+        stagif.mass = MASS; 
+        verb.verb_prefix = verb_string; 
+        
+        // Un-pop to the finest level.
+        for (int n = 1; n < mgstruct.n_refine; n++)
         {
-            cout << "Vector " << n << "\n";
-            for (int y = 0; y < y_fine; y++)
-            {
-                for (int x = 0; x < x_fine; x++)
-                {
-                    cout << mgstruct.null_vectors[0][n][x+y*x_fine] << " ";
-                }
-                cout << "\n";
-            }
+            level_up(&mgstruct);
         }
-#endif // PRINT_NULL_VECTOR
         
-        cout << "[MG]: Performing block orthonormalize of null vectors...\n";
-        block_orthonormalize(&mgstruct); 
-        
+        /*
+
+        mgstruct.matrix_vector = op; // Reset op to solved op.
         
         // Do we need to generate more levels?
         if (mgstruct.n_refine > 1)
@@ -1318,19 +1418,19 @@ int main(int argc, char** argv)
                         cout << "\n";
                     }
                 }*/
-            }
+            //}
             
             // Un-pop to the finest level.
-            for (i = 1; i < mgstruct.n_refine; i++)
-            {
-                level_up(&mgstruct);
-            }
+            //for (i = 1; i < mgstruct.n_refine; i++)
+            //{
+            //    level_up(&mgstruct);
+            //}
             
-            mgstruct.matrix_vector = op; // Reset op to solved op.
-        }
+            //mgstruct.matrix_vector = op; // Reset op to solved op.
+        //}
         
         // Reset the mass.
-        stagif.mass = MASS; 
+        //stagif.mass = MASS; 
         
     } // end skipping generation if we're only doing a top level or smoother test. 
     
