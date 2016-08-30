@@ -1054,7 +1054,6 @@ int main(int argc, char** argv)
                         switch (bstrat)
                         {
                             case BLOCK_EO:
-                                cout << "[DEBUG]: Made it to EO.\n" << flush; 
                                 for (j = 0; j < mgstruct.curr_fine_size; j++)
                                 {
                                     if (Lat.index_is_even(j))
@@ -1063,7 +1062,6 @@ int main(int argc, char** argv)
                                         mgstruct.null_vectors[0][2*i][j] = 0.0;
                                     }
                                 }
-                                cout << "[DEBUG]: Made it through EO.\n" << flush;
                                 break;
                             case BLOCK_TOPO:
                                 // Form vectors from (1 \pm \Gamma_5)/2.
@@ -1184,14 +1182,12 @@ int main(int argc, char** argv)
                     }
                 }
                 
-                cout << "[DEBUG]: do_ortho_eo ? null_partitions : 1 = " << (do_ortho_eo ? null_partitions : 1) << "\n" << flush; 
 
                 // Normalize new vectors.
                 for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++)
                 {
                     normalize(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.curr_fine_size);
                 }
-                cout << "[DEBUG]: Made it through first normalization. i = " << i << "\n" << flush;
 
                 // Orthogonalize against previous vectors. 
                 if (i > 0)
@@ -1215,16 +1211,12 @@ int main(int argc, char** argv)
                         cout << "\n";
                     }
                 }
-                
-                cout << "[DEBUG]: Made it through orthogonalize.\n" << flush;
 
                 // Normalize again.
                 for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++)
                 {
                     normalize(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.curr_fine_size);
                 }
-                
-                cout << "[DEBUG]: Done vector " << i << "\n" << flush;
                 
             }
         
