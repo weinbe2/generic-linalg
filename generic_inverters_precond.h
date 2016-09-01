@@ -19,6 +19,9 @@
 // Variably Preconditioned GCR:
 #include "generic_gcr_var_precond.h"
 
+// (Flexibily) Preconditioned BiCGStab:
+#include "generic_bicgstab_precond.h"
+
 // Pre-implemented preconditioners: 
 // Identity, MinRes, GCR.
 #include "generic_precond.h"

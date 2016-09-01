@@ -148,8 +148,6 @@ int main(int argc, char** argv)
    printf("Explicit Resid: %.15e.\n", explicit_resid);
    printf("End Check restarted BiCGStab(8).\n");
    printf("\n\n\n");
-	
-	return 0;
     
    printf("Begin Check GCR.\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
@@ -330,7 +328,31 @@ int main(int argc, char** argv)
    printf("Explicit Resid: %.15e.\n", explicit_resid);
    printf("End Check Restarted Flexibly Preconditioned CG(12) (0.8 rel resid MinRes).\n");
    printf("\n\n\n");
+	
+   printf("Begin Check Preconditioned BiCGStab (6 iter MinRes).\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+   // Prepare MR preconditioner. 
+   mps.n_step = 6;
+   mps.rel_res = 1e-15; // Make n_step the dominant factor. 
+   mps.matrix_vector = square_laplacian; 
+   mps.matrix_extra_data = NULL;
+   // End Prepare MR preconditioner.
+   invif = minv_vector_bicgstab_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
+   if (invif.success == true)
+   {
+      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+   }
+   else
+   {
+      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+   }
+   explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check Preconditioned BiCGStab (6 iter MinRes).\n");
+   printf("\n\n\n");
     
+   return 0;
+	
    printf("Begin Check Variably Preconditioned GCR (1e-1 rel resid MinRes).\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
    // Prepare MR preconditioner.
