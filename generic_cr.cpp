@@ -175,7 +175,7 @@ inversion_info minv_vector_cr_restart(double  *phi, double  *phi0, int size, int
   
   invif.name = ss.str();
   // invif.resSq is good.
-  if (sqrt(invif.resSq) > res)
+  if (sqrt(invif.resSq)/bsqrt > res)
   {
     invif.success = false;
   }
@@ -342,7 +342,7 @@ inversion_info minv_vector_cr_restart(complex<double>  *phi, complex<double>  *p
   
   invif.name = ss.str();
   // invif.resSq is good.
-  if (sqrt(invif.resSq) > res)
+  if (sqrt(invif.resSq)/bsqrt > res)
   {
     invif.success = false;
   }

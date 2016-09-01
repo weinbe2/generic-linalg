@@ -204,7 +204,7 @@ inversion_info minv_vector_gcr_var_precond_restart(double  *phi, double  *phi0, 
   
   invif.name = ss.str();
   // invif.resSq is good.
-  if (sqrt(invif.resSq) > res)
+  if (sqrt(invif.resSq)/bsqrt > res)
   {
     invif.success = false;
   }
@@ -393,7 +393,7 @@ inversion_info minv_vector_gcr_var_precond_restart(complex<double>  *phi, comple
   
   invif.name = ss.str();
   // invif.resSq is good.
-  if (sqrt(invif.resSq) > res)
+  if (sqrt(invif.resSq)/bsqrt > res)
   {
     invif.success = false;
   }

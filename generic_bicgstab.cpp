@@ -169,6 +169,48 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
 
 } 
 
+// Performs BiCGStab(restart_freq) with restarts when restart_freq is hit.
+inversion_info minv_vector_bicgstab_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
+{
+  int iter; // counts total number of iterations.
+  inversion_info invif;
+  double bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  inversion_verbose_struct verb_rest;
+  shuffle_verbosity_restart(&verb_rest, verb);
+  
+  stringstream ss;
+  ss << "GCR(" << restart_freq << ")";
+  
+  iter = 0;  
+  do
+  {
+    invif = minv_vector_bicgstab(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
+    iter += invif.iter;
+    
+    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+  }
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
+  
+  invif.iter = iter;
+  
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  
+  invif.name = ss.str();
+  // invif.resSq is good.
+  if (sqrt(invif.resSq)/bsqrt > res)
+  {
+    invif.success = false;
+  }
+  else
+  {
+    invif.success = true;
+  }
+  
+  return invif;
+}
+
+
 inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
 // BICGSTAB solutions to Mphi = b 
@@ -317,3 +359,47 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   invif.name = "BiCGStab";
   return invif; // Convergence 
 } 
+
+// Performs BiCGStab with restarts when restart_freq is hit.
+// This may be sloppy, but it works.
+inversion_info minv_vector_bicgstab_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
+{
+  int iter; // counts total number of iterations.
+  inversion_info invif;
+  double bsqrt = sqrt(norm2sq<double>(phi0, size));
+  
+  stringstream ss;
+  ss << "GCR(" << restart_freq << ")";
+  
+  inversion_verbose_struct verb_rest;
+  shuffle_verbosity_restart(&verb_rest, verb);
+  
+  iter = 0;  
+  do
+  {
+    invif = minv_vector_bicgstab(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
+    iter += invif.iter;
+    
+    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+  }
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
+  
+  invif.iter = iter;
+  
+  
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  
+  invif.name = ss.str();
+  // invif.resSq is good.
+  if (sqrt(invif.resSq)/bsqrt > res)
+  {
+    invif.success = false;
+  }
+  else
+  {
+    invif.success = true;
+  }
+  
+  return invif;
+}
+

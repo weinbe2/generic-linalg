@@ -190,7 +190,7 @@ inversion_info minv_vector_cg_flex_precond_restart(double  *phi, double  *phi0, 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
-  while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   double *Aphi = new double[size];
   (*matrix_vector)(Aphi, phi, extra_info);
@@ -204,7 +204,7 @@ inversion_info minv_vector_cg_flex_precond_restart(double  *phi, double  *phi0, 
   
   invif.name = ss.str();
   // invif.resSq is good.
-  if (sqrt(invif.resSq) > res)
+  if (sqrt(invif.resSq)/bsqrt > res)
   {
     invif.success = false;
   }
@@ -385,7 +385,7 @@ inversion_info minv_vector_cg_flex_precond_restart(complex<double>  *phi, comple
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
-  while (iter < max_iter && invif.success == false && sqrt(invif.resSq) > res);
+  while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   complex<double> *Aphi = new complex<double>[size];
   (*matrix_vector)(Aphi, phi, extra_info);
@@ -399,7 +399,7 @@ inversion_info minv_vector_cg_flex_precond_restart(complex<double>  *phi, comple
   
   invif.name = ss.str();
   // invif.resSq is good.
-  if (sqrt(invif.resSq) > res)
+  if (sqrt(invif.resSq)/bsqrt > res)
   {
     invif.success = false;
   }
