@@ -1,6 +1,10 @@
 
+#include <complex>
+using std::complex;
+
 #include "mg.h"
 #include "lattice.h"
+#include "verbosity.h"
 
 #ifndef MG_COMPLEX
 #define MG_COMPLEX

@@ -23,6 +23,7 @@
 
 #include "mg.h"
 #include "mg_complex.h"
+#include "null_gen.h"
 #include "u1_utils.h"
 #include "lattice.h"
 #include "operators.h"
@@ -65,14 +66,7 @@ enum mg_test_types
     THREE_LEVEL = 3           // Three level MG
 };
 
-// How should we generate null vectors?
-enum mg_null_gen_type
-{
-    NULL_GCR = 0,                    // Generate null vectors with GCR
-    NULL_BICGSTAB = 1,               // Generate null vectors with BiCGStab
-    NULL_CG = 2,                    // Generate null vectors with CG
-    NULL_MINRES = 3,                // Generate null vectors with MinRes
-};
+
 
 // What gauge field do we use? Load, random, unit?
 enum gauge_create_type
@@ -80,15 +74,6 @@ enum gauge_create_type
     GAUGE_LOAD = 0,             // Load a gauge field.
     GAUGE_RANDOM = 1,           // Create a gauge field with deviation 1/sqrt(beta)
     GAUGE_UNIT = 2              // Use a unit gauge field.
-};
-
-// What structure are we preserving when we block? None, E/O, Corners?
-enum blocking_strategy
-{
-    BLOCK_NONE = 0,                   // Block fully.
-    BLOCK_EO = 1,                     // Even/odd
-    BLOCK_CORNER = 2,                 // Corners
-    BLOCK_TOPO = 3                    // Chirality defined by taste singlet
 };
 
 // Custom routine to load gauge field.
@@ -1051,79 +1036,7 @@ int main(int argc, char** argv)
                     // This is handled differently if we're on the top level or further down. 
                     if (mgstruct.curr_level == 0) // top level routines
                     {
-                        switch (bstrat)
-                        {
-                            case BLOCK_EO:
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    if (Lat.index_is_even(j))
-                                    {
-                                        mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j];
-                                        mgstruct.null_vectors[0][2*i][j] = 0.0;
-                                    }
-                                }
-                                break;
-                            case BLOCK_TOPO:
-                                // Form vectors from (1 \pm \Gamma_5)/2.
-
-                                // Form \Gamma_5 null.
-
-                                // i/2 \Gamma_1 \Gamma_2
-                                zero<double>(tmp, mgstruct.curr_fine_size);
-                                zero<double>(tmp2, mgstruct.curr_fine_size);
-                                staggered_symmshift_y(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
-                                staggered_symmshift_x(tmp2, tmp, (void*)&stagif);
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    mgstruct.null_vectors[0][2*i+1][j] += complex<double>(0.0,0.5)*tmp2[j];
-                                }
-
-                                // -i/2 \Gamma_2 \Gamma_1
-                                zero<double>(tmp, mgstruct.curr_fine_size);
-                                zero<double>(tmp2, mgstruct.curr_fine_size);
-                                staggered_symmshift_x(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
-                                staggered_symmshift_y(tmp2, tmp, (void*)&stagif);
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    mgstruct.null_vectors[0][2*i+1][j] -= complex<double>(0.0,0.5)*tmp2[j];
-                                }
-
-                                // Form the two projectors.
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    mgstruct.null_vectors[0][2*i][j] = 0.5*(mgstruct.null_vectors[0][2*i][j]+mgstruct.null_vectors[0][2*i+1][j]);
-                                    mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j]-mgstruct.null_vectors[0][2*i+1][j];
-                                }
-
-
-                                break;
-                            case BLOCK_CORNER:
-
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    // Find x and y component. 
-                                    Lat.index_to_coord(j, coord, nd);
-                                    if (coord[0]%2 == 1 && coord[1]%2 == 0)
-                                    {
-                                        mgstruct.null_vectors[0][4*i+1][j] = mgstruct.null_vectors[0][4*i][j];
-                                        mgstruct.null_vectors[0][4*i][j] = 0.0;
-                                    }
-                                    else if (coord[0]%2 == 0 && coord[1]%2 == 1)
-                                    {
-                                        mgstruct.null_vectors[0][4*i+2][j] = mgstruct.null_vectors[0][4*i][j];
-                                        mgstruct.null_vectors[0][4*i][j] = 0.0;
-                                    }
-                                    else if (coord[0]%2 == 1 && coord[1]%2 == 1)
-                                    {
-                                        mgstruct.null_vectors[0][4*i+3][j] = mgstruct.null_vectors[0][4*i][j];
-                                        mgstruct.null_vectors[0][4*i][j] = 0.0;
-                                    }
-                                }
-                                break;
-                            case BLOCK_NONE:
-                                // Nothing special to do.
-                                break;
-                        }
+                        null_partition_staggered(&mgstruct, i, bstrat, &Lat);
                     }
                     else // not on the top level
                     {
@@ -1229,79 +1142,7 @@ int main(int argc, char** argv)
                     // This is handled differently if we're on the top level or further down. 
                     if (mgstruct.curr_level == 0) // top level routines
                     {
-                        switch (bstrat)
-                        {
-                            case BLOCK_EO:
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    if (Lat.index_is_even(j))
-                                    {
-                                        mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j];
-                                        mgstruct.null_vectors[0][2*i][j] = 0.0;
-                                    }
-                                }
-                                break;
-                            case BLOCK_TOPO:
-                                // Form vectors from (1 \pm \Gamma_5)/2.
-
-                                // Form \Gamma_5 null.
-
-                                // i/2 \Gamma_1 \Gamma_2
-                                zero<double>(tmp, mgstruct.curr_fine_size);
-                                zero<double>(tmp2, mgstruct.curr_fine_size);
-                                staggered_symmshift_y(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
-                                staggered_symmshift_x(tmp2, tmp, (void*)&stagif);
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    mgstruct.null_vectors[0][2*i+1][j] += complex<double>(0.0,0.5)*tmp2[j];
-                                }
-
-                                // -i/2 \Gamma_2 \Gamma_1
-                                zero<double>(tmp, mgstruct.curr_fine_size);
-                                zero<double>(tmp2, mgstruct.curr_fine_size);
-                                staggered_symmshift_x(tmp, mgstruct.null_vectors[0][2*i], (void*)&stagif);
-                                staggered_symmshift_y(tmp2, tmp, (void*)&stagif);
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    mgstruct.null_vectors[0][2*i+1][j] -= complex<double>(0.0,0.5)*tmp2[j];
-                                }
-
-                                // Form the two projectors.
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    mgstruct.null_vectors[0][2*i][j] = 0.5*(mgstruct.null_vectors[0][2*i][j]+mgstruct.null_vectors[0][2*i+1][j]);
-                                    mgstruct.null_vectors[0][2*i+1][j] = mgstruct.null_vectors[0][2*i][j]-mgstruct.null_vectors[0][2*i+1][j];
-                                }
-
-
-                                break;
-                            case BLOCK_CORNER:
-
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    // Find x and y component. 
-                                    Lat.index_to_coord(j, coord, nd);
-                                    if (coord[0]%2 == 1 && coord[1]%2 == 0)
-                                    {
-                                        mgstruct.null_vectors[0][4*i+1][j] = mgstruct.null_vectors[0][4*i][j];
-                                        mgstruct.null_vectors[0][4*i][j] = 0.0;
-                                    }
-                                    else if (coord[0]%2 == 0 && coord[1]%2 == 1)
-                                    {
-                                        mgstruct.null_vectors[0][4*i+2][j] = mgstruct.null_vectors[0][4*i][j];
-                                        mgstruct.null_vectors[0][4*i][j] = 0.0;
-                                    }
-                                    else if (coord[0]%2 == 1 && coord[1]%2 == 1)
-                                    {
-                                        mgstruct.null_vectors[0][4*i+3][j] = mgstruct.null_vectors[0][4*i][j];
-                                        mgstruct.null_vectors[0][4*i][j] = 0.0;
-                                    }
-                                }
-                                break;
-                            case BLOCK_NONE:
-                                // Nothing special to do.
-                                break;
-                        }
+                        null_partition_staggered(&mgstruct, i, bstrat, &Lat);
                     }
                     else // not on the top level
                     {
