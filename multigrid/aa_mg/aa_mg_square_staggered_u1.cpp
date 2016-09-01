@@ -7,6 +7,7 @@
 #include <sstream>
 #include <complex>
 #include <random>
+#include <vector>
 #include <cstring> // should be replaced by using sstream
 
 
@@ -119,12 +120,14 @@ void display_usage()
     cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
     cout << "--null-precision [null prec]                  (default 5e-5)\n";
     cout << "--null-max-iter [null maximum iterations]     (default 500)\n";
+    cout << "--null-restart [yes, no]                      (default no)\n";
+    cout << "--null-restart-freq [#]                       (default 8 if restarting is enabled)\n";
     cout << "--null-mass [mass]                            (default 1e-4)\n";
     cout << "--null-eo [corner, yes, no, topo]             (default yes)\n";
     cout << "--null-global-ortho-conj [yes, no]            (default no, it only helps in some weird fluke cases)\n";
     cout << "--null-ortho-eo [yes, no]                     (default no)\n"; 
     cout << "--mass [mass]                                 (default 1e-2)\n";
-    cout << "--blocksize [blocksize]                       (default 4)\n";
+    cout << "--blocksize [blocksize] {#, #...}             (default 4, same for all levels)\n";
     cout << "--nvec [nvec]                                 (default 4)\n";
     cout << "--nrefine [number coarse]                     (default 1)\n";
     cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
@@ -208,8 +211,7 @@ int main(int argc, char** argv)
     {
         n_refine = 2;
     }
-    int X_BLOCKSIZE = 4; // Can be overrided with below arg on command line
-    int Y_BLOCKSIZE = 4; // with --blocksize 
+    vector<int> blocksizes; blocksizes.push_back(4); // Vector of block sizes.
     blocking_strategy bstrat = BLOCK_EO; // BLOCK_NONE, BLOCK_EO, BLOCK_CORNER
     int null_partitions = 2; 
     
@@ -230,6 +232,8 @@ int main(int argc, char** argv)
                            // Can be overriden on command line with --nvec
     int null_max_iter = 500;
     double null_precision = 5e-5; //5e-4; // Can be overriden on command line with --null-precision
+    bool null_restart = false; // do we restart?
+    int null_restart_freq = 8; // if we are restarting, what's the frequency?
     double null_mass = 1e-4; // What mass do we use for null vector generation?
     
     // Do we globally orthogonalize null vectors both against previous null vectors and their conjugate?
@@ -346,9 +350,13 @@ int main(int argc, char** argv)
             }
             else if (strcmp(argv[i], "--blocksize") == 0)
             {
-                X_BLOCKSIZE = atoi(argv[i+1]);
-                Y_BLOCKSIZE = X_BLOCKSIZE;
+                blocksizes[0] = atoi(argv[i+1]);
                 i++;
+                while (i+1 != argc && argv[i+1][0] != '-')
+                {
+                    blocksizes.push_back(atoi(argv[i+1]));
+                    i++;
+                }
             }
             else if (strcmp(argv[i], "--nvec") == 0)
             {
@@ -363,6 +371,23 @@ int main(int argc, char** argv)
             else if (strcmp(argv[i], "--null-max-iter") == 0)
             {
                 null_max_iter = atoi(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--null-restart") == 0)
+            {
+                if (strcmp(argv[i+1], "yes") == 0)
+                {
+                    null_restart = true;
+                }
+                else if (strcmp(argv[i+1], "no") == 0)
+                {
+                    null_restart = false;
+                }
+                i++;
+            }
+            else if (strcmp(argv[i], "--null-restart-freq") == 0)
+            {
+                null_restart_freq = atoi(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--null-mass") == 0)
@@ -757,16 +782,35 @@ int main(int argc, char** argv)
     mgstruct.y_fine = Lat.get_lattice_dimension(1); 
     mgstruct.Nc = Nc; // only matters for square laplace.
     mgstruct.n_refine = n_refine; 
+    if (blocksizes.size() != n_refine && blocksizes.size() != 1 && n_refine > 0)
+    {
+        cout << "[ERROR]: Incorrect number of block sizes supplied. Needs to be either 1 or nrefine.\n";
+        return 0;
+    }
+    
     mgstruct.blocksize_x = new int[n_refine];
     mgstruct.blocksize_y = new int[n_refine];
+    if (blocksizes.size() == 1)
+    {
+        for (i = 0; i < n_refine; i++)
+        {
+            mgstruct.blocksize_x[i] = blocksizes[0];
+            mgstruct.blocksize_y[i] = blocksizes[0];
+        }
+    }
+    else // there are unique blocksizes for each level.
+    {
+        for (i = 0; i < n_refine; i++)
+        {
+            mgstruct.blocksize_x[i] = blocksizes[i];
+            mgstruct.blocksize_y[i] = blocksizes[i];
+        }
+    }
+    
     //mgstruct.blocksize_x[0] = 8;
     //mgstruct.blocksize_y[0] = 8;
     //for (i = 1; i < n_refine; i++)
-    for (i = 0; i < n_refine; i++)
-    {
-        mgstruct.blocksize_x[i] = X_BLOCKSIZE;
-        mgstruct.blocksize_y[i] = Y_BLOCKSIZE;
-    }
+    
 
     switch (bstrat)
     {
@@ -787,7 +831,17 @@ int main(int argc, char** argv)
     mgstruct.matrix_vector = op; //square_staggered_u1;
     mgstruct.matrix_extra_data = (void*)&stagif; 
     
-    cout << "[MG]: X_Block " << X_BLOCKSIZE << " Y_Block " << Y_BLOCKSIZE << " NullVectors " << n_null_vector << "\n";
+    cout << "[MG]: X_Block ";
+    for (i = 0; i < n_refine; i++)
+    {
+        cout << mgstruct.blocksize_x[i] << " ";
+    }
+    cout << "Y_Block ";
+    for (i = 0; i < n_refine; i++)
+    {
+        cout << mgstruct.blocksize_y[i] << " "; 
+    }
+    cout << "NullVectors " << n_null_vector << "\n";
     
     // Set the starting mg_struct state.
     mgstruct.curr_level = 0; // Ready to do top level -> second level.
@@ -1031,15 +1085,37 @@ int main(int argc, char** argv)
                 switch (null_gen)
                 {
                     case NULL_GCR:
-                        minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        if (null_restart)
+                        {
+                            minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                        }
+                        else
+                        {
+                            minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        }
                         break;
                     case NULL_BICGSTAB:
-                        minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        if (null_restart)
+                        {
+                            minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                        }
+                        else
+                        {
+                            minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        }
                         break;
                     case NULL_CG:
-                        minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        if (null_restart) // why would you do this I don't know it's CG come on
+                        {
+                            minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                        }
+                        else
+                        {
+                            minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        }
                         break;
                     case NULL_MINRES:
+                        // Restarting doesn't make sense for MinRes. 
                         minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         break;
                 }
