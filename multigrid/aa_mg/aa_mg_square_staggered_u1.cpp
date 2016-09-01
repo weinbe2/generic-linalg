@@ -118,6 +118,7 @@ void display_usage()
     cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
     cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
     cout << "--null-precision [null prec]                  (default 5e-5)\n";
+    cout << "--null-max-iter [null maximum iterations]     (default 500)\n";
     cout << "--null-mass [mass]                            (default 1e-4)\n";
     cout << "--null-eo [corner, yes, no, topo]             (default yes)\n";
     cout << "--null-global-ortho-conj [yes, no]            (default no, it only helps in some weird fluke cases)\n";
@@ -357,6 +358,11 @@ int main(int argc, char** argv)
             else if (strcmp(argv[i], "--null-precision") == 0)
             {
                 null_precision = atof(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--null-max-iter") == 0)
+            {
+                null_max_iter = atoi(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--null-mass") == 0)
