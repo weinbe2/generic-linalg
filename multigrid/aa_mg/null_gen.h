@@ -28,7 +28,7 @@ enum blocking_strategy
 void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null_vec, blocking_strategy bstrat, Lattice* Lat);
 
 // Function to partition null vectors on the coarse level. Should update "Lattice" object for all levels.
-void null_partition_coarse(complex<double>** null_vector, mg_operator_struct_complex* mgstruct, blocking_strategy bstrat);
+void null_partition_coarse(mg_operator_struct_complex* mgstruct, int num_null_vec, blocking_strategy bstrat);
 
 
 #endif // MG_NULL_GEN

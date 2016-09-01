@@ -1040,58 +1040,7 @@ int main(int argc, char** argv)
                     }
                     else // not on the top level
                     {
-                        switch (bstrat)
-                        {
-                            case BLOCK_EO:
-                            case BLOCK_TOPO:
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    int c = j % mgstruct.n_vector; // What color index do we have?
-                                                                   // 0 to mgstruct.n_vector/2-1 is even, else is odd.
-                                    //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
-                                    //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
-
-                                    // If c is even, it's from an even vector, otherwise it's from an odd vector!
-
-                                    if (c%2 == 1)
-                                    {
-                                        mgstruct.null_vectors[mgstruct.curr_level][2*i+1][j] = mgstruct.null_vectors[mgstruct.curr_level][2*i][j];
-                                        mgstruct.null_vectors[mgstruct.curr_level][2*i][j] = 0.0;
-                                    }
-                                }
-                                break;
-                            case BLOCK_CORNER:
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    int c = j % mgstruct.n_vector; // What color index do we have?
-                                                                   // 0 to mgstruct.n_vector/2-1 is even, else is odd.
-                                    //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
-                                    //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
-
-                                    // If c is even, it's from an even vector, otherwise it's from an odd vector!
-
-                                    if (c%4 == 1)
-                                    {
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i+1][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
-                                    }
-                                    else if (c%4 == 2)
-                                    {
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i+2][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
-                                    }
-                                    else if (c%4 == 3)
-                                    {
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i+3][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
-                                    }
-                                }
-
-                                break;
-                            case BLOCK_NONE:
-                                // Nothing to do here...
-                                break;
-                        }
+                        null_partition_coarse(&mgstruct, i, bstrat);
                     }
                 }
                 
@@ -1146,58 +1095,7 @@ int main(int argc, char** argv)
                     }
                     else // not on the top level
                     {
-                        switch (bstrat)
-                        {
-                            case BLOCK_EO:
-                            case BLOCK_TOPO:
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    int c = j % mgstruct.n_vector; // What color index do we have?
-                                                                   // 0 to mgstruct.n_vector/2-1 is even, else is odd.
-                                    //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
-                                    //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
-
-                                    // If c is even, it's from an even vector, otherwise it's from an odd vector!
-
-                                    if (c%2 == 1)
-                                    {
-                                        mgstruct.null_vectors[mgstruct.curr_level][2*i+1][j] = mgstruct.null_vectors[mgstruct.curr_level][2*i][j];
-                                        mgstruct.null_vectors[mgstruct.curr_level][2*i][j] = 0.0;
-                                    }
-                                }
-                                break;
-                            case BLOCK_CORNER:
-                                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                                {
-                                    int c = j % mgstruct.n_vector; // What color index do we have?
-                                                                   // 0 to mgstruct.n_vector/2-1 is even, else is odd.
-                                    //int x_coord = (i - c)/mgstruct.n_vector % mgstruct.curr_x_fine;
-                                    //int y_coord = ((i - c)/mgstruct.n_vector - x_coord)/mgstruct.curr_x_fine;
-
-                                    // If c is even, it's from an even vector, otherwise it's from an odd vector!
-
-                                    if (c%4 == 1)
-                                    {
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i+1][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
-                                    }
-                                    else if (c%4 == 2)
-                                    {
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i+2][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
-                                    }
-                                    else if (c%4 == 3)
-                                    {
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i+3][j] = mgstruct.null_vectors[mgstruct.curr_level][4*i][j];
-                                        mgstruct.null_vectors[mgstruct.curr_level][4*i][j] = 0.0;
-                                    }
-                                }
-
-                                break;
-                            case BLOCK_NONE:
-                                // Nothing to do here...
-                                break;
-                        }
+                        null_partition_coarse(&mgstruct, i, bstrat);
                     }
                     
                     for (k = 0; k < null_partitions; k++)

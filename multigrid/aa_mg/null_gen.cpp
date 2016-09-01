@@ -92,7 +92,60 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 }
 
 // Function to partition null vectors on the coarse level. Should update "Lattice" object for all levels.
-void null_partition_coarse(complex<double>** null_vector, mg_operator_struct_complex* mgstruct, blocking_strategy bstrat)
+void null_partition_coarse(mg_operator_struct_complex* mgstruct, int num_null_vec, blocking_strategy bstrat)
 {
+	int j, c;
 	
+	switch (bstrat)
+	{
+		case BLOCK_EO:
+		case BLOCK_TOPO:
+			for (j = 0; j < mgstruct->curr_fine_size; j++)
+			{
+				c = j % mgstruct->n_vector; // What color index do we have?
+											   // 0 to mgstruct->n_vector/2-1 is even, else is odd.
+				//int x_coord = (i - c)/mgstruct->n_vector % mgstruct->curr_x_fine;
+				//int y_coord = ((i - c)/mgstruct->n_vector - x_coord)/mgstruct->curr_x_fine;
+
+				// If c is even, it's from an even vector, otherwise it's from an odd vector!
+
+				if (c%2 == 1)
+				{
+					mgstruct->null_vectors[mgstruct->curr_level][2*num_null_vec+1][j] = mgstruct->null_vectors[mgstruct->curr_level][2*num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][2*num_null_vec][j] = 0.0;
+				}
+			}
+			break;
+		case BLOCK_CORNER:
+			for (j = 0; j < mgstruct->curr_fine_size; j++)
+			{
+				c = j % mgstruct->n_vector; // What color index do we have?
+											   // 0 to mgstruct->n_vector/2-1 is even, else is odd.
+				//int x_coord = (i - c)/mgstruct->n_vector % mgstruct->curr_x_fine;
+				//int y_coord = ((i - c)/mgstruct->n_vector - x_coord)/mgstruct->curr_x_fine;
+
+				// If c is even, it's from an even vector, otherwise it's from an odd vector!
+
+				if (c%4 == 1)
+				{
+					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec+1][j] = mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j] = 0.0;
+				}
+				else if (c%4 == 2)
+				{
+					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec+2][j] = mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j] = 0.0;
+				}
+				else if (c%4 == 3)
+				{
+					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec+3][j] = mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j] = 0.0;
+				}
+			}
+
+			break;
+		case BLOCK_NONE:
+			// Nothing to do here...
+			break;
+	}
 }
