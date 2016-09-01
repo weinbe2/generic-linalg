@@ -127,6 +127,8 @@ void display_usage()
     cout << "--nvec [nvec]                                 (default 4)\n";
     cout << "--nrefine [number coarse]                     (default 1)\n";
     cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
+    cout << "--coarse-precision [coarse precision]         (default 1e-3)\n";
+    cout << "--coarse-max-iter [coarse maximum iterations] (default 1024)\n";
     cout << "--gauge [unit, load, random]                  (default load)\n";
     cout << "--gauge-transform [yes, no]                   (default no)\n";
     cout << "--beta [3.0, 6.0, 10.0, 10000.0]              (default 6.0)\n";
@@ -240,7 +242,7 @@ int main(int argc, char** argv)
     inner_solver in_solve = GCR; //CR; //GCR; 
     double inner_precision = 1e-3;
     int inner_restart = 64;
-    int inner_max = 1000;
+    int inner_max = 1024;
     if (my_test == SMOOTHER_ONLY)
     {
         in_solve = NONE; 
@@ -441,6 +443,16 @@ int main(int argc, char** argv)
                 {
                     mlevel_type = MLEVEL_RECURSIVE; 
                 }
+                i++;
+            }
+            else if (strcmp(argv[i], "--coarse-precision") == 0)
+            {
+                inner_precision = atof(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--coarse-max-iter") == 0)
+            {
+                inner_max = atoi(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--gauge") == 0)
@@ -741,6 +753,9 @@ int main(int argc, char** argv)
     mgstruct.n_refine = n_refine; 
     mgstruct.blocksize_x = new int[n_refine];
     mgstruct.blocksize_y = new int[n_refine];
+    //mgstruct.blocksize_x[0] = 8;
+    //mgstruct.blocksize_y[0] = 8;
+    //for (i = 1; i < n_refine; i++)
     for (i = 0; i < n_refine; i++)
     {
         mgstruct.blocksize_x[i] = X_BLOCKSIZE;
