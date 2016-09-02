@@ -115,6 +115,10 @@ void display_usage()
     cout << "--lattice-size [32, 64, 128] {##}             (default 32x32)\n";
     cout << "--operator [laplace, laplace2, staggered\n";
     cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
+    cout << "--outer-precision [outer prec]                (default 5e-7)\n";
+    cout << "--outer-max-iter [outer maximum iterations]   (default 100000)\n";
+    cout << "--outer-restart [yes, no]                     (default yes)\n";
+    cout << "--outer-restart-freq [#]                      (default 64)\n";
     cout << "--null-operator [laplace, laplace2, staggered\n";
     cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
     cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
@@ -202,7 +206,9 @@ int main(int argc, char** argv)
     
     // Outer Inverter information.
     double outer_precision = 5e-7; 
-    int outer_restart = 64; 
+    bool outer_restart = true;
+    int outer_restart_freq = 64; 
+    int outer_max_iter = 100000;
     
     // Multigrid information. 
     int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
@@ -318,6 +324,33 @@ int main(int argc, char** argv)
                 {
                     opt = STAGGERED_INDEX;
                 }
+                i++;
+            }
+            else if (strcmp(argv[i], "--outer-precision") == 0)
+            {
+                outer_precision = atof(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--outer-max-iter") == 0)
+            {
+                outer_max_iter = atoi(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--outer-restart") == 0)
+            {
+                if (strcmp(argv[i+1], "yes") == 0)
+                {
+                    outer_restart = true;
+                }
+                else if (strcmp(argv[i+1], "no") == 0)
+                {
+                    outer_restart = false;
+                }
+                i++;
+            }
+            else if (strcmp(argv[i], "--outer-restart-freq") == 0)
+            {
+                outer_restart_freq = atoi(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--null-operator") == 0)
@@ -1789,7 +1822,14 @@ int main(int argc, char** argv)
         // Try a direct solve.
         cout << "\n[ORIG]: Solve fine system.\n";
 
-        invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), 100000, outer_precision, outer_restart, op, (void*)&stagif, &verb);
+        if (outer_restart)
+        {
+            invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
+        }
+        else
+        {
+            invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
+        }
         //invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
 
         if (invif.success == true)
@@ -1853,9 +1893,19 @@ int main(int argc, char** argv)
 
         // Well, maybe this will work?
         zero<double>(lhs, Lat.get_lattice_size());
-        //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-        invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-        //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
+        
+        if (outer_restart)
+        {
+            //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+            invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+            //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
+        }
+        else
+        {
+            invif = minv_vector_gcr_var_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+        }
+        
+        
 
         if (invif.success == true)
         {
