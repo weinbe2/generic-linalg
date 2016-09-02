@@ -104,6 +104,9 @@ inversion_info minv_vector_bicgstab_precond(double  *phi, double  *phi0, int siz
     // 8. Compute Astilde, w = <stilde, Astilde>/(Astilde, Astilde)
     zero<double>(Astilde, size);
     (*matrix_vector)(Astilde, stilde, extra_info);
+    //zero<double>(Aptilde, size);
+    //(*precond_matrix_vector)(Aptilde, Astilde, size, precond_info, &verb_prec);
+    //omega = dot<double>(Astilde, Aptilde, size)/dot<double>(Aptilde, Aptilde, size);
     omega = dot<double>(Astilde, stilde, size)/dot<double>(Astilde, Astilde, size);
     
     // 9. Update phi = phi + alpha*ptilde + omega*stilde
@@ -305,6 +308,9 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
     // 8. Compute Astilde, w = <stilde, Astilde>/(Astilde, Astilde)
     zero<double>(Astilde, size);
     (*matrix_vector)(Astilde, stilde, extra_info);
+    //zero<double>(Aptilde, size);
+    //(*precond_matrix_vector)(Aptilde, Astilde, size, precond_info, &verb_prec);
+    //omega = dot<double>(Astilde, Aptilde, size)/dot<double>(Aptilde, Aptilde, size);
     omega = dot<double>(Astilde, stilde, size)/dot<double>(Astilde, Astilde, size);
     
     // 9. Update phi = phi + alpha*ptilde + omega*stilde
