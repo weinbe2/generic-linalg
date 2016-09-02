@@ -131,7 +131,7 @@ void display_usage()
     cout << "--nvec [nvec]                                 (default 4)\n";
     cout << "--nrefine [number coarse]                     (default 1)\n";
     cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
-    cout << "--coarse-precision [coarse precision]         (default 1e-3)\n";
+    cout << "--coarse-precision [coarse precision]         (default 1e-2)\n";
     cout << "--coarse-max-iter [coarse maximum iterations] (default 1024)\n";
     cout << "--gauge [unit, load, random]                  (default load)\n";
     cout << "--gauge-transform [yes, no]                   (default no)\n";
@@ -245,7 +245,7 @@ int main(int argc, char** argv)
     // Inner solver.
     mg_multilevel_type mlevel_type = MLEVEL_SMOOTH; // MLEVEL_SMOOTH, MLEVEL_RECURSIVE --- do we smooth then go down, or smooth then krylov?
     inner_solver in_solve = GCR; //CR; //GCR; 
-    double inner_precision = 1e-3;
+    double inner_precision = 1e-2;
     int inner_restart = 64;
     int inner_max = 1024;
     if (my_test == SMOOTHER_ONLY)
@@ -1101,6 +1101,28 @@ int main(int argc, char** argv)
                         }
                         else
                         {
+                            // Orthogonal test.
+                            /*for (double tmpres = 1e-1; tmpres > null_precision; tmpres *= 0.8)
+                            {
+                                minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, tmpres, fine_square_staggered, &mgstruct, &verb);
+                                if (i > 0) // If there are vectors to orthogonalize against...
+                                {
+                                    for (j = 0; j < i; j++) // Iterate over all of them...
+                                    {
+                                        for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++) // And then iterate over even/odd or corners!
+                                        {
+                                            orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                            if (do_global_ortho_conj)
+                                            {
+                                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                            }
+                                        }
+                                    }
+                                }
+                            }*/
+                            // End orthogonal test.
                             minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         }
                         break;
