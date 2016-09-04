@@ -143,6 +143,8 @@ void display_usage()
     cout << "--nvec [nvec]                                 (default 4)\n";
     cout << "--nrefine [number coarse]                     (default 1)\n";
     cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
+    cout << "--coarse-solver [gcr, bicgstab, cg, minres,\n";
+    cout << "         cr, none]                            (default gcr)\n";
     cout << "--coarse-precision [coarse precision]         (default 1e-2)\n";
     cout << "--coarse-max-iter [coarse maximum iterations] (default 1024)\n";
     cout << "--gauge [unit, load, random]                  (default load)\n";
@@ -534,6 +536,34 @@ int main(int argc, char** argv)
                 }
                 i++;
             }
+            else if (strcmp(argv[i], "--coarse-solver") == 0)
+            {
+                if (strcmp(argv[i+1], "cr") == 0)
+                {
+                    in_solve = CR;
+                }
+                else if (strcmp(argv[i+1], "bicgstab") == 0)
+                {
+                    in_solve = BICGSTAB;
+                }
+                else if (strcmp(argv[i+1], "cg") == 0)
+                {
+                    in_solve = CG;
+                }
+                else if (strcmp(argv[i+1], "gcr") == 0)
+                {
+                    in_solve = GCR;
+                }
+                else if (strcmp(argv[i+1], "minres") == 0)
+                {
+                    in_solve = MINRES;
+                }
+                else if (strcmp(argv[i+1], "none") == 0)
+                {
+                    in_solve = NONE;
+                }
+                i++;
+            }
             else if (strcmp(argv[i], "--coarse-precision") == 0)
             {
                 inner_precision = atof(argv[i+1]);
@@ -840,6 +870,8 @@ int main(int argc, char** argv)
     mgstruct.y_fine = Lat.get_lattice_dimension(1); 
     mgstruct.Nc = Nc; // only matters for square laplace.
     mgstruct.n_refine = n_refine; 
+    mgstruct.dslash_count = new dslash_tracker(n_refine); 
+    
     if (blocksizes.size() != n_refine && blocksizes.size() != 1 && n_refine > 0)
     {
         cout << "[ERROR]: Incorrect number of block sizes supplied. Needs to be either 1 or nrefine.\n";

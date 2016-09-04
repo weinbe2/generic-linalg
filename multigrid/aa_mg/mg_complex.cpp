@@ -564,7 +564,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     // Next, solve z2 = P(P^\dag A P)^(-1) r1, r2 = r1 - A z2
     complex<double>* z2 = new complex<double>[fine_size]; zero<double>(z2, fine_size);
     complex<double>* r2 = new complex<double>[fine_size]; zero<double>(r2, fine_size); 
-    if (mgprecond->in_solve_type != NONE)
+    //if (mgprecond->in_solve_type != NONE)
     {
         
         // z2 = P ( P^\dag A P )^(-1) P^\dag r1 
@@ -583,6 +583,10 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             switch (mgprecond->in_solve_type)
             {
                 case NONE: // The code can't reach here, anyway.
+                    invif.resSq = 1;
+                    invif.iter = 0;
+                    invif.success = true;
+                    invif.name = "None";
                     break;
                 case MINRES:
                     invif = minv_vector_minres(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
@@ -648,7 +652,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         delete[] lhs_coarse;
         
     }
-    else // no inner solver, set lhs to z1, copy r1 into r2 (since z2 is trivially 0).
+    /*else // no inner solver, set lhs to z1, copy r1 into r2 (since z2 is trivially 0).
     {
         for (i = 0; i < fine_size; i++)
         {
@@ -656,7 +660,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             r2[i] = r1[i];
         }
         
-    }
+    }*/
     
     complex<double>* z3 = new complex<double>[fine_size]; zero<double>(z3, fine_size); 
     // Almost done! Do some post-smoothing. on z3 = A^(-1) r2

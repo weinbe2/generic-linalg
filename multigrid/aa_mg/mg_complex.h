@@ -46,6 +46,41 @@ void level_down(mg_operator_struct_complex* mgstruct);
 // Pull the operator struct up a level, updating curr_* variables.
 void level_up(mg_operator_struct_complex* mgstruct);
 
+// Dslash tracker
+struct dslash_tracker
+{
+    int n_refine;
+    int* krylov; // dslashes from the Krylov
+    int* presmooth; // dslashes from the presmooth
+    int* postsmooth; // dslashes from the postsmooth
+    int* residual; // dslashes from the residual equation in multigrid.
+    int* nullvectors; // dslashes from null vector generation/
+    
+    dslash_tracker(int refine) : n_refine(refine)
+    {
+        krylov = new int[refine+1];
+        presmooth = new int[refine+1];
+        postsmooth = new int[refine+1];
+        residual = new int[refine+1];
+        nullvectors = new int[refine+1];
+        
+        for (int i = 0; i < refine+1; i++)
+        {
+            krylov[i] = presmooth[i] = postsmooth[i] = residual[i] = nullvectors[i] = 0;
+        }
+    }
+    
+    ~dslash_tracker()
+    {
+        delete[] krylov;
+        delete[] presmooth;
+        delete[] postsmooth;
+        delete[] residual;
+        delete[] nullvectors; 
+    }
+            
+};
+
 // Multigrid operator struct.
 struct mg_operator_struct_complex
 {
@@ -74,6 +109,9 @@ struct mg_operator_struct_complex
     int curr_x_coarse;
     int curr_y_coarse; 
     int curr_coarse_size; 
+    
+    // Track dslashes
+    dslash_tracker* dslash_count; 
 };
 
 // Preconditioning struct
