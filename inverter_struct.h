@@ -14,6 +14,7 @@ struct inversion_info
   int iter; // number of iterations.
   bool success; // did we reach residual?
   std::string name; // name of algorithm.
+  int ops_count; // how many times was the matrix op called?
 };
 
 #endif

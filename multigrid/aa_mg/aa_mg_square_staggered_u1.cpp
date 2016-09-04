@@ -955,7 +955,7 @@ int main(int argc, char** argv)
     mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
     mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
     mgprecond.mlevel_type = mlevel_type; // Do we smooth then go down, or smooth then start a new Krylov?
-    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, GCR, BICGSTAB
+    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, GCR, BICGSTAB. Should also be used for recursive solve!!
     mgprecond.n_max = inner_max; // max number of steps to use for inner solver.
     mgprecond.n_restart = inner_restart; // frequency of restart (relevant for CG, GCR).
     mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
