@@ -1886,36 +1886,36 @@ int main(int argc, char** argv)
             case OUTER_GCR:
                 if (outer_restart)
                 {
-                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&stagif, &verb);
+                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&stagif, &verb);
+                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
                 }
                 break;
             case OUTER_CG:
                 if (outer_restart)
                 {
-                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&stagif, &verb);
+                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&stagif, &verb);
+                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
                 }
                 break;
             case OUTER_BICGSTAB:
                 if (outer_restart)
                 {
-                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&stagif, &verb);
+                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&stagif, &verb);
+                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
                 }
                 break;
         }
         //invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
-        mgstruct.dslash_count->nullvectors[mgstruct.curr_level] += invif.ops_count; 
+        mgstruct.dslash_count->krylov[mgstruct.curr_level] += invif.ops_count; 
 
         if (invif.success == true)
         {
