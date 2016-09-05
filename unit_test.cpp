@@ -74,11 +74,11 @@ int main(int argc, char** argv)
    invif = minv_vector_cg(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -90,28 +90,27 @@ int main(int argc, char** argv)
    invif = minv_vector_cg_restart(lhs, rhs, N*N, 4000, 1e-6, 8, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
    printf("End Check restarted CG(8).\n");
    printf("\n\n\n");
-    
    
    printf("Begin Check CR.\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
    invif = minv_vector_cr(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -123,11 +122,11 @@ int main(int argc, char** argv)
    invif = minv_vector_cr_restart(lhs, rhs, N*N, 4000, 1e-6, 8, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -139,11 +138,11 @@ int main(int argc, char** argv)
    invif = minv_vector_bicgstab(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -155,11 +154,11 @@ int main(int argc, char** argv)
    invif = minv_vector_bicgstab_restart(lhs, rhs, N*N, 4000, 1e-6, 8, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -171,11 +170,11 @@ int main(int argc, char** argv)
    invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -187,11 +186,11 @@ int main(int argc, char** argv)
    invif = minv_vector_gcr_restart(lhs, rhs, N*N, 4000, 1e-6, 8, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -203,11 +202,11 @@ int main(int argc, char** argv)
    invif = minv_vector_gmres(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -220,11 +219,11 @@ int main(int argc, char** argv)
    invif = minv_vector_gmres_restart(lhs, rhs, N*N, 4000, 1e-6, 8,  square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -236,11 +235,11 @@ int main(int argc, char** argv)
    invif = minv_vector_sor(lhs, rhs, N*N, 10000, 1e-6, 0.01, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -252,11 +251,11 @@ int main(int argc, char** argv)
    invif = minv_vector_minres(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -268,11 +267,11 @@ int main(int argc, char** argv)
    invif = minv_vector_minres(lhs, rhs, N*N, 10000, 1e-6, 0.8, square_laplacian, NULL, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -291,11 +290,11 @@ int main(int argc, char** argv)
    invif = minv_vector_cg_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -313,11 +312,11 @@ int main(int argc, char** argv)
    invif = minv_vector_cg_flex_precond(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -335,11 +334,11 @@ int main(int argc, char** argv)
    invif = minv_vector_cg_flex_precond_restart(lhs, rhs, N*N, 4000, 1e-6, 12, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -357,11 +356,11 @@ int main(int argc, char** argv)
    invif = minv_vector_bicgstab_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -379,11 +378,11 @@ int main(int argc, char** argv)
    invif = minv_vector_bicgstab_precond_restart(lhs, rhs, N*N, 10000, 1e-6, 8, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -401,11 +400,11 @@ int main(int argc, char** argv)
    invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, minres_preconditioner, (void*)&mps, &verb);
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -423,11 +422,11 @@ int main(int argc, char** argv)
    invif = minv_vector_gcr_var_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, gcr_preconditioner, (void*)&gps, &verb); /**/
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);
@@ -444,11 +443,11 @@ int main(int argc, char** argv)
    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, N*N, 10000, 1e-6, 12, square_laplacian, NULL, gcr_preconditioner, (void*)&gps, &verb); /**/
    if (invif.success == true)
    {
-      printf("GOOD Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    else
    {
-      printf("FAIL Iter: %d Resid: %.15e.\n", invif.iter, sqrt(invif.resSq));
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
    }
    explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
    printf("Explicit Resid: %.15e.\n", explicit_resid);

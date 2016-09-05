@@ -46,7 +46,7 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
   bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   // 1. r = b - Ax. x is phi, the initial guess. 
-  (*matrix_vector)(p,phi,extra_info); // p = Ax, temporarily.
+  (*matrix_vector)(p,phi,extra_info); invif.ops_count++; // p = Ax, temporarily.
   for (i = 0; i < size; i++) {
     r[i] = phi0[i] - p[i]; // r = b - Ax
   }
@@ -59,7 +59,7 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
     
     // 2. p = Ar.
     zero<double>(p, size); 
-    (*matrix_vector)(p, r, extra_info); // p = Ar
+    (*matrix_vector)(p, r, extra_info); invif.ops_count++; // p = Ar
     
     // 3. alpha = <p,r>/<p,p>.
     alpha = dot<double>(p, r, size)/norm2sq<double>(p, size); 
@@ -99,7 +99,7 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
   
   // Check true residual. 
   zero<double>(p, size);
-  (*matrix_vector)(p,x,extra_info);
+  (*matrix_vector)(p,x,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += (p[i] - phi0[i])*(p[i] - phi0[i]);
   
   // Copy solution into phi.
@@ -154,7 +154,7 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
   bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   // 1. r = b - Ax. x is phi, the initial guess. 
-  (*matrix_vector)(p,phi,extra_info); // p = Ax, temporarily.
+  (*matrix_vector)(p,phi,extra_info); invif.ops_count++; // p = Ax, temporarily.
   for (i = 0; i < size; i++) {
     r[i] = phi0[i] - p[i]; // r = b - Ax
   }
@@ -167,7 +167,7 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
     
     // 2. p = Ar.
     zero<double>(p, size); 
-    (*matrix_vector)(p, r, extra_info); // p = Ar
+    (*matrix_vector)(p, r, extra_info); invif.ops_count++; // p = Ar
     
     // 3. alpha = <p,r>/<p,p>.
     alpha = dot<double>(p, r, size)/norm2sq<double>(p, size); 
@@ -209,7 +209,7 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
   
   // Check true residual. 
   zero<double>(p, size); 
-  (*matrix_vector)(p,x,extra_info);
+  (*matrix_vector)(p,x,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += real(conj(p[i] - phi0[i])*(p[i] - phi0[i]));
   
   // Copy solution into phi.

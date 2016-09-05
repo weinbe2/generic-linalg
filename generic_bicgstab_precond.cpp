@@ -64,7 +64,7 @@ inversion_info minv_vector_bicgstab_precond(double  *phi, double  *phi0, int siz
 
   // 1. r = b - Ax. , r0 = arbitrary (use r).
   // Take advantage of initial guess in phi.
-  (*matrix_vector)(Aptilde, phi, extra_info);
+  (*matrix_vector)(Aptilde, phi, extra_info); invif.ops_count++;
   for(i = 0; i<size; i++) {
     r[i] = phi0[i] - Aptilde[i]; // 1. r0 = b-Ax0
   }
@@ -86,7 +86,7 @@ inversion_info minv_vector_bicgstab_precond(double  *phi, double  *phi0, int siz
     
     // 4a. Construct A ptilde.
     zero<double>(Aptilde, size); 
-    (*matrix_vector)(Aptilde, ptilde, extra_info);
+    (*matrix_vector)(Aptilde, ptilde, extra_info); invif.ops_count++;
     
     // 5. alpha = <r0, r>/<r0, Aptilde>
     alpha = rho/dot<double>(r0, Aptilde, size);
@@ -103,7 +103,7 @@ inversion_info minv_vector_bicgstab_precond(double  *phi, double  *phi0, int siz
     
     // 8. Compute Astilde, w = <stilde, Astilde>/(Astilde, Astilde)
     zero<double>(Astilde, size);
-    (*matrix_vector)(Astilde, stilde, extra_info);
+    (*matrix_vector)(Astilde, stilde, extra_info); invif.ops_count++;
     //zero<double>(Aptilde, size);
     //(*precond_matrix_vector)(Aptilde, Astilde, size, precond_info, &verb_prec);
     //omega = dot<double>(Astilde, Aptilde, size)/dot<double>(Aptilde, Aptilde, size);
@@ -156,7 +156,7 @@ inversion_info minv_vector_bicgstab_precond(double  *phi, double  *phi0, int siz
   }
   
   // Check the true residual. 
-  (*matrix_vector)(Aptilde,phi,extra_info);
+  (*matrix_vector)(Aptilde,phi,extra_info); invif.ops_count++; 
   truersq = diffnorm2sq<double>(Aptilde, phi0, size);
   
   // Free all the things!
@@ -184,6 +184,7 @@ inversion_info minv_vector_bicgstab_precond(double  *phi, double  *phi0, int siz
 inversion_info minv_vector_bicgstab_precond_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -193,17 +194,19 @@ inversion_info minv_vector_bicgstab_precond_restart(double  *phi, double  *phi0,
   inversion_verbose_struct verb_rest;
   shuffle_verbosity_restart(&verb_rest, verb);
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_bicgstab_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
     iter += invif.iter;
+    ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter;
+  invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   
@@ -268,7 +271,7 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
 
   // 1. r = b - Ax. , r0 = arbitrary (use r).
   // Take advantage of initial guess in phi.
-  (*matrix_vector)(Aptilde, phi, extra_info);
+  (*matrix_vector)(Aptilde, phi, extra_info); invif.ops_count++;
   for(i = 0; i<size; i++) {
     r[i] = phi0[i] - Aptilde[i]; // 1. r0 = b-Ax0
   }
@@ -290,7 +293,7 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
     
     // 4a. Construct A ptilde.
     zero<double>(Aptilde, size); 
-    (*matrix_vector)(Aptilde, ptilde, extra_info);
+    (*matrix_vector)(Aptilde, ptilde, extra_info); invif.ops_count++;
     
     // 5. alpha = <r0, r>/<r0, Aptilde>
     alpha = rho/dot<double>(r0, Aptilde, size);
@@ -307,7 +310,7 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
     
     // 8. Compute Astilde, w = <stilde, Astilde>/(Astilde, Astilde)
     zero<double>(Astilde, size);
-    (*matrix_vector)(Astilde, stilde, extra_info);
+    (*matrix_vector)(Astilde, stilde, extra_info); invif.ops_count++;
     //zero<double>(Aptilde, size);
     //(*precond_matrix_vector)(Aptilde, Astilde, size, precond_info, &verb_prec);
     //omega = dot<double>(Astilde, Aptilde, size)/dot<double>(Aptilde, Aptilde, size);
@@ -360,7 +363,7 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
   }
   
   // Check the true residual. 
-  (*matrix_vector)(Aptilde,phi,extra_info);
+  (*matrix_vector)(Aptilde,phi,extra_info); invif.ops_count++;
   truersq = diffnorm2sq<double>(Aptilde, phi0, size);
   
   // Free all the things!
@@ -388,6 +391,7 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
 inversion_info minv_vector_bicgstab_precond_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -397,17 +401,19 @@ inversion_info minv_vector_bicgstab_precond_restart(complex<double>  *phi, compl
   inversion_verbose_struct verb_rest;
   shuffle_verbosity_restart(&verb_rest, verb);
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_bicgstab_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
     iter += invif.iter;
+    ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter;
+  invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   

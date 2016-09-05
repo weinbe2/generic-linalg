@@ -51,7 +51,7 @@ inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_it
   // Iterate until convergence: x_{n+1} = x_n + omega(b - Ax_n)
   for (k = 0; k < max_iter; k++) {
     // Apply A to x_n.
-    (*matrix_vector)(Ax, x, extra_info);
+    (*matrix_vector)(Ax, x, extra_info); invif.ops_count++;
     
     // Update x_new = x + omega(b - Ax)
     for (i = 0; i < size; i++)
@@ -91,7 +91,7 @@ inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_it
   }
   
   // Check true residual. 
-  (*matrix_vector)(Ax,x,extra_info);
+  (*matrix_vector)(Ax,x,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += (Ax[i] - phi0[i])*(Ax[i] - phi0[i]);
   
   // Copy solution into phi.
@@ -147,7 +147,7 @@ inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, in
   // Iterate until convergence: x_{n+1} = x_n + omega(b - Ax_n)
   for (k = 0; k < max_iter; k++) {
     // Apply A to x_n.
-    (*matrix_vector)(Ax, x, extra_info);
+    (*matrix_vector)(Ax, x, extra_info); invif.ops_count++;
     
     // Update x_new = x + omega(b - Ax)
     for (i = 0; i < size; i++)
@@ -186,7 +186,7 @@ inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, in
   }
   
   // Check true residual. 
-  (*matrix_vector)(Ax,x,extra_info);
+  (*matrix_vector)(Ax,x,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += real(conj(Ax[i] - phi0[i])*(Ax[i] - phi0[i]));
   
   // Copy solution into phi.

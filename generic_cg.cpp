@@ -156,7 +156,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
   bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   // 1. Compute r = b - Ax
-  (*matrix_vector)(p, phi, extra_info);
+  (*matrix_vector)(p, phi, extra_info); invif.ops_count++;
   for (i = 0; i < size; i++)
   {
     r[i] = phi0[i] - p[i];
@@ -167,7 +167,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
   
   // Compute Ap.
   zero<double>(Ap, size);
-  (*matrix_vector)(Ap, p, extra_info);
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   
   // Compute rsq.
   rsq = norm2sq<double>(r, size);
@@ -202,7 +202,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
     }
     
     // Compute the new Ap.
-    (*matrix_vector)(Ap, p, extra_info);
+    (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   } 
     
   if(k == max_iter) {
@@ -215,7 +215,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
     k++; 
   }
   
-  (*matrix_vector)(Ap,phi,extra_info);
+  (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
   truersq = diffnorm2sq<double>(Ap, phi0, size);
   
   // Free all the things!
@@ -236,6 +236,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
 inversion_info minv_vector_cg_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -245,17 +246,18 @@ inversion_info minv_vector_cg_restart(double  *phi, double  *phi0, int size, int
   stringstream ss;
   ss << "CG(" << restart_freq << ")";
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_cg(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
     iter += invif.iter;
+    ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
-  invif.iter = iter;
+  invif.iter = iter; invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   
@@ -303,7 +305,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   // 1. Compute r = b - Ax
-  (*matrix_vector)(p, phi, extra_info);
+  (*matrix_vector)(p, phi, extra_info); invif.ops_count++;
   for (i = 0; i < size; i++)
   {
     r[i] = phi0[i] - p[i];
@@ -314,7 +316,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   
   // Compute Ap.
   zero<double>(Ap, size);
-  (*matrix_vector)(Ap, p, extra_info);
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   
   // Compute rsq.
   rsq = norm2sq<double>(r, size);
@@ -351,7 +353,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
     }
     
     // Compute the new Ap.
-    (*matrix_vector)(Ap, p, extra_info);
+    (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   } 
     
   if(k == max_iter) {
@@ -363,7 +365,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
     k++;
   }
   
-  (*matrix_vector)(Ap,phi,extra_info);
+  (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
   truersq = diffnorm2sq<double>(Ap, phi0, size);
   
   // Free all the things!
@@ -387,6 +389,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
 inversion_info minv_vector_cg_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -396,17 +399,18 @@ inversion_info minv_vector_cg_restart(complex<double>  *phi, complex<double>  *p
   stringstream ss;
   ss << "CG(" << restart_freq << ")";
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_cg(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
     iter += invif.iter;
+    ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
-  invif.iter = iter;
+  invif.iter = iter; invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   

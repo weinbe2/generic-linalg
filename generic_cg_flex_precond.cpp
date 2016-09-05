@@ -57,7 +57,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
   bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   // 1. Compute r = b - Ax
-  (*matrix_vector)(p, phi, extra_info);
+  (*matrix_vector)(p, phi, extra_info); invif.ops_count++;
   for (i = 0; i < size; i++)
   {
     r[i] = phi0[i] - p[i];
@@ -71,7 +71,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
   
   // Compute Ap.
   zero<double>(Ap, size);
-  (*matrix_vector)(Ap, p, extra_info);
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
 
   // iterate till convergence
   for(k = 0; k< max_iter; k++) {
@@ -107,7 +107,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
     
     // 8. Compute Az.
     zero<double>(Az, size);
-    (*matrix_vector)(Az, z, extra_info); 
+    (*matrix_vector)(Az, z, extra_info); invif.ops_count++;
     
     // 9. b_ij = -<p_i, z>/<p_i, A p_i>;
     // 10. p_{j+1} = z_{j+1} + sum_i=0^j b_ij p_i
@@ -139,7 +139,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
   
   
   zero<double>(Ap, size); 
-  (*matrix_vector)(Ap,phi,extra_info);
+  (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += (Ap[i] - phi0[i])*(Ap[i] - phi0[i]);
   
   // Free all the things!
@@ -171,6 +171,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
 inversion_info minv_vector_cg_flex_precond_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double truersq = 0.0;
   int i;
@@ -182,23 +183,24 @@ inversion_info minv_vector_cg_flex_precond_restart(double  *phi, double  *phi0, 
   inversion_verbose_struct verb_rest;
   shuffle_verbosity_restart(&verb_rest, verb);
   
-  iter = 0;  
+  iter = 0;  ops_count = 0; 
   do
   {
     invif = minv_vector_cg_flex_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
     iter += invif.iter;
+    ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   double *Aphi = new double[size];
-  (*matrix_vector)(Aphi, phi, extra_info);
+  (*matrix_vector)(Aphi, phi, extra_info); ops_count++;
   for(i=0; i < size; i++) truersq += (Aphi[i] - phi0[i])*(Aphi[i] - phi0[i]);
   invif.resSq = truersq; 
   delete[] Aphi; 
   
-  invif.iter = iter;
+  invif.iter = iter; invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(truersq)/bsqrt);
   
@@ -251,7 +253,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   // 1. Compute r = b - Ax
-  (*matrix_vector)(p, phi, extra_info);
+  (*matrix_vector)(p, phi, extra_info); invif.ops_count++;
   for (i = 0; i < size; i++)
   {
     r[i] = phi0[i] - p[i];
@@ -265,7 +267,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   
   // Compute Ap.
   zero<double>(Ap, size);
-  (*matrix_vector)(Ap, p, extra_info);
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
 
   // iterate till convergence
   for(k = 0; k< max_iter; k++) {
@@ -301,7 +303,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
     
     // 8. Compute Az.
     zero<double>(Az, size);
-    (*matrix_vector)(Az, z, extra_info); 
+    (*matrix_vector)(Az, z, extra_info); invif.ops_count++;
     
     // 9. b_ij = -<p_i, z>/<p_i, A p_i>;
     // 10. p_{j+1} = z_{j+1} + sum_i=0^j b_ij p_i
@@ -333,7 +335,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   
   
   zero<double>(Ap, size); 
-  (*matrix_vector)(Ap,phi,extra_info);
+  (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += real(conj(Ap[i] - phi0[i])*(Ap[i] - phi0[i]));
   
   // Free all the things!
@@ -366,6 +368,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
 inversion_info minv_vector_cg_flex_precond_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double truersq = 0.0;
   int i;
@@ -377,25 +380,25 @@ inversion_info minv_vector_cg_flex_precond_restart(complex<double>  *phi, comple
   inversion_verbose_struct verb_rest;
   shuffle_verbosity_restart(&verb_rest, verb);
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_cg_flex_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
-    iter += invif.iter;
+    iter += invif.iter; ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   complex<double> *Aphi = new complex<double>[size];
-  (*matrix_vector)(Aphi, phi, extra_info);
+  (*matrix_vector)(Aphi, phi, extra_info); ops_count++;
   for(i=0; i < size; i++) truersq += real(conj(Aphi[i] - phi0[i])*(Aphi[i] - phi0[i]));
   invif.resSq = truersq; 
   delete[] Aphi;
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(truersq)/bsqrt);
   
-  invif.iter = iter;
+  invif.iter = iter; invif.ops_count = ops_count; 
   
   invif.name = ss.str();
   // invif.resSq is good.

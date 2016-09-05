@@ -56,7 +56,7 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
 
   // 1. r = b - Ax. , r0 = arbitrary (use r).
   // Take advantage of initial guess in phi.
-  (*matrix_vector)(Ap, phi, extra_info);
+  (*matrix_vector)(Ap, phi, extra_info); invif.ops_count++;
   for(i = 0; i<size; i++) {
     r[i] = phi0[i] - Ap[i]; // 1. r0 = b-Ax0
   }
@@ -69,7 +69,7 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
   rho = dot<double>(r0, r, size);
   
   // 2b. Initialize Ap.
-  (*matrix_vector)(Ap, p, extra_info);
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   
   // 3. iterate till convergence
   for(k = 0; k< max_iter; k++) {
@@ -84,7 +84,7 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
     }
     
     // 6. Compute As, w = <s, As>/(As, As)
-    (*matrix_vector)(As, s, extra_info);
+    (*matrix_vector)(As, s, extra_info); invif.ops_count++;
     omega = dot<double>(As, s, size)/dot<double>(As, As, size);
     
     // 7. Update phi = phi + alpha*p + omega*s
@@ -119,7 +119,7 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
       p[i] = r[i] + beta*(p[i] - omega*Ap[i]);
     }
     zero<double>(Ap, size);
-    (*matrix_vector)(Ap, p, extra_info);
+    (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
     
     
   }
@@ -162,6 +162,7 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
 inversion_info minv_vector_bicgstab_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count;
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -171,17 +172,17 @@ inversion_info minv_vector_bicgstab_restart(double  *phi, double  *phi0, int siz
   stringstream ss;
   ss << "BiCGStab(" << restart_freq << ")";
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_bicgstab(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
-    iter += invif.iter;
+    iter += invif.iter; ops_count += invif.ops_count;
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
-  invif.iter = iter;
+  invif.iter = iter; invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   
@@ -238,7 +239,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
 
   // 1. r = b - Ax. , r0 = arbitrary (use r).
   // Take advantage of initial guess in phi.
-  (*matrix_vector)(Ap, phi, extra_info);
+  (*matrix_vector)(Ap, phi, extra_info); invif.ops_count++;
   for(i = 0; i<size; i++) {
     r[i] = phi0[i] - Ap[i]; // 1. r0 = b-Ax0
   }
@@ -251,7 +252,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   rho = dot<double>(r0, r, size);
   
   // 2b. Initialize Ap.
-  (*matrix_vector)(Ap, p, extra_info);
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   
   // 3. iterate till convergence
   for(k = 0; k< max_iter; k++) {
@@ -266,7 +267,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
     }
     
     // 6. Compute As, w = <s, As>/(As, As)
-    (*matrix_vector)(As, s, extra_info);
+    (*matrix_vector)(As, s, extra_info); invif.ops_count++;
     omega = dot<double>(As, s, size)/dot<double>(As, As, size);
     
     // 7. Update phi = phi + alpha*p + omega*s
@@ -301,7 +302,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
       p[i] = r[i] + beta*(p[i] - omega*Ap[i]);
     }
     zero<double>(Ap, size);
-    (*matrix_vector)(Ap, p, extra_info);
+    (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
     
     
   }
@@ -318,7 +319,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   }
   
   // Check the true residual. 
-  (*matrix_vector)(Ap,phi,extra_info);
+  (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
   truersq = diffnorm2sq<double>(Ap, phi0, size);
   
   // Free all the things!
@@ -344,6 +345,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
 inversion_info minv_vector_bicgstab_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -353,18 +355,18 @@ inversion_info minv_vector_bicgstab_restart(complex<double>  *phi, complex<doubl
   inversion_verbose_struct verb_rest;
   shuffle_verbosity_restart(&verb_rest, verb);
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_bicgstab(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
     iter += invif.iter;
-    
+    ops_count += invif.ops_count; 
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter;
-  
+  invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   

@@ -95,7 +95,7 @@ inversion_info minv_vector_gmres(double  *phi, double  *phi0, int size, int max_
   //bhTy = (double*)malloc(max_iter*sizeof(double));
   
   // Compute the residual. Ax' = res gives the solution phi+x'.
-  (*matrix_vector)(tmp, phi, extra_info);
+  (*matrix_vector)(tmp, phi, extra_info); invif.ops_count++;
   for (i=0;i<size;i++) // res = b - Ax_0
   {
     res[i] = phi0[i]-tmp[i]; 
@@ -136,7 +136,7 @@ inversion_info minv_vector_gmres(double  *phi, double  *phi0, int size, int max_
       q[iter][j] = h[iter-1][j] = hTh[iter-1][j] = 0.0;
     }
     // Compute q_{iter} = Aq_{iter-1}
-    (*matrix_vector)(q[iter],q[iter-1],extra_info);
+    (*matrix_vector)(q[iter],q[iter-1],extra_info); invif.ops_count++;
 
     // Perform an Arnoldi iteration. In some regards, this is just
     // a Gram-Schmidt process.
@@ -260,7 +260,7 @@ inversion_info minv_vector_gmres(double  *phi, double  *phi0, int size, int max_
     // Check the residual. In principle, we can do this by looking at
     // the subspace norm, but I'm not sure how to combine that with
     // the fact we have an initial guess. Have to think about that. 
-    (*matrix_vector)(res,tmp2,extra_info);
+    (*matrix_vector)(res,tmp2,extra_info); invif.ops_count++;
     
     localres = 0.0;
     for (i=0;i<size;i++)
@@ -387,6 +387,7 @@ inversion_info minv_vector_gmres(double  *phi, double  *phi0, int size, int max_
 inversion_info minv_vector_gmres_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -396,17 +397,18 @@ inversion_info minv_vector_gmres_restart(double  *phi, double  *phi0, int size, 
   stringstream ss;
   ss << "GMRES(" << restart_freq << ")";
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_gmres(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
     iter += invif.iter;
+    ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
-  invif.iter = iter;
+  invif.iter = iter; invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   
@@ -483,7 +485,7 @@ inversion_info minv_vector_gmres(complex<double>  *phi, complex<double>  *phi0, 
   //bhTy = (double*)malloc(max_iter*sizeof(double));
   
   // Compute the residual. Ax' = res gives the solution phi+x'.
-  (*matrix_vector)(tmp, phi, extra_info);
+  (*matrix_vector)(tmp, phi, extra_info); invif.ops_count++;
   for (i=0;i<size;i++) // res = b - Ax_0
   {
     res[i] = phi0[i]-tmp[i]; 
@@ -524,7 +526,7 @@ inversion_info minv_vector_gmres(complex<double>  *phi, complex<double>  *phi0, 
       q[iter][j] = h[iter-1][j] = hTh[iter-1][j] = 0.0;
     }
     // Compute q_{iter} = Aq_{iter-1}
-    (*matrix_vector)(q[iter],q[iter-1],extra_info);
+    (*matrix_vector)(q[iter],q[iter-1],extra_info); invif.ops_count++;
 
     // Perform an Arnoldi iteration. In some regards, this is just
     // a Gram-Schmidt process.
@@ -648,7 +650,7 @@ inversion_info minv_vector_gmres(complex<double>  *phi, complex<double>  *phi0, 
     // Check the residual. In principle, we can do this by looking at
     // the subspace norm, but I'm not sure how to combine that with
     // the fact we have an initial guess. Have to think about that. 
-    (*matrix_vector)(res,tmp2,extra_info);
+    (*matrix_vector)(res,tmp2,extra_info); invif.ops_count++;
     
     localres = 0.0;
     for (i=0;i<size;i++)
@@ -776,6 +778,7 @@ inversion_info minv_vector_gmres(complex<double>  *phi, complex<double>  *phi0, 
 inversion_info minv_vector_gmres_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -785,17 +788,17 @@ inversion_info minv_vector_gmres_restart(complex<double>  *phi, complex<double> 
   inversion_verbose_struct verb_rest;
   shuffle_verbosity_restart(&verb_rest, verb);
 
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_gmres(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
-    iter += invif.iter;
+    iter += invif.iter; ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
-  invif.iter = iter;
+  invif.iter = iter; invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   

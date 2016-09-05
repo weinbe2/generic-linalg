@@ -53,7 +53,7 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
   bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   // 1. Compute r = b - Ax
-  (*matrix_vector)(p, phi, extra_info);
+  (*matrix_vector)(p, phi, extra_info); invif.ops_count++;
   for (i = 0; i < size; i++)
   {
     r[i] = phi0[i] - p[i];
@@ -67,7 +67,7 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
   
   // Compute Ap.
   zero<double>(Ap, size);
-  (*matrix_vector)(Ap, p, extra_info);
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   
   // Compute zdotr.
   zdotr = dot<double>(z, r, size);
@@ -111,7 +111,7 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
     }
     
     // Compute the new Ap.
-    (*matrix_vector)(Ap, p, extra_info);
+    (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   } 
     
   if(k == max_iter) {
@@ -127,7 +127,7 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
   }
   
   zero<double>(Ap, size); 
-  (*matrix_vector)(Ap,phi,extra_info);
+  (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += (Ap[i] - phi0[i])*(Ap[i] - phi0[i]);
   
   // Free all the things!
@@ -181,7 +181,7 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
   bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   // 1. Compute r = b - Ax
-  (*matrix_vector)(p, phi, extra_info);
+  (*matrix_vector)(p, phi, extra_info); invif.ops_count++;
   for (i = 0; i < size; i++)
   {
     r[i] = phi0[i] - p[i];
@@ -195,7 +195,7 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
   
   // Compute Ap.
   zero<double>(Ap, size);
-  (*matrix_vector)(Ap, p, extra_info);
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   
   // Compute zdotr.
   zdotr = dot<double>(z, r, size);
@@ -241,7 +241,7 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
     }
     
     // Compute the new Ap.
-    (*matrix_vector)(Ap, p, extra_info);
+    (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   } 
     
   if(k == max_iter) {
@@ -256,7 +256,7 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
   }
   
   zero<double>(Ap, size); 
-  (*matrix_vector)(Ap,phi,extra_info);
+  (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += real(conj(Ap[i] - phi0[i])*(Ap[i] - phi0[i]));
   
   // Free all the things!

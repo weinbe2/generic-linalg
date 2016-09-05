@@ -15,6 +15,10 @@ struct inversion_info
   bool success; // did we reach residual?
   std::string name; // name of algorithm.
   int ops_count; // how many times was the matrix op called?
+  
+  // Constructor
+  inversion_info() : resSq(0.0), iter(0), success(false), name(""), ops_count(0)
+  { }
 };
 
 #endif

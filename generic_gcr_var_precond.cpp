@@ -75,7 +75,7 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
   
   // 3. p_0 = z_0, Compute A p_0 (called q_0 in paper)
   copy<double>(p, z, size); 
-  (*matrix_vector)(Ap, p, extra_info); 
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
 
   // iterate until convergence
   for(k = 0; k< max_iter; k++) {
@@ -114,7 +114,7 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
     
     // 8. Compute Az.
     zero<double>(Az, size);
-    (*matrix_vector)(Az, z, extra_info);
+    (*matrix_vector)(Az, z, extra_info); invif.ops_count++;
     
     // 8. b_ij = -<Az_{j+1}, Ap_i>/<Ap_i, Ap_i> for i = 0, ..., j
     // 9. p_{j+1} = z_{j+1} + sum_i=0^j b_ij p_i
@@ -146,7 +146,7 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
   
   // Check true residual.
   zero<double>(p,size);
-  (*matrix_vector)(p,x,extra_info);
+  (*matrix_vector)(p,x,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += (p[i] - phi0[i])*(p[i] - phi0[i]);
   
   // Copy solution into phi.
@@ -179,6 +179,7 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
 inversion_info minv_vector_gcr_var_precond_restart(double  *phi, double  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(double*,double*,void*), void* extra_info, void (*precond_matrix_vector)(double*,double*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -188,17 +189,17 @@ inversion_info minv_vector_gcr_var_precond_restart(double  *phi, double  *phi0, 
   inversion_verbose_struct verb_rest;
   shuffle_verbosity_restart(&verb_rest, verb);
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_gcr_var_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
-    iter += invif.iter;
+    iter += invif.iter; ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
-  invif.iter = iter;
+  invif.iter = iter; invif.ops_count = ops_count; 
   
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   
@@ -255,7 +256,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
   bsqrt = sqrt(norm2sq<double>(phi0, size));
   
   // 1. r_0 = b - Ax_0. x is phi, the initial guess.
-  (*matrix_vector)(p, x, extra_info); // Put Ax_0 into p, temp.
+  (*matrix_vector)(p, x, extra_info); invif.ops_count++; // Put Ax_0 into p, temp.
   for (i = 0; i < size; i++)
   {
     r[i] = phi0[i] - p[i]; // r_0 = b - Ax_0
@@ -266,7 +267,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
   
   // 3. p_0 = z_0, Compute A p_0 (called q_0 in paper)
   copy<double>(p, z, size); 
-  (*matrix_vector)(Ap, p, extra_info); 
+  (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
 
   // iterate until convergence
   for(k = 0; k< max_iter; k++) {
@@ -303,7 +304,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
     
     // 8. Compute Az.
     zero<double>(Az, size);
-    (*matrix_vector)(Az, z, extra_info);
+    (*matrix_vector)(Az, z, extra_info); invif.ops_count++;
     
     // 8. b_ij = -<Az_{j+1}, Ap_i>/<Ap_i, Ap_i> for i = 0, ..., j
     // 9. p_{j+1} = z_{j+1} + sum_i=0^j b_ij p_i
@@ -335,7 +336,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
   
   // Check true residual.
   zero<double>(p,size);
-  (*matrix_vector)(p,x,extra_info);
+  (*matrix_vector)(p,x,extra_info); invif.ops_count++;
   for(i=0; i < size; i++) truersq += real(conj(p[i] - phi0[i])*(p[i] - phi0[i]));
   
   // Copy solution into phi.
@@ -368,6 +369,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
 inversion_info minv_vector_gcr_var_precond_restart(complex<double>  *phi, complex<double>  *phi0, int size, int max_iter, double res, int restart_freq, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, void (*precond_matrix_vector)(complex<double>*,complex<double>*,int,void*,inversion_verbose_struct*), void* precond_info, inversion_verbose_struct* verb)
 {
   int iter; // counts total number of iterations.
+  int ops_count; 
   inversion_info invif;
   double bsqrt = sqrt(norm2sq<double>(phi0, size));
   
@@ -377,11 +379,11 @@ inversion_info minv_vector_gcr_var_precond_restart(complex<double>  *phi, comple
   inversion_verbose_struct verb_rest;
   shuffle_verbosity_restart(&verb_rest, verb);
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_gcr_var_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
-    iter += invif.iter;
+    iter += invif.iter; ops_count += invif.ops_count; 
     
     print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
   }
@@ -390,6 +392,7 @@ inversion_info minv_vector_gcr_var_precond_restart(complex<double>  *phi, comple
   print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
   
   invif.iter = iter;
+  invif.ops_count = ops_count; 
   
   invif.name = ss.str();
   // invif.resSq is good.
