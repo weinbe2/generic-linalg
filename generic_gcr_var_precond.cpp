@@ -98,7 +98,7 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
-    print_verbosity_resid(verb, "VPGCR", k+1, sqrt(rsq)/bsqrt); 
+    print_verbosity_resid(verb, "VPGCR", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     //printf("Rel residual: %.8e\n", sqrt(rsq)/bsqrt); fflush(stdout);
     
@@ -166,7 +166,7 @@ inversion_info minv_vector_gcr_var_precond(double  *phi, double  *phi0, int size
   delete[] Az; 
 
   
-  print_verbosity_summary(verb, "VPGCR", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "VPGCR", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -195,13 +195,13 @@ inversion_info minv_vector_gcr_var_precond_restart(double  *phi, double  *phi0, 
     invif = minv_vector_gcr_var_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
     iter += invif.iter; ops_count += invif.ops_count; 
     
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter; invif.ops_count = ops_count; 
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.name = ss.str();
   // invif.resSq is good.
@@ -290,7 +290,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
-    print_verbosity_resid(verb, "VPGCR", k+1, sqrt(rsq)/bsqrt); 
+    print_verbosity_resid(verb, "VPGCR", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
@@ -356,7 +356,7 @@ inversion_info minv_vector_gcr_var_precond(complex<double>  *phi, complex<double
   delete[] Az; 
 
   
-  print_verbosity_summary(verb, "VPGCR", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "VPGCR", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -385,11 +385,11 @@ inversion_info minv_vector_gcr_var_precond_restart(complex<double>  *phi, comple
     invif = minv_vector_gcr_var_precond(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, precond_matrix_vector, precond_info, &verb_rest);
     iter += invif.iter; ops_count += invif.ops_count; 
     
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.iter = iter;
   invif.ops_count = ops_count; 

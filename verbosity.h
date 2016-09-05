@@ -70,13 +70,13 @@ inline void shuffle_verbosity_precond(inversion_verbose_struct* verb_new, invers
 }
 
 // Properly prints relative residual.
-inline void print_verbosity_resid(inversion_verbose_struct* verb, std::string alg, int iter, double relres)
+inline void print_verbosity_resid(inversion_verbose_struct* verb, std::string alg, int iter, int ops_count, double relres)
 {
     if (verb != 0)
     {
         if (verb->verbosity == VERB_DETAIL)
         {
-            std::cout << verb->verb_prefix << alg << " Iter " << iter << " RelRes " << relres << "\n";
+            std::cout << verb->verb_prefix << alg << " Iter " << iter << " Ops " << ops_count << " RelRes " << relres << "\n";
         }
     }
     
@@ -84,13 +84,13 @@ inline void print_verbosity_resid(inversion_verbose_struct* verb, std::string al
 }
 
 // Properly prints summary at end of inversion.
-inline void print_verbosity_summary(inversion_verbose_struct* verb, std::string alg, bool success, int iter, double relres)
+inline void print_verbosity_summary(inversion_verbose_struct* verb, std::string alg, bool success, int iter, int ops_count, double relres)
 {
     if (verb != 0)
     {
         if (verb->verbosity == VERB_SUMMARY || verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
         {
-            std::cout << verb->verb_prefix << alg << " Success " << (success ? "Y" : "N") << " Iter " << iter << " RelRes " << relres << "\n";
+            std::cout << verb->verb_prefix << alg << " Success " << (success ? "Y" : "N") << " Iter " << iter << " Ops " << ops_count << " RelRes " << relres << "\n";
         }
     }
     
@@ -98,13 +98,13 @@ inline void print_verbosity_summary(inversion_verbose_struct* verb, std::string 
 }
 
 // Properly prints summary at restart.
-inline void print_verbosity_restart(inversion_verbose_struct* verb, std::string alg, int iter, double relres)
+inline void print_verbosity_restart(inversion_verbose_struct* verb, std::string alg, int iter, int ops_count, double relres)
 {
     if (verb != 0)
     {
         if (verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
         {
-            std::cout << verb->verb_prefix << alg << " Iter " << iter << " RelRes " << relres << "\n";
+            std::cout << verb->verb_prefix << alg << " Iter " << iter << " Ops " << ops_count << " RelRes " << relres << "\n";
         }
     }
 }

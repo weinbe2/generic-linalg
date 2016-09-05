@@ -269,7 +269,7 @@ inversion_info minv_vector_gmres(double  *phi, double  *phi0, int size, int max_
     }
     localres=sqrt(localres);
     
-    print_verbosity_resid(verb, "GMRES", iter, localres/bres); 
+    print_verbosity_resid(verb, "GMRES", iter, invif.ops_count, localres/bres); 
     
     if (localres < eps*bres)
     {
@@ -371,7 +371,7 @@ inversion_info minv_vector_gmres(double  *phi, double  *phi0, int size, int max_
   //free(y);
   //free(bhTy);
   
-  print_verbosity_summary(verb, "GMRES", invif.success, iter, localres/bres);
+  print_verbosity_summary(verb, "GMRES", invif.success, iter, invif.ops_count, localres/bres);
   
   
   invif.resSq = localres*localres;
@@ -404,13 +404,13 @@ inversion_info minv_vector_gmres_restart(double  *phi, double  *phi0, int size, 
     iter += invif.iter;
     ops_count += invif.ops_count; 
     
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter; invif.ops_count = ops_count; 
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.name = ss.str();
   // invif.resSq is good.
@@ -659,7 +659,7 @@ inversion_info minv_vector_gmres(complex<double>  *phi, complex<double>  *phi0, 
     }
     localres=sqrt(localres);
     
-    print_verbosity_resid(verb, "GMRES", iter, localres/bres); 
+    print_verbosity_resid(verb, "GMRES", iter, invif.ops_count, localres/bres); 
     
     if (localres < eps*bres)
     {
@@ -761,7 +761,7 @@ inversion_info minv_vector_gmres(complex<double>  *phi, complex<double>  *phi0, 
   //free(y);
   //free(bhTy);
   
-  print_verbosity_summary(verb, "GMRES", invif.success, iter, localres/bres);
+  print_verbosity_summary(verb, "GMRES", invif.success, iter, invif.ops_count, localres/bres);
   
   invif.resSq = localres*localres;
   invif.iter = iter;
@@ -794,13 +794,13 @@ inversion_info minv_vector_gmres_restart(complex<double>  *phi, complex<double> 
     invif = minv_vector_gmres(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
     iter += invif.iter; ops_count += invif.ops_count; 
     
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter; invif.ops_count = ops_count; 
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.name = ss.str();
   // invif.resSq is good.

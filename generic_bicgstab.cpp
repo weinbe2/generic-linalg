@@ -101,7 +101,7 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
     
     // 8a. If ||r|| is sufficiently small, quit.
     rsq = norm2sq<double>(r, size);
-    print_verbosity_resid(verb, "BiCGStab", k+1, sqrt(rsq)/bsqrt);
+    print_verbosity_resid(verb, "BiCGStab", k+1, invif.ops_count, sqrt(rsq)/bsqrt);
     
     if (sqrt(rsq) < eps*bsqrt)
     {
@@ -147,7 +147,7 @@ inversion_info minv_vector_bicgstab(double  *phi, double  *phi0, int size, int m
   delete[] s;
   delete[] As;
   
-  print_verbosity_summary(verb, "BiCGStab", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "BiCGStab", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
 
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
   invif.resSq = truersq;
@@ -178,13 +178,13 @@ inversion_info minv_vector_bicgstab_restart(double  *phi, double  *phi0, int siz
     invif = minv_vector_bicgstab(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
     iter += invif.iter; ops_count += invif.ops_count;
     
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter; invif.ops_count = ops_count; 
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.name = ss.str();
   // invif.resSq is good.
@@ -284,7 +284,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
     
     // 8a. If ||r|| is sufficiently small, quit.
     rsq = norm2sq<double>(r, size);
-    print_verbosity_resid(verb, "BiCGStab", k+1, sqrt(rsq)/bsqrt);
+    print_verbosity_resid(verb, "BiCGStab", k+1, invif.ops_count, sqrt(rsq)/bsqrt);
     
     if (sqrt(rsq) < eps*bsqrt)
     {
@@ -330,7 +330,7 @@ inversion_info minv_vector_bicgstab(complex<double>  *phi, complex<double>  *phi
   delete[] s;
   delete[] As;
   
-  print_verbosity_summary(verb, "BiCGStab", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "BiCGStab", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
 
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
   invif.resSq = truersq;
@@ -361,14 +361,14 @@ inversion_info minv_vector_bicgstab_restart(complex<double>  *phi, complex<doubl
     invif = minv_vector_bicgstab(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
     iter += invif.iter;
     ops_count += invif.ops_count; 
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter;
   invif.ops_count = ops_count; 
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.name = ss.str();
   // invif.resSq is good.

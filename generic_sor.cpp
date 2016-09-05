@@ -63,7 +63,7 @@ inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_it
     // Compute norm.
     rsq = norm2sq<double>(check, size);
     
-    print_verbosity_resid(verb, ss.str(), k+1, sqrt(rsq)/bsqrt); 
+    print_verbosity_resid(verb, ss.str(), k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
@@ -103,7 +103,7 @@ inversion_info minv_vector_sor(double  *phi, double  *phi0, int size, int max_it
   delete[] x;
   delete[] check;
   
-  print_verbosity_summary(verb, ss.str(), invif.success, k, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, k, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -159,7 +159,7 @@ inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, in
     // Compute norm.
     rsq = norm2sq<double>(check, size);
     
-    print_verbosity_resid(verb, ss.str(), k+1, sqrt(rsq)/bsqrt); 
+    print_verbosity_resid(verb, ss.str(), k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
@@ -198,7 +198,7 @@ inversion_info minv_vector_sor(complex<double>  *phi, complex<double>  *phi0, in
   delete[] x;
   delete[] check;
   
-  print_verbosity_summary(verb, ss.str(), invif.success, k, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, k, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;

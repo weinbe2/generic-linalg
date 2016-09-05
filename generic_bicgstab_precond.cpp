@@ -123,7 +123,7 @@ inversion_info minv_vector_bicgstab_precond(double  *phi, double  *phi0, int siz
     
     // 10a. If ||r|| is sufficiently small, quit.
     rsq = norm2sq<double>(r, size);
-    print_verbosity_resid(verb, "Preconditioned BiCGStab", k+1, sqrt(rsq)/bsqrt);
+    print_verbosity_resid(verb, "Preconditioned BiCGStab", k+1, invif.ops_count, sqrt(rsq)/bsqrt);
     
     if (sqrt(rsq) < eps*bsqrt)
     {
@@ -169,7 +169,7 @@ inversion_info minv_vector_bicgstab_precond(double  *phi, double  *phi0, int siz
   delete[] stilde;
   delete[] Astilde; 
   
-  print_verbosity_summary(verb, "Preconditioned BiCGStab", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "Preconditioned BiCGStab", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
 
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
   invif.resSq = truersq;
@@ -201,14 +201,14 @@ inversion_info minv_vector_bicgstab_precond_restart(double  *phi, double  *phi0,
     iter += invif.iter;
     ops_count += invif.ops_count; 
     
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter;
   invif.ops_count = ops_count; 
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.name = ss.str();
   // invif.resSq is good.
@@ -330,7 +330,7 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
     
     // 10a. If ||r|| is sufficiently small, quit.
     rsq = norm2sq<double>(r, size);
-    print_verbosity_resid(verb, "Preconditioned BiCGStab", k+1, sqrt(rsq)/bsqrt);
+    print_verbosity_resid(verb, "Preconditioned BiCGStab", k+1, invif.ops_count, sqrt(rsq)/bsqrt);
     
     if (sqrt(rsq) < eps*bsqrt)
     {
@@ -376,7 +376,7 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
   delete[] stilde;
   delete[] Astilde; 
   
-  print_verbosity_summary(verb, "Preconditioned BiCGStab", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "Preconditioned BiCGStab", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
 
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
   invif.resSq = truersq;
@@ -408,14 +408,14 @@ inversion_info minv_vector_bicgstab_precond_restart(complex<double>  *phi, compl
     iter += invif.iter;
     ops_count += invif.ops_count; 
     
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter;
   invif.ops_count = ops_count; 
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.name = ss.str();
   // invif.resSq is good.

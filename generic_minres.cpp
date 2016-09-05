@@ -78,7 +78,7 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
-    print_verbosity_resid(verbosity, ss.str(), k+1, sqrt(rsq)/bsqrt); 
+    print_verbosity_resid(verbosity, ss.str(), k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
@@ -110,7 +110,7 @@ inversion_info minv_vector_minres(double  *phi, double  *phi0, int size, int max
   delete[] r;
   delete[] x;
   
-  print_verbosity_summary(verbosity, ss.str(), invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verbosity, ss.str(), invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -186,7 +186,7 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
     // Compute norm.
     rsq = norm2sq<double>(r, size);
     
-    print_verbosity_resid(verbosity, ss.str(), k+1, sqrt(rsq)/bsqrt); 
+    print_verbosity_resid(verbosity, ss.str(), k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
     if (sqrt(rsq) < eps*bsqrt) {
@@ -220,7 +220,7 @@ inversion_info minv_vector_minres(complex<double>  *phi, complex<double>  *phi0,
   delete[] r;
   delete[] x;
   
-  print_verbosity_summary(verbosity, ss.str(), invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verbosity, ss.str(), invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
   
   //  printf("# CG: Converged iter = %d, rsq = %e, truersq = %e\n",k,rsq,truersq);
   

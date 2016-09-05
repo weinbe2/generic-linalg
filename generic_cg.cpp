@@ -186,7 +186,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
     // Exit if new residual is small enough
     rsqNew = norm2sq<double>(r, size);
     
-    print_verbosity_resid(verb, "CG", k+1, sqrt(rsqNew)/bsqrt); 
+    print_verbosity_resid(verb, "CG", k+1, invif.ops_count, sqrt(rsqNew)/bsqrt); 
 
     if (sqrt(rsqNew) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -223,7 +223,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
   delete[] p;
   delete[] Ap;
 
-  print_verbosity_summary(verb, "CG", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "CG", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -253,13 +253,13 @@ inversion_info minv_vector_cg_restart(double  *phi, double  *phi0, int size, int
     iter += invif.iter;
     ops_count += invif.ops_count; 
     
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter; invif.ops_count = ops_count; 
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.name = ss.str();
   // invif.resSq is good.
@@ -321,7 +321,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   // Compute rsq.
   rsq = norm2sq<double>(r, size);
   
-  print_verbosity_resid(verb, "CG", k+1, sqrt(rsqNew)/bsqrt); 
+  print_verbosity_resid(verb, "CG", k+1, invif.ops_count, sqrt(rsqNew)/bsqrt); 
 
   // iterate till convergence
   for(k = 0; k< max_iter; k++) {
@@ -337,7 +337,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
     // Exit if new residual is small enough
     rsqNew = norm2sq<double>(r, size);
       
-    print_verbosity_resid(verb, "CG", k+1, sqrt(rsqNew)/bsqrt);
+    print_verbosity_resid(verb, "CG", k+1, invif.ops_count, sqrt(rsqNew)/bsqrt);
 
     if (sqrt(rsqNew) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -374,7 +374,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   delete[] Ap;
 
   
-  print_verbosity_summary(verb, "CG", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "CG", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
   
   
   invif.resSq = truersq;
@@ -406,13 +406,13 @@ inversion_info minv_vector_cg_restart(complex<double>  *phi, complex<double>  *p
     iter += invif.iter;
     ops_count += invif.ops_count; 
     
-    print_verbosity_restart(verb, ss.str(), iter, sqrt(invif.resSq)/bsqrt);
+    print_verbosity_restart(verb, ss.str(), iter, ops_count, sqrt(invif.resSq)/bsqrt);
   }
   while (iter < max_iter && invif.success == false && sqrt(invif.resSq)/bsqrt > res);
   
   invif.iter = iter; invif.ops_count = ops_count; 
   
-  print_verbosity_summary(verb, ss.str(), invif.success, iter, sqrt(invif.resSq)/bsqrt);
+  print_verbosity_summary(verb, ss.str(), invif.success, iter, invif.ops_count, sqrt(invif.resSq)/bsqrt);
   
   invif.name = ss.str();
   // invif.resSq is good.

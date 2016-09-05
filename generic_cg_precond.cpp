@@ -89,7 +89,7 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
     // Exit if new residual is small enough
     rsq = norm2sq<double>(r, size);
     
-    print_verbosity_resid(verb, "PCG", k+1, sqrt(rsq)/bsqrt); 
+    print_verbosity_resid(verb, "PCG", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
 
     if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -137,7 +137,7 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
   delete[] z; 
 
   
-  print_verbosity_summary(verb, "PCG", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "PCG", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -219,7 +219,7 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
     // Exit if new residual is small enough
     rsq = norm2sq<double>(r, size);
     
-    print_verbosity_resid(verb, "PCG", k+1, sqrt(rsq)/bsqrt); 
+    print_verbosity_resid(verb, "PCG", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
 
     if (sqrt(rsq) < eps*bsqrt) {
       //        printf("Final rsq = %g\n", rsqNew);
@@ -266,7 +266,7 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
   delete[] z; 
 
   
-  print_verbosity_summary(verb, "PCG", invif.success, k, sqrt(truersq)/bsqrt);
+  print_verbosity_summary(verb, "PCG", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
   
   invif.resSq = truersq;
   invif.iter = k;
