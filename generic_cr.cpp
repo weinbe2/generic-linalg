@@ -89,7 +89,7 @@ inversion_info minv_vector_cr(double  *phi, double  *phi0, int size, int max_ite
     print_verbosity_resid(verb, "CR", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
-    if (sqrt(rsq) < eps*bsqrt) {
+    if (sqrt(rsq) < eps*bsqrt || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -110,7 +110,7 @@ inversion_info minv_vector_cr(double  *phi, double  *phi0, int size, int max_ite
     }
   } 
     
-  if(k == max_iter) {
+  if(k == max_iter-1) {
     //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
     //return 0;// Failed convergence 
@@ -118,9 +118,9 @@ inversion_info minv_vector_cr(double  *phi, double  *phi0, int size, int max_ite
   else
   {
      invif.success = true;
-    k++; // Fix a counting issue...
      //printf("CG: Converged in %d iterations.\n", k);
   }
+  k++; 
   
   // Check true residual.
   zero<double>(p,size);
@@ -160,7 +160,7 @@ inversion_info minv_vector_cr_restart(double  *phi, double  *phi0, int size, int
   stringstream ss;
   ss << "CR(" << restart_freq << ")";
   
-  iter = 0;  
+  iter = 0; ops_count = 0; 
   do
   {
     invif = minv_vector_cr(phi, phi0, size, restart_freq, res, matrix_vector, extra_info, &verb_rest);
@@ -258,7 +258,7 @@ inversion_info minv_vector_cr(complex<double>  *phi, complex<double>  *phi0, int
     print_verbosity_resid(verb, "CR", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
-    if (sqrt(rsq) < eps*bsqrt) {
+    if (sqrt(rsq) < eps*bsqrt || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -287,9 +287,9 @@ inversion_info minv_vector_cr(complex<double>  *phi, complex<double>  *phi0, int
   else
   {
      invif.success = true;
-    k++; // Fix a counting issue...
      //printf("CG: Converged in %d iterations.\n", k);
   }
+  k++; 
   
   // Check true residual.
   zero<double>(p,size);

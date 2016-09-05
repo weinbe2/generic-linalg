@@ -96,7 +96,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
     
     print_verbosity_resid(verb, "FPCG", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
 
-    if (sqrt(rsq) < eps*bsqrt) {
+    if (sqrt(rsq) < eps*bsqrt || k==max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -126,7 +126,7 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
     
   } 
     
-  if(k == max_iter) {
+  if(k == max_iter-1) {
     //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
     //return 0;// Failed convergence 
@@ -134,8 +134,8 @@ inversion_info minv_vector_cg_flex_precond(double  *phi, double  *phi0, int size
   else
   {
      invif.success = true;
-     k++;
   }
+	k++; 
   
   
   zero<double>(Ap, size); 
@@ -292,7 +292,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
     
     print_verbosity_resid(verb, "FPCG", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
 
-    if (sqrt(rsq) < eps*bsqrt) {
+    if (sqrt(rsq) < eps*bsqrt || k==max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -322,7 +322,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
     
   } 
     
-  if(k == max_iter) {
+  if(k == max_iter-1) {
     //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
     //return 0;// Failed convergence 
@@ -330,7 +330,6 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   else
   {
      invif.success = true;
-     k++;
   }
   
   

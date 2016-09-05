@@ -188,7 +188,7 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
     
     print_verbosity_resid(verb, "CG", k+1, invif.ops_count, sqrt(rsqNew)/bsqrt); 
 
-    if (sqrt(rsqNew) < eps*bsqrt) {
+    if (sqrt(rsqNew) < eps*bsqrt || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -205,15 +205,14 @@ inversion_info minv_vector_cg(double  *phi, double  *phi0, int size, int max_ite
     (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   } 
     
-  if(k == max_iter) {
+  if(k == max_iter-1) {
     invif.success = false;
-    //return 0;// Failed convergence 
   }
   else
   {
      invif.success = true;
-    k++; 
   }
+  k++;
   
   (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
   truersq = diffnorm2sq<double>(Ap, phi0, size);
@@ -339,7 +338,7 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
       
     print_verbosity_resid(verb, "CG", k+1, invif.ops_count, sqrt(rsqNew)/bsqrt);
 
-    if (sqrt(rsqNew) < eps*bsqrt) {
+    if (sqrt(rsqNew) < eps*bsqrt || k == max_iter - 1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -356,14 +355,15 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
     (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   } 
     
-  if(k == max_iter) {
+  if(k == max_iter-1) {
     invif.success = false;
   }
   else
   {
      invif.success = true;
-    k++;
   }
+	
+  k++; 
   
   (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
   truersq = diffnorm2sq<double>(Ap, phi0, size);

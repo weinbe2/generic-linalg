@@ -91,7 +91,7 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
     print_verbosity_resid(verb, "GCR", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
-    if (sqrt(rsq) < eps*bsqrt) {
+    if (sqrt(rsq) < eps*bsqrt || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -116,7 +116,7 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
     }
   } 
     
-  if(k == max_iter) {
+  if(k == max_iter-1) {
     //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
     //return 0;// Failed convergence 
@@ -124,9 +124,9 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
   else
   {
      invif.success = true;
-    k++; // Fix a counting issue...
      //printf("CG: Converged in %d iterations.\n", k);
   }
+  k++;
   
   // Check true residual.
   zero<double>(p,size);
@@ -140,8 +140,8 @@ inversion_info minv_vector_gcr(double  *phi, double  *phi0, int size, int max_it
   delete[] x;
   delete[] r;
   delete[] Ar;
-  k = p_store.size();
-  for (i = 0; i < k; i++)
+  int l = p_store.size();
+  for (i = 0; i < l; i++)
   {
     delete[] p_store[i];
     delete[] Ap_store[i];
@@ -267,7 +267,7 @@ inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, in
     print_verbosity_resid(verb, "GCR", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
     // Check convergence. 
-    if (sqrt(rsq) < eps*bsqrt) {
+    if (sqrt(rsq) < eps*bsqrt || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -300,9 +300,9 @@ inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, in
   else
   {
      invif.success = true;
-    k++; // Fix a counting issue...
      //printf("CG: Converged in %d iterations.\n", k);
   }
+  k++;
   
   // Check true residual.
   zero<double>(p,size);
@@ -316,8 +316,8 @@ inversion_info minv_vector_gcr(complex<double>  *phi, complex<double>  *phi0, in
   delete[] x;
   delete[] r;
   delete[] Ar;
-  k = p_store.size();
-  for (i = 0; i < k; i++)
+  int l = p_store.size();
+  for (i = 0; i < l; i++)
   {
     delete[] p_store[i];
     delete[] Ap_store[i];

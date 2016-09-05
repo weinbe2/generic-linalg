@@ -91,7 +91,7 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
     
     print_verbosity_resid(verb, "PCG", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
 
-    if (sqrt(rsq) < eps*bsqrt) {
+    if (sqrt(rsq) < eps*bsqrt || k==max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -114,7 +114,7 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
     (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   } 
     
-  if(k == max_iter) {
+  if(k == max_iter-1) {
     //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
     //return 0;// Failed convergence 
@@ -122,9 +122,9 @@ inversion_info minv_vector_cg_precond(double  *phi, double  *phi0, int size, int
   else
   {
      invif.success = true;
-    k++;
      //printf("CG: Converged in %d iterations.\n", k);
   }
+	k++;
   
   zero<double>(Ap, size); 
   (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
@@ -221,7 +221,7 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
     
     print_verbosity_resid(verb, "PCG", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
 
-    if (sqrt(rsq) < eps*bsqrt) {
+    if (sqrt(rsq) < eps*bsqrt || k==max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -244,7 +244,7 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
     (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   } 
     
-  if(k == max_iter) {
+  if(k == max_iter-1) {
     //printf("CG: Failed to converge iter = %d, rsq = %e\n", k,rsq);
     invif.success = false;
     //return 0;// Failed convergence 
@@ -252,8 +252,8 @@ inversion_info minv_vector_cg_precond(complex<double>  *phi, complex<double>  *p
   else
   {
      invif.success = true;
-     k++; // Fix a counting issue...
   }
+	k++;
   
   zero<double>(Ap, size); 
   (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
