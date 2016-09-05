@@ -1162,7 +1162,7 @@ int main(int argc, char** argv)
                 // Solve the residual equation. 
                 zero<double>(Arand_guess, mgstruct.curr_fine_size);
 
-                fine_square_staggered(Arand_guess, rand_guess, (void*)&mgstruct);
+                fine_square_staggered(Arand_guess, rand_guess, (void*)&mgstruct); mgstruct.dslash_count->nullvectors[mgstruct.curr_level]++;
 
                 //square_staggered_u1(Arand_guess, rand_guess, (void*)&stagif);
                 for (j = 0; j < mgstruct.curr_fine_size; j++)
@@ -1177,17 +1177,17 @@ int main(int argc, char** argv)
                     case NULL_GCR:
                         if (null_restart)
                         {
-                            minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                         }
                         else
                         {
-                            minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         }
                         break;
                     case NULL_BICGSTAB:
                         if (null_restart)
                         {
-                            minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                         }
                         else
                         {
@@ -1213,24 +1213,26 @@ int main(int argc, char** argv)
                                 }
                             }*/
                             // End orthogonal test.
-                            minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         }
                         break;
                     case NULL_CG:
                         if (null_restart) // why would you do this I don't know it's CG come on
                         {
-                            minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                         }
                         else
                         {
-                            minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         }
                         break;
                     case NULL_MINRES:
                         // Restarting doesn't make sense for MinRes. 
-                        minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        invif = minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         break;
                 }
+                
+                mgstruct.dslash_count->nullvectors[mgstruct.curr_level] += invif.ops_count; 
 
 
                 for (j = 0; j < mgstruct.curr_fine_size; j++)
@@ -1884,35 +1886,36 @@ int main(int argc, char** argv)
             case OUTER_GCR:
                 if (outer_restart)
                 {
-                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
+                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&stagif, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
+                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&stagif, &verb);
                 }
                 break;
             case OUTER_CG:
                 if (outer_restart)
                 {
-                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
+                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&stagif, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
+                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&stagif, &verb);
                 }
                 break;
             case OUTER_BICGSTAB:
                 if (outer_restart)
                 {
-                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
+                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&stagif, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
+                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&stagif, &verb);
                 }
                 break;
         }
         //invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
+        mgstruct.dslash_count->nullvectors[mgstruct.curr_level] += invif.ops_count; 
 
         if (invif.success == true)
         {
@@ -2016,6 +2019,8 @@ int main(int argc, char** argv)
                 break;
         }
         
+        mgstruct.dslash_count->krylov[mgstruct.curr_level] += invif.ops_count; 
+        
         
 
         if (invif.success == true)
@@ -2063,6 +2068,16 @@ int main(int argc, char** argv)
         cout << "END_EFFMASS\n";
     }
     
+    cout << "=================\n";
+    cout << "= FINAL RESULTS =\n";
+    cout << "=================\n";
+    
+    for (i = 0; i <= mgstruct.n_refine; i++)
+    {
+        cout << "[L" << i+1 << "]: Dslash NullVec " << mgstruct.dslash_count->nullvectors[i] << " Krylov " << mgstruct.dslash_count->krylov[i] << " PreSmooth " << mgstruct.dslash_count->presmooth[i] <<
+            " PostSmooth " << mgstruct.dslash_count->postsmooth[i] << " Residual " << mgstruct.dslash_count->residual[i] << "\n";
+    }
+    
     // Free the lattice.
     delete[] lattice;
     delete[] lhs;
@@ -2084,6 +2099,7 @@ int main(int argc, char** argv)
         }
         delete[] mgstruct.null_vectors[i];
     }
+    delete mgstruct.dslash_count; 
     delete[] mgstruct.null_vectors; 
     
     return 0; 

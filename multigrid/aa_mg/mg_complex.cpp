@@ -540,9 +540,12 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 break; 
         }
         printf("[L%d Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str()); fflush(stdout);
+        mgprecond->mgstruct->dslash_count->presmooth[mgprecond->mgstruct->curr_level] += invif.ops_count; 
         
         // Compute r1 = r - A z1
         (*mgprecond->fine_matrix_vector)(r1, z1, mgprecond->matrix_extra_data); // Temporarily store Az1 in r1. 
+        mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++;
+        
         for (int i = 0; i < fine_size; i++)
         {
             r1[i] = rhs[i] - r1[i];
@@ -554,6 +557,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         copy<double>(z1, rhs, fine_size);
         // Compute r1 = r - A z1
         (*mgprecond->fine_matrix_vector)(r1, z1, mgprecond->matrix_extra_data); // Temporarily store Az1 in r1. 
+        mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++;
         for (int i = 0; i < fine_size; i++)
         {
             r1[i] = rhs[i] - r1[i];
@@ -584,6 +588,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             {
                 case NONE: // The code can't reach here, anyway.
                     invif.resSq = 1;
+                    invif.ops_count = 0; 
                     invif.iter = 0;
                     invif.success = true;
                     invif.name = "None";
@@ -606,6 +611,8 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             }
             
             printf("[L%d]: Iterations %d RelRes %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+2, invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
+            mgprecond->mgstruct->dslash_count->krylov[mgprecond->mgstruct->curr_level+1] += invif.ops_count; 
+        
         }
         else // Apply the fine operator preconditioned with the coarse op.
         {
@@ -620,6 +627,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 case MLEVEL_RECURSIVE:
                     invif = minv_vector_gcr_var_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res, mgprecond->n_restart, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, (void*)mgprecond, verb); 
                     printf("[L%d]: Iterations %d RelRes %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
+                    mgprecond->mgstruct->dslash_count->krylov[mgprecond->mgstruct->curr_level-1] += invif.ops_count; 
                     break;
             }
             
@@ -640,6 +648,8 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         
         // Compute an updated residual from z2. 
         (*mgprecond->fine_matrix_vector)(r2, z2, mgprecond->matrix_extra_data); // Temporarily store Az2 in r2. 
+        mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++; 
+        
         for (int i = 0; i < fine_size; i++)
         {
             r2[i] = r1[i] - r2[i];
@@ -688,7 +698,9 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 break;
         }
         printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());
+        mgprecond->mgstruct->dslash_count->postsmooth[mgprecond->mgstruct->curr_level] += invif.ops_count; 
     }
+    
     // else z3 = 0 is fine.
     
     // Update lhs with z3. 
