@@ -1181,12 +1181,12 @@ int main(int argc, char** argv)
                     {
                         for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++) // And then iterate over even/odd or corners!
                         {
-                            orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                            orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
                             if (do_global_ortho_conj)
                             {
-                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
+                                orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
+                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
                             }
                         }
                     }
@@ -1202,7 +1202,7 @@ int main(int argc, char** argv)
                 {
                    Arand_guess[j] = -Arand_guess[j]; 
                 }
-                zero<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], mgstruct.curr_fine_size);
+                zero<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
 
                 
                 switch (null_gen)
@@ -1210,35 +1210,35 @@ int main(int argc, char** argv)
                     case NULL_GCR:
                         if (null_restart)
                         {
-                            invif = minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                         }
                         else
                         {
-                            invif = minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         }
                         break;
                     case NULL_BICGSTAB:
                         if (null_restart)
                         {
-                            invif = minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                         }
                         else
                         {
                             // Orthogonal test.
                             /*for (double tmpres = 1e-1; tmpres > null_precision; tmpres *= 0.8)
                             {
-                                minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, tmpres, fine_square_staggered, &mgstruct, &verb);
+                                minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, tmpres, fine_square_staggered, &mgstruct, &verb);
                                 if (i > 0) // If there are vectors to orthogonalize against...
                                 {
                                     for (j = 0; j < i; j++) // Iterate over all of them...
                                     {
                                         for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++) // And then iterate over even/odd or corners!
                                         {
-                                            orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                            orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
                                             if (do_global_ortho_conj)
                                             {
                                                 conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
+                                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
                                                 conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
                                             }
                                         }
@@ -1246,22 +1246,22 @@ int main(int argc, char** argv)
                                 }
                             }*/
                             // End orthogonal test.
-                            invif = minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         }
                         break;
                     case NULL_CG:
                         if (null_restart) // why would you do this I don't know it's CG come on
                         {
-                            invif = minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                         }
                         else
                         {
-                            invif = minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         }
                         break;
                     case NULL_MINRES:
                         // Restarting doesn't make sense for MinRes. 
-                        invif = minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                        invif = minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         break;
                 }
                 
@@ -1270,7 +1270,7 @@ int main(int argc, char** argv)
 
                 for (j = 0; j < mgstruct.curr_fine_size; j++)
                 {
-                    mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i][j] += rand_guess[j];
+                    mgstruct.null_vectors[mgstruct.curr_level][i][j] += rand_guess[j];
                 }
 
                 // Split into eo now if need be, otherwise we do it later.
@@ -1292,7 +1292,7 @@ int main(int argc, char** argv)
                 // Normalize new vectors.
                 for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++)
                 {
-                    normalize(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.curr_fine_size);
+                    normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.curr_fine_size);
                 }
 
                 // Orthogonalize against previous vectors. 
@@ -1304,14 +1304,14 @@ int main(int argc, char** argv)
                         for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++)
                         {
                             // Check dot product before normalization.
-                            cout << abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k],mgstruct.curr_fine_size))) << " ";
+                            cout << abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector],mgstruct.curr_fine_size))) << " ";
 
-                            orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.null_vectors[0][null_partitions*j+k], mgstruct.curr_fine_size); 
+                            orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.null_vectors[0][j+k*n_null_vector], mgstruct.curr_fine_size); 
                             if (do_global_ortho_conj)
                             {
-                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size);
-                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.null_vectors[0][null_partitions*j+k], mgstruct.curr_fine_size); 
-                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*j+k], mgstruct.curr_fine_size);
+                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
+                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.null_vectors[0][j+k*n_null_vector], mgstruct.curr_fine_size); 
+                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
                             }
                         }
                         cout << "\n";
@@ -1321,7 +1321,7 @@ int main(int argc, char** argv)
                 // Normalize again.
                 for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++)
                 {
-                    normalize(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.curr_fine_size);
+                    normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.curr_fine_size);
                 }
                 
             }
@@ -1344,7 +1344,7 @@ int main(int argc, char** argv)
                     
                     for (k = 0; k < null_partitions; k++)
                     {
-                        normalize(mgstruct.null_vectors[mgstruct.curr_level][null_partitions*i+k], mgstruct.curr_fine_size);
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.curr_fine_size);
                     }
                 }
             }

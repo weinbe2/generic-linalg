@@ -20,8 +20,8 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 			{
 				if (Lat->index_is_even(j))
 				{
-					mgstruct->null_vectors[0][2*num_null_vec+1][j] = mgstruct->null_vectors[0][2*num_null_vec][j];
-					mgstruct->null_vectors[0][2*num_null_vec][j] = 0.0;
+					mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j] = mgstruct->null_vectors[0][num_null_vec][j];
+					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
 			}
 			break;
@@ -35,28 +35,28 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 			// i/2 \Gamma_1 \Gamma_2
 			zero<double>(tmp, mgstruct->curr_fine_size);
 			zero<double>(tmp2, mgstruct->curr_fine_size);
-			staggered_symmshift_y(tmp, mgstruct->null_vectors[0][2*num_null_vec], mgstruct->matrix_extra_data /* stagif */);
+			staggered_symmshift_y(tmp, mgstruct->null_vectors[0][num_null_vec], mgstruct->matrix_extra_data /* stagif */);
 			staggered_symmshift_x(tmp2, tmp, mgstruct->matrix_extra_data);
 			for (j = 0; j < mgstruct->curr_fine_size; j++)
 			{
-				mgstruct->null_vectors[0][2*num_null_vec+1][j] += complex<double>(0.0,0.5)*tmp2[j];
+				mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j] += complex<double>(0.0,0.5)*tmp2[j];
 			}
 
 			// -i/2 \Gamma_2 \Gamma_1
 			zero<double>(tmp, mgstruct->curr_fine_size);
 			zero<double>(tmp2, mgstruct->curr_fine_size);
-			staggered_symmshift_x(tmp, mgstruct->null_vectors[0][2*num_null_vec], mgstruct->matrix_extra_data);
+			staggered_symmshift_x(tmp, mgstruct->null_vectors[0][num_null_vec], mgstruct->matrix_extra_data);
 			staggered_symmshift_y(tmp2, tmp, mgstruct->matrix_extra_data);
 			for (j = 0; j < mgstruct->curr_fine_size; j++)
 			{
-				mgstruct->null_vectors[0][2*num_null_vec+1][j] -= complex<double>(0.0,0.5)*tmp2[j];
+				mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j] -= complex<double>(0.0,0.5)*tmp2[j];
 			}
 
 			// Form the two projectors.
 			for (j = 0; j < mgstruct->curr_fine_size; j++)
 			{
-				mgstruct->null_vectors[0][2*num_null_vec][j] = 0.5*(mgstruct->null_vectors[0][2*num_null_vec][j]+mgstruct->null_vectors[0][2*num_null_vec+1][j]);
-				mgstruct->null_vectors[0][2*num_null_vec+1][j] = mgstruct->null_vectors[0][2*num_null_vec][j]-mgstruct->null_vectors[0][2*num_null_vec+1][j];
+				mgstruct->null_vectors[0][num_null_vec][j] = 0.5*(mgstruct->null_vectors[0][num_null_vec][j]+mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j]);
+				mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j] = mgstruct->null_vectors[0][num_null_vec][j]-mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j];
 			}
 			delete[] tmp;
 			delete[] tmp2; 
@@ -70,18 +70,18 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 				Lat->index_to_coord(j, coord, nd);
 				if (coord[0]%2 == 1 && coord[1]%2 == 0)
 				{
-					mgstruct->null_vectors[0][4*num_null_vec+1][j] = mgstruct->null_vectors[0][4*num_null_vec][j];
-					mgstruct->null_vectors[0][4*num_null_vec][j] = 0.0;
+					mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
+					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
 				else if (coord[0]%2 == 0 && coord[1]%2 == 1)
 				{
-					mgstruct->null_vectors[0][4*num_null_vec+2][j] = mgstruct->null_vectors[0][4*num_null_vec][j];
-					mgstruct->null_vectors[0][4*num_null_vec][j] = 0.0;
+					mgstruct->null_vectors[0][num_null_vec+2*mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
+					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
 				else if (coord[0]%2 == 1 && coord[1]%2 == 1)
 				{
-					mgstruct->null_vectors[0][4*num_null_vec+3][j] = mgstruct->null_vectors[0][4*num_null_vec][j];
-					mgstruct->null_vectors[0][4*num_null_vec][j] = 0.0;
+					mgstruct->null_vectors[0][num_null_vec+3*mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
+					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
 			}
 			break;
@@ -107,12 +107,12 @@ void null_partition_coarse(mg_operator_struct_complex* mgstruct, int num_null_ve
 				//int x_coord = (i - c)/mgstruct->n_vector % mgstruct->curr_x_fine;
 				//int y_coord = ((i - c)/mgstruct->n_vector - x_coord)/mgstruct->curr_x_fine;
 
-				// If c is even, it's from an even vector, otherwise it's from an odd vector!
+				// If c is >= mgstruct->n_vector/2, it's odd!
 
-				if (c%2 == 1)
+				if (c >= mgstruct->n_vector/2)
 				{
-					mgstruct->null_vectors[mgstruct->curr_level][2*num_null_vec+1][j] = mgstruct->null_vectors[mgstruct->curr_level][2*num_null_vec][j];
-					mgstruct->null_vectors[mgstruct->curr_level][2*num_null_vec][j] = 0.0;
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+mgstruct->n_vector/2][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j] = 0.0;
 				}
 			}
 			break;
@@ -124,22 +124,21 @@ void null_partition_coarse(mg_operator_struct_complex* mgstruct, int num_null_ve
 				//int x_coord = (i - c)/mgstruct->n_vector % mgstruct->curr_x_fine;
 				//int y_coord = ((i - c)/mgstruct->n_vector - x_coord)/mgstruct->curr_x_fine;
 
-				// If c is even, it's from an even vector, otherwise it's from an odd vector!
 
-				if (c%4 == 1)
+				if (c >= mgstruct->n_vector/4 && c < 2*mgstruct->n_vector/4)
 				{
-					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec+1][j] = mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j];
-					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j] = 0.0;
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+mgstruct->n_vector/4][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j] = 0.0;
 				}
-				else if (c%4 == 2)
+				else if (c >= 2*mgstruct->n_vector/4 && c < 3*mgstruct->n_vector/4)
 				{
-					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec+2][j] = mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j];
-					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j] = 0.0;
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+2*mgstruct->n_vector/4][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j] = 0.0;
 				}
-				else if (c%4 == 3)
+				else if (c >= 3*mgstruct->n_vector/4)
 				{
-					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec+3][j] = mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j];
-					mgstruct->null_vectors[mgstruct->curr_level][4*num_null_vec][j] = 0.0;
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+3*mgstruct->n_vector/4][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j] = 0.0;
 				}
 			}
 
