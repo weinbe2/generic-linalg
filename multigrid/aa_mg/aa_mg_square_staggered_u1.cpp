@@ -1388,31 +1388,35 @@ int main(int argc, char** argv)
     
     if (do_eigentest)
     {
-        for (int lev = 0; lev < mgstruct.n_refine; lev++)
+        complex<double>** evals = new complex<double>*[mgstruct.n_refine+1];
+        complex<double>*** evecs = new complex<double>**[mgstruct.n_refine+1];
+        int* n_eigen = new int[mgstruct.n_refine];
+        int lev = 0; 
+        int n_cv = 0; 
+        
+        for (lev = 0; lev < mgstruct.n_refine; lev++)
         {
-            int n_eigen = 0;
-            int n_cv = 0;
-            complex<double>* evals = 0;
-            complex<double>** evecs = 0;
+            n_eigen[lev] = 0;
+            n_cv = 0;
             
             if (set_eigen == -1 && set_cv == -1) // generate all eigenvalues, eigenvectors. 
             {
                 // Allocate space for all eigenvalues, eigenvectors. 
-                n_eigen = mgstruct.curr_fine_size;
+                n_eigen[lev] = mgstruct.curr_fine_size;
                 n_cv = mgstruct.curr_fine_size; 
-                cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen << " Number of cv: " << n_cv << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen[lev] << " Number of cv: " << n_cv << "\n";
                 
-                evals = new complex<double>[mgstruct.curr_fine_size];
-                evecs = new complex<double>*[mgstruct.curr_fine_size];
-                for (i = 0; i < n_eigen; i++)
+                evals[lev] = new complex<double>[mgstruct.curr_fine_size];
+                evecs[lev] = new complex<double>*[mgstruct.curr_fine_size];
+                for (i = 0; i < n_eigen[lev]; i++)
                 {
-                    evecs[i] = new complex<double>[mgstruct.curr_fine_size];
+                    evecs[lev][i] = new complex<double>[mgstruct.curr_fine_size];
                 }
                 
                 // Get low mag half
-                arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen/2, n_cv); // max eigenvectors, internal vecs
+                arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen[lev]/2, n_cv); // max eigenvectors, internal vecs
                 char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
-                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, mgstruct.curr_fine_size, n_eigen/2, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals[lev], evecs[lev], mgstruct.curr_fine_size, n_eigen[lev]/2, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
                 //arpack_dcn_free(&ar_strc);
 
                 // Print info about the eigensolve.
@@ -1423,7 +1427,7 @@ int main(int argc, char** argv)
                 // Get high mag half
                 //arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
                 strcpy(eigtype, "LM"); // Smallest magnitude eigenvalues.
-                info_solve = arpack_dcn_getev(ar_strc, evals+(mgstruct.curr_fine_size/2), evecs+(mgstruct.curr_fine_size/2), mgstruct.curr_fine_size, n_eigen/2, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+                info_solve = arpack_dcn_getev(ar_strc, evals[lev]+(mgstruct.curr_fine_size/2), evecs[lev]+(mgstruct.curr_fine_size/2), mgstruct.curr_fine_size, n_eigen[lev]/2, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
                 arpack_dcn_free(&ar_strc);
 
                 // Print info about the eigensolve.
@@ -1435,21 +1439,21 @@ int main(int argc, char** argv)
             }
             else if (set_eigen != -1 && set_cv == -1) // generate n_eigen eigenvalues, min(mgstruct.curr_fine_size, 2.5 n_eigen) cv.
             {
-                n_eigen = set_eigen;
-                n_cv = min(mgstruct.curr_fine_size, 2*n_eigen + n_eigen/2);
-                cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen << " Number of cv: " << n_cv << "\n";
+                n_eigen[lev] = set_eigen;
+                n_cv = min(mgstruct.curr_fine_size, 2*n_eigen[lev] + n_eigen[lev]/2);
+                cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen[lev] << " Number of cv: " << n_cv << "\n";
                 
-                evals = new complex<double>[n_eigen];
-                evecs = new complex<double>*[n_eigen];
-                for (i = 0; i < n_eigen; i++)
+                evals[lev] = new complex<double>[n_eigen[lev]];
+                evecs[lev] = new complex<double>*[n_eigen[lev]];
+                for (i = 0; i < n_eigen[lev]; i++)
                 {
-                    evecs[i] = new complex<double>[mgstruct.curr_fine_size];
+                    evecs[lev][i] = new complex<double>[mgstruct.curr_fine_size];
                 }
                 
                 // Get low mag half
-                arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
+                arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen[lev], n_cv); // max eigenvectors, internal vecs
                 char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
-                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, mgstruct.curr_fine_size, n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals[lev], evecs[lev], mgstruct.curr_fine_size, n_eigen[lev], n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
                 arpack_dcn_free(&ar_strc);
                 
                 // Print info about the eigensolve.
@@ -1460,22 +1464,22 @@ int main(int argc, char** argv)
             }
             else // generate n_eigen eigenvalues, min(mgstruct.curr_fine_size, n_cv) cv.
             {
-                n_eigen = set_eigen;
+                n_eigen[lev] = set_eigen;
                 n_cv = set_cv;
                 
-                cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen << " Number of cv: " << n_cv << "\n";
+                cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen[lev] << " Number of cv: " << n_cv << "\n";
                 
-                evals = new complex<double>[n_eigen];
-                evecs = new complex<double>*[n_eigen];
-                for (i = 0; i < n_eigen; i++)
+                evals[lev] = new complex<double>[n_eigen[lev]];
+                evecs[lev] = new complex<double>*[n_eigen[lev]];
+                for (i = 0; i < n_eigen[lev]; i++)
                 {
-                    evecs[i] = new complex<double>[mgstruct.curr_fine_size];
+                    evecs[lev][i] = new complex<double>[mgstruct.curr_fine_size];
                 }
                 
                 // Get low mag half
-                arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); // max eigenvectors, internal vecs
+                arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen[lev], n_cv); // max eigenvectors, internal vecs
                 char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
-                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, mgstruct.curr_fine_size, n_eigen, n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
+                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals[lev], evecs[lev], mgstruct.curr_fine_size, n_eigen[lev], n_cv, 4000, eigtype, 1e-7, 0.0, fine_square_staggered, (void*)&mgstruct); 
                 arpack_dcn_free(&ar_strc);
                 
                 // Print info about the eigensolve.
@@ -1485,17 +1489,17 @@ int main(int argc, char** argv)
             }
 
             // Sort eigenvalues (done differently depending on the operator).
-            for (i = 0; i < n_eigen; i++)
+            for (i = 0; i < n_eigen[lev]; i++)
             {
-                for (j = 0; j < n_eigen-1; j++)
+                for (j = 0; j < n_eigen[lev]-1; j++)
                 {
                     switch (opt)
                     {
                         case STAGGERED:
-                            if (abs(imag(evals[j])) > abs(imag(evals[j+1])))
+                            if (abs(imag(evals[lev][j])) > abs(imag(evals[lev][j+1])))
                             {
-                                complex<double> teval = evals[j]; evals[j] = evals[j+1]; evals[j+1] = teval;
-                                complex<double>* tevec = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tevec;
+                                complex<double> teval = evals[lev][j]; evals[lev][j] = evals[lev][j+1]; evals[lev][j+1] = teval;
+                                complex<double>* tevec = evecs[lev][j]; evecs[lev][j] = evecs[lev][j+1]; evecs[lev][j+1] = tevec;
                             }
                             break;
                         case LAPLACE:
@@ -1503,10 +1507,10 @@ int main(int argc, char** argv)
                         case G5_STAGGERED:
                         case STAGGERED_NORMAL:
                         case STAGGERED_INDEX:
-                            if (abs(real(evals[j])) > abs(real(evals[j+1])))
+                            if (abs(real(evals[lev][j])) > abs(real(evals[lev][j+1])))
                             {
-                                complex<double> teval = evals[j]; evals[j] = evals[j+1]; evals[j+1] = teval;
-                                complex<double>* tevec = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tevec;
+                                complex<double> teval = evals[lev][j]; evals[lev][j] = evals[lev][j+1]; evals[lev][j+1] = teval;
+                                complex<double>* tevec = evecs[lev][j]; evecs[lev][j] = evecs[lev][j+1]; evecs[lev][j+1] = tevec;
                             }
                             break; 
                     }
@@ -1515,11 +1519,160 @@ int main(int argc, char** argv)
             
             
             cout << "\n\nAll eigenvalues:\n";
-            for (i = 0; i < n_eigen; i++)
+            for (i = 0; i < n_eigen[lev]; i++)
             {
-                cout << "[L" << lev+1 << "_FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[i] << "\n";
-                normalize<double>(evecs[i], mgstruct.curr_fine_size);
+                cout << "[L" << lev+1 << "_FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[lev][i] << "\n";
+                normalize<double>(evecs[lev][i], mgstruct.curr_fine_size);
             }
+            
+            if (lev < mgstruct.n_refine-1)
+            {
+                level_down(&mgstruct);
+            }
+        }
+        
+        // Something special for the coarsest level
+        lev = mgstruct.n_refine; 
+        n_eigen[lev] = 0;
+        n_cv = 0;
+
+        if (set_eigen == -1 && set_cv == -1) // generate all eigenvalues, eigenvectors. 
+        {
+            // Allocate space for all eigenvalues, eigenvectors. 
+            n_eigen[lev] = mgstruct.curr_coarse_size;
+            n_cv = mgstruct.curr_coarse_size; 
+            cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen[lev] << " Number of cv: " << n_cv << "\n";
+
+            evals[lev] = new complex<double>[mgstruct.curr_coarse_size];
+            evecs[lev] = new complex<double>*[mgstruct.curr_coarse_size];
+            for (i = 0; i < n_eigen[lev]; i++)
+            {
+                evecs[lev][i] = new complex<double>[mgstruct.curr_coarse_size];
+            }
+
+            // Get low mag half
+            arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_coarse_size, n_eigen[lev]/2, n_cv); // max eigenvectors, internal vecs
+            char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
+            arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals[lev], evecs[lev], mgstruct.curr_coarse_size, n_eigen[lev]/2, n_cv, 4000, eigtype, 1e-7, 0.0, coarse_square_staggered, (void*)&mgstruct); 
+            //arpack_dcn_free(&ar_strc);
+
+            // Print info about the eigensolve.
+            cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+
+            // Get high mag half
+            //arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_coarse_size, n_eigen, n_cv); // max eigenvectors, internal vecs
+            strcpy(eigtype, "LM"); // Smallest magnitude eigenvalues.
+            info_solve = arpack_dcn_getev(ar_strc, evals[lev]+(mgstruct.curr_coarse_size/2), evecs[lev]+(mgstruct.curr_coarse_size/2), mgstruct.curr_coarse_size, n_eigen[lev]/2, n_cv, 4000, eigtype, 1e-7, 0.0, coarse_square_staggered, (void*)&mgstruct); 
+            arpack_dcn_free(&ar_strc);
+
+            // Print info about the eigensolve.
+            cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+
+            // End of arpack bindings!   
+        }
+        else if (set_eigen != -1 && set_cv == -1) // generate n_eigen eigenvalues, min(mgstruct.curr_coarse_size, 2.5 n_eigen) cv.
+        {
+            n_eigen[lev] = set_eigen;
+            n_cv = min(mgstruct.curr_coarse_size, 2*n_eigen[lev] + n_eigen[lev]/2);
+            cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen[lev] << " Number of cv: " << n_cv << "\n";
+
+            evals[lev] = new complex<double>[n_eigen[lev]];
+            evecs[lev] = new complex<double>*[n_eigen[lev]];
+            for (i = 0; i < n_eigen[lev]; i++)
+            {
+                evecs[lev][i] = new complex<double>[mgstruct.curr_coarse_size];
+            }
+
+            // Get low mag half
+            arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_coarse_size, n_eigen[lev], n_cv); // max eigenvectors, internal vecs
+            char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
+            arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals[lev], evecs[lev], mgstruct.curr_coarse_size, n_eigen[lev], n_cv, 4000, eigtype, 1e-7, 0.0, coarse_square_staggered, (void*)&mgstruct); 
+            arpack_dcn_free(&ar_strc);
+
+            // Print info about the eigensolve.
+            cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+
+        }
+        else // generate n_eigen eigenvalues, min(mgstruct.curr_coarse_size, n_cv) cv.
+        {
+            n_eigen[lev] = set_eigen;
+            n_cv = set_cv;
+
+            cout << "[L" << lev+1 << "_ARPACK]: Number of eigenvalues: " << n_eigen[lev] << " Number of cv: " << n_cv << "\n";
+
+            evals[lev] = new complex<double>[n_eigen[lev]];
+            evecs[lev] = new complex<double>*[n_eigen[lev]];
+            for (i = 0; i < n_eigen[lev]; i++)
+            {
+                evecs[lev][i] = new complex<double>[mgstruct.curr_coarse_size];
+            }
+
+            // Get low mag half
+            arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_coarse_size, n_eigen[lev], n_cv); // max eigenvectors, internal vecs
+            char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
+            arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals[lev], evecs[lev], mgstruct.curr_coarse_size, n_eigen[lev], n_cv, 4000, eigtype, 1e-7, 0.0, coarse_square_staggered, (void*)&mgstruct); 
+            arpack_dcn_free(&ar_strc);
+
+            // Print info about the eigensolve.
+            cout << "[L" << lev+1 << "_ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
+            cout << "[L" << lev+1 << "_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+        }
+
+        // Sort eigenvalues (done differently depending on the operator).
+        for (i = 0; i < n_eigen[lev]; i++)
+        {
+            for (j = 0; j < n_eigen[lev]-1; j++)
+            {
+                switch (opt)
+                {
+                    case STAGGERED:
+                        if (abs(imag(evals[lev][j])) > abs(imag(evals[lev][j+1])))
+                        {
+                            complex<double> teval = evals[lev][j]; evals[lev][j] = evals[lev][j+1]; evals[lev][j+1] = teval;
+                            complex<double>* tevec = evecs[lev][j]; evecs[lev][j] = evecs[lev][j+1]; evecs[lev][j+1] = tevec;
+                        }
+                        break;
+                    case LAPLACE:
+                    case LAPLACE_NC2:
+                    case G5_STAGGERED:
+                    case STAGGERED_NORMAL:
+                    case STAGGERED_INDEX:
+                        if (abs(real(evals[lev][j])) > abs(real(evals[lev][j+1])))
+                        {
+                            complex<double> teval = evals[lev][j]; evals[lev][j] = evals[lev][j+1]; evals[lev][j+1] = teval;
+                            complex<double>* tevec = evecs[lev][j]; evecs[lev][j] = evecs[lev][j+1]; evecs[lev][j+1] = tevec;
+                        }
+                        break; 
+                }
+            }
+        }
+
+
+        cout << "\n\nAll eigenvalues:\n";
+        for (i = 0; i < n_eigen[lev]; i++)
+        {
+            cout << "[L" << lev+1 << "_FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[lev][i] << "\n";
+            normalize<double>(evecs[lev][i], mgstruct.curr_coarse_size);
+        }
+        
+        // End generating coarse level. 
+
+        
+        
+        for (lev = mgstruct.n_refine-2; lev >= 0; lev--)
+        {
+            level_up(&mgstruct);
+        }
+        
+        for (lev = 0; lev < mgstruct.n_refine; lev++)
+        {
 
             complex<double>* evec_Pdag = new complex<double>[mgstruct.curr_coarse_size];
             complex<double>* evec_Pdag2 = new complex<double>[mgstruct.curr_coarse_size];
@@ -1528,14 +1681,14 @@ int main(int argc, char** argv)
             // Test overlap of null vectors with eigenvectors.
             // Formally, this is looking at the magnitude of (1 - P P^\dag) eigenvector.
 
-            for (i = 0; i < n_eigen; i++)
+            for (i = 0; i < n_eigen[lev]; i++)
             {
                 // Zero out.
                 zero<double>(evec_Pdag, mgstruct.curr_coarse_size);
                 zero<double>(evec_PPdag, mgstruct.curr_fine_size);
 
                 // Restrict eigenvector.
-                restrict(evec_Pdag, evecs[i], &mgstruct);
+                restrict(evec_Pdag, evecs[lev][i], &mgstruct);
 
                 // Prolong.
                 prolong(evec_PPdag, evec_Pdag, &mgstruct);
@@ -1543,15 +1696,15 @@ int main(int argc, char** argv)
                 // Subtract off eigenvector, take norm.
                 for (j = 0; j < mgstruct.curr_fine_size; j++)
                 {
-                    evec_PPdag[j] -= evecs[i][j];
+                    evec_PPdag[j] -= evecs[lev][i][j];
                 }
 
-                cout << "[L" << lev+1 << "_1mPPDAG]: Num " << i << " Overlap " << sqrt(norm2sq<double>(evec_PPdag, mgstruct.curr_fine_size)) << "\n";
+                cout << "[L" << lev+1 << "_1mPPDAG]: Num " << i << " Overlap " << sqrt(norm2sq<double>(evec_PPdag, mgstruct.curr_fine_size)) << "\n"; 
             }
 
             // Test how good of a preconditioner the coarse operator is.
             // Formally, this is looking at the magnitude of (1 - P ( P^\dag A P )^(-1) P^\dag A) eigenvector.
-            for (i = 0; i < n_eigen; i++)
+            for (i = 0; i < n_eigen[lev]; i++)
             {
                 // Zero out.
                 zero<double>(evec_Pdag, mgstruct.curr_coarse_size);
@@ -1559,7 +1712,7 @@ int main(int argc, char** argv)
                 zero<double>(evec_PPdag, mgstruct.curr_fine_size);
 
                 // Apply A.
-                fine_square_staggered(evec_PPdag, evecs[i], (void*)&mgstruct);
+                fine_square_staggered(evec_PPdag, evecs[lev][i], (void*)&mgstruct);
 
                 // Restrict.
                 restrict(evec_Pdag, evec_PPdag, &mgstruct);
@@ -1574,7 +1727,7 @@ int main(int argc, char** argv)
                 // Subtract off eigenvector, take norm.
                 for (j = 0; j < mgstruct.curr_fine_size; j++)
                 {
-                    evec_PPdag[j] -= evecs[i][j];
+                    evec_PPdag[j] -= evecs[lev][i][j];
                 }
 
                 cout << "[L" << lev+1 << "_1mP_Ac_PDAG_A]: Num " << i << " Overlap " << sqrt(norm2sq<double>(evec_PPdag, mgstruct.curr_fine_size)) << "\n";
@@ -1584,24 +1737,32 @@ int main(int argc, char** argv)
             delete[] evec_Pdag;
             delete[] evec_PPdag;
             delete[] evec_Pdag2;
-
-            for (i = 0; i < n_eigen; i++)
-            {
-                delete[] evecs[i];
-            }
-            delete[] evecs;
-            delete[] evals;
-
+            
             if (lev < mgstruct.n_refine-1)
             {
                 level_down(&mgstruct);
             }
         }
-
-        for (int lev = mgstruct.n_refine-2; lev >= 0; lev--)
+        
+        for (lev = mgstruct.n_refine-2; lev >= 0; lev--)
         {
             level_up(&mgstruct);
         }
+
+        for (lev = 0; lev <= mgstruct.n_refine; lev++)
+        {
+            for (i = 0; i < n_eigen[lev]; i++)
+            {
+                delete[] evecs[lev][i];
+            }
+            delete[] evals[lev];
+            delete[] evecs[lev];
+        }
+        
+        delete[] evecs;
+        delete[] evals;
+        delete[] n_eigen;
+        
     
     } // do_eigentest
 #endif // EIGEN_TEST
