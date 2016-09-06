@@ -2075,7 +2075,9 @@ int main(int argc, char** argv)
     for (i = 0; i <= mgstruct.n_refine; i++)
     {
         cout << "= [L" << i+1 << "_DSLASH]: Dslash NullVec " << mgstruct.dslash_count->nullvectors[i] << " Krylov " << mgstruct.dslash_count->krylov[i] << " PreSmooth " << mgstruct.dslash_count->presmooth[i] <<
-            " PostSmooth " << mgstruct.dslash_count->postsmooth[i] << " Residual " << mgstruct.dslash_count->residual[i] << "\n";
+            " PostSmooth " << mgstruct.dslash_count->postsmooth[i] << " Residual " << mgstruct.dslash_count->residual[i] << " TotalNonNull " << invif.iter << " x " << 
+            ((double)mgstruct.dslash_count->krylov[i]+mgstruct.dslash_count->presmooth[i]+mgstruct.dslash_count->postsmooth[i]+mgstruct.dslash_count->residual[i])/invif.iter << " = " << 
+            (mgstruct.dslash_count->krylov[i]+mgstruct.dslash_count->presmooth[i]+mgstruct.dslash_count->postsmooth[i]+mgstruct.dslash_count->residual[i]) << "\n";
     }
     
     // Free the lattice.
