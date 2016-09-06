@@ -1717,8 +1717,19 @@ int main(int argc, char** argv)
                 // Restrict.
                 restrict(evec_Pdag, evec_PPdag, &mgstruct);
 
+                // Try a deflation preconditioned solve...
+                for (j = 0; j < n_eigen[lev+1]; j++)
+                {
+                    complex<double> def_dot = dot<double>(evecs[lev+1][j], evec_Pdag, mgstruct.curr_coarse_size);
+                    for (k = 0; k < mgstruct.curr_coarse_size; k++)
+                    {
+                        evec_Pdag2[k] += 1.0/(evals[lev+1][j])*def_dot*evecs[lev+1][j][k];
+                    }
+                }
+
                 // Invert A_coarse against it.
                 invif = minv_vector_gcr_restart(evec_Pdag2, evec_Pdag, mgstruct.curr_coarse_size, 10000, 1e-7, 64, coarse_square_staggered, (void*)&mgstruct);
+                //cout << "[L" << lev+1 << "_DEFLATE]: Num " << i << " Iter " << invif.iter << "\n";
 
                 // Prolong.
                 zero<double>(evec_PPdag, mgstruct.curr_coarse_size);
