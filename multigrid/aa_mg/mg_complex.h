@@ -124,10 +124,10 @@ struct mg_precond_struct_complex
     double omega_smooth;
     
     // How many pre-smooth steps?
-    int n_pre_smooth;
+    int* n_pre_smooth;
     
     // How many post-smooth steps?
-    int n_post_smooth;
+    int* n_post_smooth;
     
     // How do we do recursive MG?
     mg_multilevel_type mlevel_type; // SMOOTH, RECURSIVE

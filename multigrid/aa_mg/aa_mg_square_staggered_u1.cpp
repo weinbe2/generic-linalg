@@ -143,6 +143,8 @@ void display_usage()
     cout << "--nvec [nvec]                                 (default 4)\n";
     cout << "--nrefine [number coarse]                     (default 1)\n";
     cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
+    cout << "--npre-smooth [presmooth steps] {#, #, ...}   (default 6, same for all levels)\n";
+    cout << "--npost-smooth [postsmooth steps] {#, #, ...} (default 6, same for all levels)\n";
     cout << "--coarse-solver [gcr, bicgstab, cg, minres,\n";
     cout << "         cr, none]                            (default gcr)\n";
     cout << "--coarse-precision [coarse precision]         (default 1e-2)\n";
@@ -150,8 +152,6 @@ void display_usage()
     cout << "--gauge [unit, load, random]                  (default load)\n";
     cout << "--gauge-transform [yes, no]                   (default no)\n";
     cout << "--beta [3.0, 6.0, 10.0, 10000.0]              (default 6.0)\n";
-    cout << "--npre-smooth [presmooth steps]               (default 6)\n";
-    cout << "--npost-smooth [postsmooth steps]             (default 6)\n";
     cout << "--load-cfg [path]                             (default do not load, overrides beta)\n";
 #ifdef EIGEN_TEST
     cout << "--do-eigentest [yes, no]                      (default no)\n";
@@ -273,8 +273,8 @@ int main(int argc, char** argv)
     // Smoother
     inner_solver in_smooth = GCR; //NONE; //GCR; BICGSTAB
     double omega_smooth = 0.67; // for MINRES only. 
-    int pre_smooth = 6; // Can set on command line.
-    int post_smooth = 6; // Can set on command line.
+    vector<int> pre_smooths; pre_smooths.push_back(6);
+    vector<int> post_smooths; post_smooths.push_back(6);
     
     // Gauge field information.
     double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
@@ -631,13 +631,23 @@ int main(int argc, char** argv)
             }
             else if (strcmp(argv[i], "--npre-smooth") == 0)
             {
-                pre_smooth = atof(argv[i+1]);
+                pre_smooths[0] = atoi(argv[i+1]);
                 i++;
+                while (i+1 != argc && argv[i+1][0] != '-')
+                {
+                    pre_smooths.push_back(atoi(argv[i+1]));
+                    i++;
+                }
             }
             else if (strcmp(argv[i], "--npost-smooth") == 0)
             {
-                post_smooth = atof(argv[i+1]);
+                post_smooths[0] = atoi(argv[i+1]);
                 i++;
+                while (i+1 != argc && argv[i+1][0] != '-')
+                {
+                    post_smooths.push_back(atoi(argv[i+1]));
+                    i++;
+                }
             }
             else if (strcmp(argv[i], "--load-cfg") == 0)
             {
@@ -952,8 +962,6 @@ int main(int argc, char** argv)
 
     mgprecond.in_smooth_type = in_smooth; // What inner smoother? MinRes or GCR.
     mgprecond.omega_smooth = omega_smooth; // What relaxation parameter should we use (MinRes only!)
-    mgprecond.n_pre_smooth = pre_smooth; // 6 MinRes smoother steps before coarsening.
-    mgprecond.n_post_smooth = post_smooth; // 6 MinRes smoother steps after refining.
     mgprecond.mlevel_type = mlevel_type; // Do we smooth then go down, or smooth then start a new Krylov?
     mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, GCR, BICGSTAB. Should also be used for recursive solve!!
     mgprecond.n_max = inner_max; // max number of steps to use for inner solver.
@@ -963,6 +971,31 @@ int main(int argc, char** argv)
     mgprecond.coarse_matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
     mgprecond.fine_matrix_vector = fine_square_staggered; // Function which applies the fine operator. 
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
+    
+    // Presmooth and postsmooth. Default 6 MinRes pre, post. 
+    if (pre_smooths.size() != n_refine && pre_smooths.size() != 1 && n_refine > 0)
+    {
+        cout << "[ERROR]: Incorrect number of presmoother iterations supplied. Needs to be either 1 or nrefine.\n";
+        return 0;
+    }
+    if (post_smooths.size() != n_refine && post_smooths.size() != 1 && n_refine > 0)
+    {
+        cout << "[ERROR]: Incorrect number of postsmoother iterations supplied. Needs to be either 1 or nrefine.\n";
+        return 0;
+    }
+    
+    mgprecond.n_pre_smooth = new int[n_refine];
+    mgprecond.n_post_smooth = new int[n_refine];
+    
+    if (pre_smooths.size() == 1) { for (i = 0; i < n_refine; i++) { mgprecond.n_pre_smooth[i] = pre_smooths[0]; } }
+    else // there are unique pre smooth counts for each level.
+    { for (i = 0; i < n_refine; i++) { mgprecond.n_pre_smooth[i] = pre_smooths[i]; } }
+    
+    if (post_smooths.size() == 1) { for (i = 0; i < n_refine; i++) { mgprecond.n_post_smooth[i] = post_smooths[0]; } }
+    else // there are unique post smooth counts for each level.
+    { for (i = 0; i < n_refine; i++) { mgprecond.n_post_smooth[i] = post_smooths[i]; } }
+    
+    // End set up MG preconditioners
 
     // Set right hand side.
     switch (source)
@@ -2264,6 +2297,9 @@ int main(int argc, char** argv)
     }
     delete mgstruct.dslash_count; 
     delete[] mgstruct.null_vectors; 
+    
+    delete[] mgprecond.n_pre_smooth;
+    delete[] mgprecond.n_post_smooth; 
     
     return 0; 
 }
