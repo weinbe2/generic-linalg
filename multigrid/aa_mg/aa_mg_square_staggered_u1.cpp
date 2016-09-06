@@ -37,6 +37,10 @@
 #include "arpack_interface.h"
 #endif
 
+// Tests for constructing coarse operator.
+ // define first coarse op. 
+//#define COARSE_CONSTRUCT_1
+
 // Do restrict/prolong test?
 //#define PDAGP_TEST
 
@@ -1242,28 +1246,6 @@ int main(int argc, char** argv)
                         }
                         else
                         {
-                            // Orthogonal test.
-                            /*for (double tmpres = 1e-1; tmpres > null_precision; tmpres *= 0.8)
-                            {
-                                minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, tmpres, fine_square_staggered, &mgstruct, &verb);
-                                if (i > 0) // If there are vectors to orthogonalize against...
-                                {
-                                    for (j = 0; j < i; j++) // Iterate over all of them...
-                                    {
-                                        for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++) // And then iterate over even/odd or corners!
-                                        {
-                                            orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                            if (do_global_ortho_conj)
-                                            {
-                                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                                conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j*null_partitions+k], mgstruct.curr_fine_size);
-                                            }
-                                        }
-                                    }
-                                }
-                            }*/
-                            // End orthogonal test.
                             invif = minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                         }
                         break;
@@ -1828,6 +1810,58 @@ int main(int argc, char** argv)
     
     } // do_eigentest
 #endif // EIGEN_TEST
+    
+#ifdef COARSE_CONSTRUCT_1
+    // Let's do a coarse test!
+    complex<double>* coarse_rhs = new complex<double>[mgstruct.curr_coarse_size];
+    complex<double>* coarse_lhs = new complex<double>[mgstruct.curr_coarse_size];
+    
+    zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
+    zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
+    
+    complex<double>** clover = new complex<double>*[mgstruct.curr_dof_coarse];
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        clover[i] = new complex<double>[mgstruct.curr_dof_coarse];
+    };
+    
+    // Try constructing the (0,0) coarse clover.
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
+        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
+        
+        coarse_rhs[i] = 1.0;
+        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            clover[j][i] = coarse_lhs[j];
+        }
+    }
+    
+    // Print the clover.
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            cout << clover[i][j] << " ";
+        }
+        cout << "\n";
+    }
+    
+        
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        delete[] clover[i];
+    };
+    delete[] clover;
+    
+    delete[] coarse_rhs;
+    delete[] coarse_lhs;
+    
+    return 0; 
+    
+#endif // COARSE_CONSTRUCT_1
     
 #ifdef PDAGP_TEST
     {
