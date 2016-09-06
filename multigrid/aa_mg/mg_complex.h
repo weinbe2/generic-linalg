@@ -136,7 +136,7 @@ struct mg_precond_struct_complex
     inner_solver in_solve_type; // MR, CG, CR, or GCR
     int n_max; // Max steps for inner solver?
     int n_restart; // restart frequency (relevant for CG, CR, GCR).
-    double rel_res; // Rel_res for inner solver?
+    double* rel_res; // Rel_res for inner solver?
     
     // What's the mg_info?
     mg_operator_struct_complex* mgstruct; 

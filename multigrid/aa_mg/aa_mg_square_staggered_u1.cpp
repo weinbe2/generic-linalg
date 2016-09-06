@@ -119,44 +119,44 @@ enum outer_solver
 void display_usage()
 {
     cout << "--help\n";
-    cout << "--lattice-size [32, 64, 128] {##}             (default 32x32)\n";
+    cout << "--lattice-size [32, 64, 128] {##}                 (default 32x32)\n";
     cout << "--operator [laplace, laplace2, staggered\n";
-    cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
-    cout << "--outer-solver [gcr, bicgstab, cg]            (default gcr)\n";
-    cout << "--outer-precision [outer prec]                (default 5e-7)\n";
-    cout << "--outer-max-iter [outer maximum iterations]   (default 100000)\n";
-    cout << "--outer-restart [yes, no]                     (default yes)\n";
-    cout << "--outer-restart-freq [#]                      (default 64)\n";
+    cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
+    cout << "--outer-solver [gcr, bicgstab, cg]                (default gcr)\n";
+    cout << "--outer-precision [outer prec]                    (default 5e-7)\n";
+    cout << "--outer-max-iter [outer maximum iterations]       (default 100000)\n";
+    cout << "--outer-restart [yes, no]                         (default yes)\n";
+    cout << "--outer-restart-freq [#]                          (default 64)\n";
     cout << "--null-operator [laplace, laplace2, staggered\n";
-    cout << "       g5_staggered, normal_staggered, index] (default staggered)\n";
-    cout << "--null-solver [gcr, bicgstab, cg, minres]     (default bicgstab)\n";
-    cout << "--null-precision [null prec]                  (default 5e-5)\n";
-    cout << "--null-max-iter [null maximum iterations]     (default 500)\n";
-    cout << "--null-restart [yes, no]                      (default no)\n";
-    cout << "--null-restart-freq [#]                       (default 8 if restarting is enabled)\n";
-    cout << "--null-mass [mass]                            (default 1e-4)\n";
-    cout << "--null-eo [corner, yes, no, topo]             (default yes)\n";
-    cout << "--null-global-ortho-conj [yes, no]            (default no, it only helps in some weird fluke cases)\n";
-    cout << "--null-ortho-eo [yes, no]                     (default no)\n"; 
-    cout << "--mass [mass]                                 (default 1e-2)\n";
-    cout << "--blocksize [blocksize] {#, #...}             (default 4, same for all levels)\n";
-    cout << "--nvec [nvec]                                 (default 4)\n";
-    cout << "--nrefine [number coarse]                     (default 1)\n";
-    cout << "--multi-strategy [smooth, recursive]          (default smooth)\n";
-    cout << "--npre-smooth [presmooth steps] {#, #, ...}   (default 6, same for all levels)\n";
-    cout << "--npost-smooth [postsmooth steps] {#, #, ...} (default 6, same for all levels)\n";
+    cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
+    cout << "--null-solver [gcr, bicgstab, cg, minres]         (default bicgstab)\n";
+    cout << "--null-precision [null prec]                      (default 5e-5)\n";
+    cout << "--null-max-iter [null maximum iterations]         (default 500)\n";
+    cout << "--null-restart [yes, no]                          (default no)\n";
+    cout << "--null-restart-freq [#]                           (default 8 if restarting is enabled)\n";
+    cout << "--null-mass [mass]                                (default 1e-4)\n";
+    cout << "--null-eo [corner, yes, no, topo]                 (default yes)\n";
+    cout << "--null-global-ortho-conj [yes, no]                (default no, it only helps in some weird fluke cases)\n";
+    cout << "--null-ortho-eo [yes, no]                         (default no)\n"; 
+    cout << "--mass [mass]                                     (default 1e-2)\n";
+    cout << "--blocksize [blocksize] {#, #...}                 (default 4, same for all levels)\n";
+    cout << "--nvec [nvec]                                     (default 4)\n";
+    cout << "--nrefine [number coarse]                         (default 1)\n";
+    cout << "--multi-strategy [smooth, recursive]              (default smooth)\n";
+    cout << "--npre-smooth [presmooth steps] {#, #, ...}       (default 6, same for all levels)\n";
+    cout << "--npost-smooth [postsmooth steps] {#, #, ...}     (default 6, same for all levels)\n";
     cout << "--coarse-solver [gcr, bicgstab, cg, minres,\n";
-    cout << "         cr, none]                            (default gcr)\n";
-    cout << "--coarse-precision [coarse precision]         (default 1e-2)\n";
-    cout << "--coarse-max-iter [coarse maximum iterations] (default 1024)\n";
-    cout << "--gauge [unit, load, random]                  (default load)\n";
-    cout << "--gauge-transform [yes, no]                   (default no)\n";
-    cout << "--beta [3.0, 6.0, 10.0, 10000.0]              (default 6.0)\n";
-    cout << "--load-cfg [path]                             (default do not load, overrides beta)\n";
+    cout << "         cr, none]                                (default gcr)\n";
+    cout << "--coarse-precision [coarse precision] {#, #, ...} (default 1e-2, same for all levels)\n";
+    cout << "--coarse-max-iter [coarse maximum iterations]     (default 1024)\n";
+    cout << "--gauge [unit, load, random]                      (default load)\n";
+    cout << "--gauge-transform [yes, no]                       (default no)\n";
+    cout << "--beta [3.0, 6.0, 10.0, 10000.0]                  (default 6.0)\n";
+    cout << "--load-cfg [path]                                 (default do not load, overrides beta)\n";
 #ifdef EIGEN_TEST
-    cout << "--do-eigentest [yes, no]                      (default no)\n";
-    cout << "--n-ev [all, # smallest]                      (default all)\n";
-    cout << "--n-cv [#]                                    (default min(all, 2.5*n-ev))\n";
+    cout << "--do-eigentest [yes, no]                          (default no)\n";
+    cout << "--n-ev [all, # smallest]                          (default all)\n";
+    cout << "--n-cv [#]                                        (default min(all, 2.5*n-ev))\n";
 #endif // EIGEN_TEST
 }
 
@@ -262,7 +262,7 @@ int main(int argc, char** argv)
     // Inner solver.
     mg_multilevel_type mlevel_type = MLEVEL_SMOOTH; // MLEVEL_SMOOTH, MLEVEL_RECURSIVE --- do we smooth then go down, or smooth then krylov?
     inner_solver in_solve = GCR; //CR; //GCR; 
-    double inner_precision = 1e-2;
+    vector<double> inner_precisions; inner_precisions.push_back(1e-2);
     int inner_restart = 64;
     int inner_max = 1024;
     if (my_test == SMOOTHER_ONLY)
@@ -566,8 +566,13 @@ int main(int argc, char** argv)
             }
             else if (strcmp(argv[i], "--coarse-precision") == 0)
             {
-                inner_precision = atof(argv[i+1]);
+                inner_precisions[0] = atof(argv[i+1]);
                 i++;
+                while (i+1 != argc && argv[i+1][0] != '-')
+                {
+                    inner_precisions.push_back(atof(argv[i+1]));
+                    i++;
+                }
             }
             else if (strcmp(argv[i], "--coarse-max-iter") == 0)
             {
@@ -966,11 +971,24 @@ int main(int argc, char** argv)
     mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, GCR, BICGSTAB. Should also be used for recursive solve!!
     mgprecond.n_max = inner_max; // max number of steps to use for inner solver.
     mgprecond.n_restart = inner_restart; // frequency of restart (relevant for CG, GCR).
-    mgprecond.rel_res = inner_precision; // Maximum relative residual for inner solver.
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
     mgprecond.coarse_matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
     mgprecond.fine_matrix_vector = fine_square_staggered; // Function which applies the fine operator. 
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
+    
+    // Inner precision. Default 1e-2. Maximum relative residual for coarse solves.
+    if (inner_precisions.size() != n_refine && inner_precisions.size() != 1 && n_refine > 0)
+    {
+        cout << "[ERROR]: Incorrect number of inner precisions supplied. Needs to be either 1 or nrefine.\n";
+        return 0;
+    }
+    
+    mgprecond.rel_res = new double[n_refine];
+    
+    if (inner_precisions.size() == 1) { for (i = 0; i < n_refine; i++) { mgprecond.rel_res[i] = inner_precisions[0]; } }
+    else // there are unique pre smooth counts for each level.
+    { for (i = 0; i < n_refine; i++) { mgprecond.rel_res[i] = inner_precisions[i]; } }
+    
     
     // Presmooth and postsmooth. Default 6 MinRes pre, post. 
     if (pre_smooths.size() != n_refine && pre_smooths.size() != 1 && n_refine > 0)
@@ -2311,6 +2329,7 @@ int main(int argc, char** argv)
     
     delete[] mgprecond.n_pre_smooth;
     delete[] mgprecond.n_post_smooth; 
+    delete[] mgprecond.rel_res; 
     
     return 0; 
 }
