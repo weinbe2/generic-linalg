@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <iomanip> // to set output precision.
+#include <fstream>
 #include <cmath>
 #include <string>
 #include <sstream>
@@ -31,16 +32,19 @@
 #include "operators.h"
 
 // Are we checking eigenvalues?
-//#define EIGEN_TEST
+#define EIGEN_TEST
 
 #ifdef EIGEN_TEST
 #include "arpack_interface.h"
-#include <fstream>
 #endif
 
 // Tests for constructing coarse operator.
- // define first coarse op. 
-#define COARSE_CONSTRUCT_1
+
+// Test for looking at antihermiticity.
+//#define COARSE_CONSTRUCT_1
+
+// Test for looking at free stencil.
+
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -58,10 +62,6 @@ using namespace std;
 
 // Print null vectors?
 //#define PRINT_NULL_VECTOR
-
-// Do null vector generation? Currently uses BiCGStab
-#define GEN_NULL_VECTOR
-
 
 
 // What type of test should we do?
@@ -158,6 +158,7 @@ void display_usage()
     cout << "--gauge-transform [yes, no]                       (default no)\n";
     cout << "--beta [3.0, 6.0, 10.0, 10000.0]                  (default 6.0)\n";
     cout << "--load-cfg [path]                                 (default do not load, overrides beta)\n";
+    cout << "--do-freetest [yes, no]                           (default no)\n"; 
 #ifdef EIGEN_TEST
     cout << "--do-eigentest [yes, no]                          (default no)\n";
     cout << "--n-ev [all, # smallest]                          (default all)\n";
@@ -289,6 +290,9 @@ int main(int argc, char** argv)
     // Load an external cfg?
     char* load_cfg = NULL;
     bool do_load = false; 
+    
+    // Do the free field test? Overrides # null vectors, partitioning scheme, etc. 
+    bool do_free = false; 
     
 #ifdef EIGEN_TEST
     bool do_eigentest = false;
@@ -674,6 +678,18 @@ int main(int argc, char** argv)
                 do_load = true;
                 i++;
             }
+            else if (strcmp(argv[i], "--do-freetest") == 0)
+            {
+                if (strcmp(argv[i+1], "yes") == 0)
+                {
+                    do_free = true;
+                }
+                else
+                {
+                    do_free = false;
+                }
+                i++;
+            }
 #ifdef EIGEN_TEST
             else if (strcmp(argv[i], "--do-eigentest") == 0)
             {
@@ -930,7 +946,12 @@ int main(int argc, char** argv)
     //mgstruct.blocksize_y[0] = 8;
     //for (i = 1; i < n_refine; i++)
     
-
+    // If we do the free test, we construct a constant vector.
+    if (do_free)
+    {
+        n_null_vector = 1;
+    }
+    
     switch (bstrat)
     {
         case BLOCK_NONE:
@@ -947,8 +968,11 @@ int main(int argc, char** argv)
             null_partitions = 4; 
             break;
     }
+    
     mgstruct.matrix_vector = op; //square_staggered_u1;
     mgstruct.matrix_extra_data = (void*)&stagif; 
+    
+    
     
     cout << "[MG]: X_Block ";
     for (i = 0; i < n_refine; i++)
@@ -1085,88 +1109,6 @@ int main(int argc, char** argv)
     }
 
     cout << "[MG]: Creating " << mgstruct.n_vector << " projector(s).\n";
-#ifndef GEN_NULL_VECTOR
-
-    // Make a constant projector.
-    if (mgstruct.n_vector == 1)
-    {
-        cout << "[MG]: Null vector 1 is a constant.\n";
-        for (i = 0; i < Lat.get_lattice_size(); i++)
-        {
-            mgstruct.null_vectors[0][0][i] = 1;
-            if (do_gauge_transform) 
-            {
-                mgstruct.null_vectors[0][0][i] *= gauge_trans[i];
-            }
-        }
-    }
-    else if (mgstruct.n_vector == 2) // constant, even/odd phase. 
-    {
-        cout << "[MG]: Null vector 1 is a constant.\n";
-        cout << "[MG]: Null vector 2 is an even/odd phase.\n";
-        for (i = 0; i < Lat.get_lattice_size(); i++)
-        {
-            mgstruct.null_vectors[0][0][i] = 1;
-            x = i % x_fine;
-            y = i / x_fine;
-            mgstruct.null_vectors[0][1][i] = ((x+y)%2 == 0) ? complex<double>(0.0,1.0) : complex<double>(0.0,-1.0);
-            if (do_gauge_transform)
-            {
-                mgstruct.null_vectors[0][0][i] *= (gauge_trans[i]);
-                mgstruct.null_vectors[0][1][i] *= (gauge_trans[i]);
-            }
-        }
-    }
-    else if (mgstruct.n_vector == 4) // 4 corners of hypercube.
-    {
-        cout << "[MG]: Null vector 1 is a constant on unit corner (0,0).\n";
-        cout << "[MG]: Null vector 2 is a constant on unit corner (1,0).\n";
-        cout << "[MG]: Null vector 3 is a constant on unit corner (0,1).\n";
-        cout << "[MG]: Null vector 4 is a constant on unit corner (1,1).\n";
-        // Generate a normal distribution.
-        std::normal_distribution<> dist(1.0, 0.1);
-        for (i = 0; i < Lat.get_lattice_size(); i++)
-        {
-            x = i % x_fine;
-            y = i / x_fine;
-            mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] = 1.0;
-            //mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] = dist(generator);
-            
-            if (do_gauge_transform)
-            {
-                mgstruct.null_vectors[0][2*(y%2)+(x%2)][i] *= (gauge_trans[i]);
-            }
-        }
-    }
-    else // invalid.
-    {
-        cout << "Unless you are generating null vectors, you can only use 1, 2, or 4 null vectors.\n";
-        return 0;
-    }
-    
-    cout << "[MG]: Performing block orthonormalize of null vectors...\n";
-    block_orthonormalize(&mgstruct); 
-    
-#ifdef PRINT_NULL_VECTOR
-    cout << "[MG]: Check projector:\n"; 
-    for (int n = 0; n < mgstruct.n_vector; n++)
-    {
-        cout << "Vector " << n << "\n";
-        for (int y = 0; y < y_fine; y++)
-        {
-            for (int x = 0; x < x_fine; x++)
-            {
-                cout << mgstruct.null_vectors[0][n][x+y*x_fine] << " ";
-            }
-            cout << "\n";
-        }
-    }
-#endif // PRINT_NULL_VECTOR
-    
-        
-
-#else // generate null vector
-    
     // Skip this depending on our test!
 
     if (!(my_test == TOP_LEVEL_ONLY || my_test == SMOOTHER_ONLY))
@@ -1194,7 +1136,40 @@ int main(int argc, char** argv)
             // Update verb_prefix temporarily.
             verb.verb_prefix = "[L" + to_string(mgstruct.curr_level+1) + "_NULLVEC]: ";
             
-            if (null_gen != NULL_ARPACK)
+            if (do_free)
+            {
+                // Construct a single vector, partition as needed.
+                cout << "Build vector.\n" << flush;
+                for (i = 0; i < mgstruct.curr_fine_size; i++)
+                {
+                    mgstruct.null_vectors[mgstruct.curr_level][0][i] = 1;
+                    if (do_gauge_transform && mgstruct.curr_level == 0) 
+                    {
+                        mgstruct.null_vectors[0][0][i] *= gauge_trans[i];
+                    }
+                }
+
+                cout << "Aggregate vector.\n" << flush;
+                // Aggregate in chirality (or corners) as needed.  
+                // This is handled differently if we're on the top level or further down. 
+                if (mgstruct.curr_level == 0) // top level routines
+                {
+                    null_partition_staggered(&mgstruct, 0, bstrat, &Lat);
+                }
+                else // not on the top level
+                {
+                    null_partition_coarse(&mgstruct, 0, bstrat);
+                }
+
+                cout << "Normalize vector.\n" << flush;
+                for (k = 0; k < null_partitions; k++)
+                {
+                    normalize(mgstruct.null_vectors[mgstruct.curr_level][k*n_null_vector], mgstruct.curr_fine_size);
+                }
+                
+                cout << "Generated vectors.\n" << flush;
+            }
+            else if (null_gen != NULL_ARPACK)
             {
 
                 // We generate null vectors by solving Ax = 0, with a
@@ -1449,8 +1424,6 @@ int main(int argc, char** argv)
         
         
     } // end skipping generation if we're only doing a top level or smoother test. 
-    
-#endif // generate null vector. 
     
     
 #ifdef PRINT_NULL_VECTOR

@@ -68,19 +68,19 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 			{
 				// Find x and y component. 
 				Lat->index_to_coord(j, coord, nd);
-				if (coord[0]%2 == 1 && coord[1]%2 == 0)
-				{
-					mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
-					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
-				}
-				else if (coord[0]%2 == 0 && coord[1]%2 == 1)
+				if (coord[0]%2 == 1 && coord[1]%2 == 0) // odd corner
 				{
 					mgstruct->null_vectors[0][num_null_vec+2*mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
 					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
-				else if (coord[0]%2 == 1 && coord[1]%2 == 1)
+				else if (coord[0]%2 == 0 && coord[1]%2 == 1) // odd corner
 				{
 					mgstruct->null_vectors[0][num_null_vec+3*mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
+					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
+				}
+				else if (coord[0]%2 == 1 && coord[1]%2 == 1) // even corner
+				{
+					mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
 					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
 			}
