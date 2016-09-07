@@ -985,7 +985,6 @@ int main(int argc, char** argv)
     mgstruct.matrix_extra_data = (void*)&stagif; 
     
     
-    
     cout << "[MG]: X_Block ";
     for (i = 0; i < n_refine; i++)
     {
@@ -998,17 +997,51 @@ int main(int argc, char** argv)
     }
     cout << "NullVectors " << n_null_vector << "\n";
     
+    // Build lattice objects for each level. 
+    mgstruct.latt = new Lattice*[n_refine+1];
+    mgstruct.latt[0] = &Lat; // The fine level already exists.
+    
+    if (n_refine > 0)
+    {
+        for (i = 1; i <= n_refine; i++)
+        {
+            lattice_size[0] = mgstruct.latt[i-1]->get_lattice_dimension(0)/mgstruct.blocksize_x[i-1];
+            lattice_size[1] = mgstruct.latt[i-1]->get_lattice_dimension(1)/mgstruct.blocksize_y[i-1];
+            mgstruct.latt[i] = new Lattice(nd, lattice_size, mgstruct.n_vector);
+        }
+    }
+    
+    // Print info about lattices.
+    for (i = 0; i <= n_refine; i++)
+    {
+        cout << "[LATTICE_L" << i+1 << "]: X " << mgstruct.latt[i]->get_lattice_dimension(0) <<
+                " Y: " << mgstruct.latt[i]->get_lattice_dimension(1) <<
+                " Vol: " << mgstruct.latt[i]->get_volume() <<
+                " Nc: " << mgstruct.latt[i]->get_nc() << 
+                " Size: " << mgstruct.latt[i]->get_lattice_size() << "\n";
+    }
+    
     // Set the starting mg_struct state.
     mgstruct.curr_level = 0; // Ready to do top level -> second level.
-    mgstruct.curr_dof_fine = Nc; // Top level has only one d.o.f. per site. 
-    mgstruct.curr_x_fine = mgstruct.x_fine;
-    mgstruct.curr_y_fine = mgstruct.y_fine;
-    mgstruct.curr_fine_size = mgstruct.curr_y_fine*mgstruct.curr_x_fine*mgstruct.curr_dof_fine;
+    mgstruct.curr_dof_fine = mgstruct.latt[0]->get_nc(); // Top level has only one d.o.f. per site. 
+    mgstruct.curr_x_fine = mgstruct.latt[0]->get_lattice_dimension(0);
+    mgstruct.curr_y_fine = mgstruct.latt[0]->get_lattice_dimension(1);
+    mgstruct.curr_fine_size = mgstruct.latt[0]->get_lattice_size();
     
-    mgstruct.curr_dof_coarse = mgstruct.n_vector; 
-    mgstruct.curr_x_coarse = mgstruct.x_fine/mgstruct.blocksize_x[0];
-    mgstruct.curr_y_coarse = mgstruct.y_fine/mgstruct.blocksize_y[0];
-    mgstruct.curr_coarse_size = mgstruct.curr_y_coarse*mgstruct.curr_x_coarse*mgstruct.curr_dof_coarse;
+    if (n_refine > 0)
+    {
+        mgstruct.curr_dof_coarse = mgstruct.latt[1]->get_nc();
+        mgstruct.curr_x_coarse = mgstruct.latt[1]->get_lattice_dimension(0);
+        mgstruct.curr_y_coarse = mgstruct.latt[1]->get_lattice_dimension(1);
+        mgstruct.curr_coarse_size = mgstruct.latt[1]->get_lattice_size();
+    }
+    else // give it some garbage so it doesn't complain.
+    {
+        mgstruct.curr_dof_coarse = mgstruct.n_vector; 
+        mgstruct.curr_x_coarse = mgstruct.x_fine/mgstruct.blocksize_x[0];
+        mgstruct.curr_y_coarse = mgstruct.y_fine/mgstruct.blocksize_y[0];
+        mgstruct.curr_coarse_size = mgstruct.curr_y_coarse*mgstruct.curr_x_coarse*mgstruct.curr_dof_coarse;
+    }
     
     
     // Build the mg inverter structure.
@@ -2709,6 +2742,14 @@ int main(int argc, char** argv)
     }
     delete mgstruct.dslash_count; 
     delete[] mgstruct.null_vectors; 
+    if (mgstruct.n_refine > 0)
+    {
+        for (i = 1; i <= mgstruct.n_refine; i++)
+        {
+            delete mgstruct.latt[i];
+        }
+    }
+    delete[] mgstruct.latt;
     
     delete[] mgprecond.n_pre_smooth;
     delete[] mgprecond.n_post_smooth; 

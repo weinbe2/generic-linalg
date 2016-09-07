@@ -31,6 +31,18 @@ public:
         internal_coord = new int[my_nd];
     }
     
+    Lattice(const Lattice& copy)
+        : nd(copy.nd), nc(copy.nc), volume(copy.volume), lattice_size(copy.lattice_size)
+    {
+        lattice = new int[nd];
+        for (int mu = 0; mu < nd; mu++)
+        {
+            lattice[mu] = copy.lattice[mu];
+        }
+
+        internal_coord = new int[nd];
+    }
+    
     ~Lattice()
     {
         delete[] lattice;
@@ -68,6 +80,31 @@ public:
             coord[mu] = i % lattice[mu];
             i = (i - coord[mu])/lattice[mu];
         }
+    }
+    
+    // Get the coordinate in a direction from an index.
+    inline int index_to_coordinate_dir(int i, int mu)
+    {
+        // Extract the color.
+        int color = i % nc;
+        i = (i - color)/nc;
+        
+        int retval;
+
+        // Extract coordinates. 
+        for (int nu = 0; nu <= mu; nu++)
+        {
+            retval = i % lattice[nu];
+            i = (i - retval)/lattice[nu];
+        }
+        
+        return retval;
+    }
+    
+    // Get the color from an index.
+    inline int index_to_color(int i)
+    {
+        return i % nc;
     }
     
     // Find out if site is even (0) or odd (1)

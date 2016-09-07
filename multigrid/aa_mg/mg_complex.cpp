@@ -440,26 +440,20 @@ void level_down(mg_operator_struct_complex* mgstruct)
 {
     if (mgstruct->curr_level < mgstruct->n_refine-1) // Can't go lower than the number of refinements!
     {
-        // Update the number of d.o.f.
-        if (mgstruct->curr_level == 0)
-        {
-            mgstruct->curr_dof_fine *= mgstruct->n_vector/mgstruct->Nc; 
-        }
-        
-        // Update the current fine.
-        mgstruct->curr_x_fine /= mgstruct->blocksize_x[mgstruct->curr_level];
-        mgstruct->curr_y_fine /= mgstruct->blocksize_y[mgstruct->curr_level];
-        
-        mgstruct->curr_fine_size = mgstruct->curr_y_fine*mgstruct->curr_x_fine*mgstruct->curr_dof_fine;
-        
-        // Update the current coarse.
-        mgstruct->curr_x_coarse /= mgstruct->blocksize_x[mgstruct->curr_level+1];
-        mgstruct->curr_y_coarse /= mgstruct->blocksize_y[mgstruct->curr_level+1];
-        
-        mgstruct->curr_coarse_size = mgstruct->curr_y_coarse*mgstruct->curr_x_coarse*mgstruct->curr_dof_coarse;
-        
         // Update the level.
         mgstruct->curr_level++;
+        
+        // Update curr dof.
+        mgstruct->curr_dof_fine = mgstruct->latt[mgstruct->curr_level]->get_nc(); // Top level has only one d.o.f. per site. 
+        mgstruct->curr_x_fine = mgstruct->latt[mgstruct->curr_level]->get_lattice_dimension(0);
+        mgstruct->curr_y_fine = mgstruct->latt[mgstruct->curr_level]->get_lattice_dimension(1);
+        mgstruct->curr_fine_size = mgstruct->latt[mgstruct->curr_level]->get_lattice_size();
+
+        mgstruct->curr_dof_coarse = mgstruct->latt[mgstruct->curr_level+1]->get_nc();
+        mgstruct->curr_x_coarse = mgstruct->latt[mgstruct->curr_level+1]->get_lattice_dimension(0);
+        mgstruct->curr_y_coarse = mgstruct->latt[mgstruct->curr_level+1]->get_lattice_dimension(1);
+        mgstruct->curr_coarse_size = mgstruct->latt[mgstruct->curr_level+1]->get_lattice_size();
+        
     }
 }
 
@@ -471,23 +465,16 @@ void level_up(mg_operator_struct_complex* mgstruct)
         // Update the level.
         mgstruct->curr_level--;
         
-        // Update the number of d.o.f.
-        if (mgstruct->curr_level == 0)
-        {
-            mgstruct->curr_dof_fine /= mgstruct->n_vector/mgstruct->Nc;  
-        }
-        
-        // Update the current fine.
-        mgstruct->curr_x_fine *= mgstruct->blocksize_x[mgstruct->curr_level];
-        mgstruct->curr_y_fine *= mgstruct->blocksize_y[mgstruct->curr_level];
-        
-        mgstruct->curr_fine_size = mgstruct->curr_y_fine*mgstruct->curr_x_fine*mgstruct->curr_dof_fine;
-        
-        // Update the current coarse.
-        mgstruct->curr_x_coarse *= mgstruct->blocksize_x[mgstruct->curr_level+1];
-        mgstruct->curr_y_coarse *= mgstruct->blocksize_y[mgstruct->curr_level+1];
-        
-        mgstruct->curr_coarse_size = mgstruct->curr_y_coarse*mgstruct->curr_x_coarse*mgstruct->curr_dof_coarse;
+        // Update curr dof.
+        mgstruct->curr_dof_fine = mgstruct->latt[mgstruct->curr_level]->get_nc(); // Top level has only one d.o.f. per site. 
+        mgstruct->curr_x_fine = mgstruct->latt[mgstruct->curr_level]->get_lattice_dimension(0);
+        mgstruct->curr_y_fine = mgstruct->latt[mgstruct->curr_level]->get_lattice_dimension(1);
+        mgstruct->curr_fine_size = mgstruct->latt[mgstruct->curr_level]->get_lattice_size();
+
+        mgstruct->curr_dof_coarse = mgstruct->latt[mgstruct->curr_level+1]->get_nc();
+        mgstruct->curr_x_coarse = mgstruct->latt[mgstruct->curr_level+1]->get_lattice_dimension(0);
+        mgstruct->curr_y_coarse = mgstruct->latt[mgstruct->curr_level+1]->get_lattice_dimension(1);
+        mgstruct->curr_coarse_size = mgstruct->latt[mgstruct->curr_level+1]->get_lattice_size();
     }
 }
 

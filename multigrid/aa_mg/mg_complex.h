@@ -92,6 +92,8 @@ struct mg_operator_struct_complex
     int* blocksize_y; // How much to block in y direction. 
     int Nc; // What's Nc on the top level? Square laplace only.
     
+    Lattice** latt; // Array of pointers to lattice classes for each level.
+    
     int n_vector; // Number of vectors. 
     complex<double>*** null_vectors; // Holds the null vectors. First index level, second n_vector, third size.
     void (*matrix_vector)(complex<double>*, complex<double>*, void*);
