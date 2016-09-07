@@ -12,6 +12,7 @@ enum mg_null_gen_type
     NULL_BICGSTAB = 1,               // Generate null vectors with BiCGStab
     NULL_CG = 2,                    // Generate null vectors with CG
     NULL_MINRES = 3,                // Generate null vectors with MinRes
+    NULL_ARPACK = 4,                // Generate null vectors as low eigenvectors with Arpack. 
 };
 
 // What structure are we preserving when we block? None, E/O, Corners?
