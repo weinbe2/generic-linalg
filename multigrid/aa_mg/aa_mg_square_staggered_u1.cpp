@@ -44,7 +44,7 @@
 //#define COARSE_CONSTRUCT_1
 
 // Test for looking at free stencil.
-
+//#define COARSE_CONSTRUCT_2
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -147,7 +147,7 @@ void display_usage()
     cout << "--blocksize [blocksize] {#, #...}                 (default 4, same for all levels)\n";
     cout << "--nvec [nvec]                                     (default 4)\n";
     cout << "--nrefine [number coarse]                         (default 1)\n";
-    cout << "--multi-strategy [smooth, recursive]              (default smooth)\n";
+    cout << "--cycle-type [v, k]                               (default v)\n";
     cout << "--npre-smooth [presmooth steps] {#, #, ...}       (default 6, same for all levels)\n";
     cout << "--npost-smooth [postsmooth steps] {#, #, ...}     (default 6, same for all levels)\n";
     cout << "--coarse-solver [gcr, bicgstab, cg, minres,\n";
@@ -549,6 +549,18 @@ int main(int argc, char** argv)
                     mlevel_type = MLEVEL_SMOOTH;
                 }
                 else if (strcmp(argv[i+1], "recursive") == 0)
+                {
+                    mlevel_type = MLEVEL_RECURSIVE; 
+                }
+                i++;
+            }
+            else if (strcmp(argv[i], "--cycle-type") == 0) // aliased to multi-strategy
+            {
+                if (strcmp(argv[i+1], "v") == 0)
+                {
+                    mlevel_type = MLEVEL_SMOOTH;
+                }
+                else if (strcmp(argv[i+1], "k") == 0)
                 {
                     mlevel_type = MLEVEL_RECURSIVE; 
                 }
@@ -2039,6 +2051,166 @@ int main(int argc, char** argv)
     return 0; 
     
 #endif // COARSE_CONSTRUCT_1
+
+#ifdef COARSE_CONSTRUCT_2
+    // Let's do a coarse test!
+    
+    ofstream myfile; 
+    myfile.open("free_block.dat");
+    
+    complex<double>* coarse_rhs = new complex<double>[mgstruct.curr_coarse_size];
+    complex<double>* coarse_lhs = new complex<double>[mgstruct.curr_coarse_size];
+    
+    zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
+    zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
+    
+    // Try constructing the elements budding out from (1,1)
+    complex<double>** clover_x0_y0 = new complex<double>*[mgstruct.curr_dof_coarse];
+    complex<double>** clover_x1_y0 = new complex<double>*[mgstruct.curr_dof_coarse];
+    complex<double>** clover_xm1_y0 = new complex<double>*[mgstruct.curr_dof_coarse];
+    complex<double>** clover_x0_y1 = new complex<double>*[mgstruct.curr_dof_coarse];
+    complex<double>** clover_x0_ym1 = new complex<double>*[mgstruct.curr_dof_coarse];
+    
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        clover_x0_y0[i] = new complex<double>[mgstruct.curr_dof_coarse];
+        clover_x1_y0[i] = new complex<double>[mgstruct.curr_dof_coarse];
+        clover_xm1_y0[i] = new complex<double>[mgstruct.curr_dof_coarse];
+        clover_x0_y1[i] = new complex<double>[mgstruct.curr_dof_coarse];
+        clover_x0_ym1[i] = new complex<double>[mgstruct.curr_dof_coarse];
+    };
+    
+    
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
+        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
+        
+        coarse_rhs[i+1*mgstruct.curr_dof_coarse+1*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse] = 1.0;
+        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            // self
+            clover_x0_y0[j][i] = coarse_lhs[j+1*mgstruct.curr_dof_coarse+1*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse];
+            
+            // take what's from the right, pull it towards me.
+            clover_x1_y0[j][i] = coarse_lhs[j+0*mgstruct.curr_dof_coarse+1*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse]; 
+            
+            // take what's from the left, pull it towards me.
+            clover_xm1_y0[j][i] = coarse_lhs[j+2*mgstruct.curr_dof_coarse+1*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse];
+            
+            // take what's above me, pull it towards me.
+            clover_x0_y1[j][i] = coarse_lhs[j+1*mgstruct.curr_dof_coarse+0*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse];
+            
+            // take what's below me, pull it towards me. 
+            clover_x0_ym1[j][i] = coarse_lhs[j+1*mgstruct.curr_dof_coarse+2*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse];
+        }
+    }
+    
+    // Print the clover.
+    cout << "0 Clover\n"; 
+    myfile << "0 Clover\n";
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            cout << clover_x0_y0[i][j] << " ";
+            myfile << clover_x0_y0[i][j] << " ";
+        }
+        cout << "\n";
+        myfile << "\n";
+    }
+    
+    cout << "\n\n";
+    myfile << "\n\n";
+    
+    cout << "+xhat Clover\n"; 
+    myfile << "+xhat Clover\n";
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            cout << clover_x1_y0[i][j] << " ";
+            myfile << clover_x1_y0[i][j] << " ";
+        }
+        cout << "\n";
+        myfile << "\n";
+    }
+    
+    cout << "\n\n";
+    myfile << "\n\n";
+    
+    cout << "-xhat Clover\n"; 
+    myfile << "-xhat Clover\n";
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            cout << clover_xm1_y0[i][j] << " ";
+            myfile << clover_xm1_y0[i][j] << " ";
+        }
+        cout << "\n";
+        myfile << "\n";
+    }
+    
+    cout << "\n\n";
+    myfile << "\n\n";
+    
+    cout << "yhat Clover\n"; 
+    myfile << "yhat Clover\n";
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            cout << clover_x0_y1[i][j] << " ";
+            myfile << clover_x0_y1[i][j] << " ";
+        }
+        cout << "\n";
+        myfile << "\n";
+    }
+    
+    cout << "\n\n";
+    myfile << "\n\n";
+    
+    cout << "-yhat Clover\n"; 
+    myfile << "-yhat Clover\n";
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            cout << clover_x0_ym1[i][j] << " ";
+            myfile << clover_x0_ym1[i][j] << " ";
+        }
+        cout << "\n";
+        myfile << "\n";
+    }
+    
+    cout << "\n\n";
+    myfile << "\n\n";
+        
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        delete[] clover_x0_y0[i];
+        delete[] clover_x1_y0[i];
+        delete[] clover_xm1_y0[i];
+        delete[] clover_x0_y1[i];
+        delete[] clover_x0_ym1[i];
+    };
+    delete[] clover_x0_y0;
+    delete[] clover_x1_y0;
+    delete[] clover_xm1_y0;
+    delete[] clover_x0_y1;
+    delete[] clover_x0_ym1;
+    
+    delete[] coarse_rhs;
+    delete[] coarse_lhs;
+    
+    myfile.close();
+    
+    return 0; 
+    
+#endif // COARSE_CONSTRUCT_2
+
     
 #ifdef PDAGP_TEST
     {
