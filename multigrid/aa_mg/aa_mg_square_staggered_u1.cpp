@@ -31,15 +31,16 @@
 #include "operators.h"
 
 // Are we checking eigenvalues?
-#define EIGEN_TEST
+//#define EIGEN_TEST
 
 #ifdef EIGEN_TEST
 #include "arpack_interface.h"
+#include <fstream>
 #endif
 
 // Tests for constructing coarse operator.
  // define first coarse op. 
-//#define COARSE_CONSTRUCT_1
+#define COARSE_CONSTRUCT_1
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -1865,19 +1866,24 @@ int main(int argc, char** argv)
     
 #ifdef COARSE_CONSTRUCT_1
     // Let's do a coarse test!
+    
+    ofstream myfile; 
+    myfile.open("clovers.dat");
+    
     complex<double>* coarse_rhs = new complex<double>[mgstruct.curr_coarse_size];
     complex<double>* coarse_lhs = new complex<double>[mgstruct.curr_coarse_size];
     
     zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
     zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
     
-    complex<double>** clover = new complex<double>*[mgstruct.curr_dof_coarse];
+    // Try constructing the (0,0) coarse clover.
+    complex<double>** clover_00 = new complex<double>*[mgstruct.curr_dof_coarse];
     for (i = 0; i < mgstruct.curr_dof_coarse; i++)
     {
-        clover[i] = new complex<double>[mgstruct.curr_dof_coarse];
+        clover_00[i] = new complex<double>[mgstruct.curr_dof_coarse];
     };
     
-    // Try constructing the (0,0) coarse clover.
+    
     for (i = 0; i < mgstruct.curr_dof_coarse; i++)
     {
         zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
@@ -1887,29 +1893,175 @@ int main(int argc, char** argv)
         coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
         for (j = 0; j < mgstruct.curr_dof_coarse; j++)
         {
-            clover[j][i] = coarse_lhs[j];
+            clover_00[j][i] = coarse_lhs[j];
         }
     }
     
     // Print the clover.
+    cout << "(0,0) Clover\n"; 
+    myfile << "(0,0) Clover\n";
     for (i = 0; i < mgstruct.curr_dof_coarse; i++)
     {
         for (j = 0; j < mgstruct.curr_dof_coarse; j++)
         {
-            cout << clover[i][j] << " ";
+            cout << clover_00[i][j] << " ";
+            myfile << clover_00[i][j] << " ";
         }
         cout << "\n";
+        myfile << "\n";
     }
-    
         
     for (i = 0; i < mgstruct.curr_dof_coarse; i++)
     {
-        delete[] clover[i];
+        delete[] clover_00[i];
     };
-    delete[] clover;
+    delete[] clover_00;
+    
+    cout << "\n\n";
+    myfile << "\n\n";
+    
+    // Try constructing (0,0) -> (1,0)
+    
+    complex<double>** clover_00_10 = new complex<double>*[mgstruct.curr_dof_coarse];
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        clover_00_10[i] = new complex<double>[mgstruct.curr_dof_coarse];
+    };
+    
+    
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
+        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
+        
+        // Set a point on (0,0)
+        coarse_rhs[i] = 1.0;
+        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            // Pick a point at (1,0)
+            clover_00_10[j][i] = coarse_lhs[j+mgstruct.curr_dof_coarse];
+        }
+    }
+    
+    // Print the clover.
+    cout << "(0,0) -> (1,0) Hopping term\n";
+    myfile << "(0,0) -> (1,0) Hopping term\n";
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            cout << clover_00_10[i][j] << " ";
+            myfile << clover_00_10[i][j] << " ";
+        }
+        cout << "\n";
+        myfile << "\n";
+    }
+        
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        delete[] clover_00_10[i];
+    };
+    delete[] clover_00_10;
+    
+    cout << "\n\n";
+    myfile << "\n\n";
+    
+    // Try constructing (1,0) -> (0,0)
+    
+    complex<double>** clover_10_00 = new complex<double>*[mgstruct.curr_dof_coarse];
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        clover_10_00[i] = new complex<double>[mgstruct.curr_dof_coarse];
+    };
+    
+    
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
+        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
+        
+        // Set a point on (1,0)
+        coarse_rhs[mgstruct.curr_dof_coarse+i] = 1.0;
+        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            // Pick a point at (0,0)
+            clover_10_00[j][i] = coarse_lhs[j];
+        }
+    }
+    
+    // Print the clover.
+    cout << "(1,0) -> (0,0) Hopping term\n";
+    myfile << "(1,0) -> (0,0) Hopping term\n";
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            cout << clover_10_00[i][j] << " ";
+            myfile << clover_10_00[i][j] << " ";
+        }
+        cout << "\n";
+        myfile << "\n";
+    }
+        
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        delete[] clover_10_00[i];
+    };
+    delete[] clover_10_00;
+    
+    cout << "\n\n";
+    myfile << "\n\n";
+    
+    // Try constructing the (0,0) coarse clover.
+    complex<double>** clover_10 = new complex<double>*[mgstruct.curr_dof_coarse];
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        clover_10[i] = new complex<double>[mgstruct.curr_dof_coarse];
+    };
+    
+    
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
+        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
+        
+        coarse_rhs[i+mgstruct.curr_dof_coarse] = 1.0;
+        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            clover_10[j][i] = coarse_lhs[j+mgstruct.curr_dof_coarse];
+        }
+    }
+    
+    // Print the clover.
+    cout << "(1,0) Clover\n"; 
+    myfile << "(1,0) Clover\n";
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
+        {
+            cout << clover_10[i][j] << " ";
+            myfile << clover_10[i][j] << " ";
+        }
+        cout << "\n";
+        myfile << "\n";
+    }
+        
+    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
+    {
+        delete[] clover_10[i];
+    };
+    delete[] clover_10;
+    
+    cout << "\n\n";
+    myfile << "\n\n";
     
     delete[] coarse_rhs;
     delete[] coarse_lhs;
+    
+    myfile.close();
     
     return 0; 
     
