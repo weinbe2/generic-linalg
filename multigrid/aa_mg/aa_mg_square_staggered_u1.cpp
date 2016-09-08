@@ -50,6 +50,9 @@
 // "Construct" the fine operator via our stencil class!
 //#define COARSE_CONSTRUCT_3
 
+// Construct the coarse operator via the stencil class.
+//#define COARSE_CONSTRUCT_4
+
 // Do restrict/prolong test?
 //#define PDAGP_TEST
 
@@ -2387,6 +2390,149 @@ int main(int argc, char** argv)
     return 0; 
     
 #endif // COARSE_CONSTRUCT_3
+
+#ifdef COARSE_CONSTRUCT_4
+    
+    // Test constructing the first coarse stencil in our arbitrary stencil paradigm.
+    
+    stencil_2d stenc;
+    stenc.lat = mgstruct.latt[1];
+    stenc.clover = new complex<double>[mgstruct.latt[1]->get_lattice_size()*mgstruct.latt[1]->get_nc()];
+    stenc.hopping = new complex<double>[mgstruct.latt[1]->get_lattice_size()*mgstruct.latt[1]->get_nc()*4]; // 4 for the 4 directions.
+    if (opt == STAGGERED_NORMAL)
+    {
+        stenc.has_two = true;
+        stenc.two_link = new complex<double>[mgstruct.latt[1]->get_lattice_size()*mgstruct.latt[1]->get_nc()*8]; // 8 for the 8 two link jumps.
+    }
+    else
+    {
+        stenc.has_two = false;
+    }
+    
+    int latt_size = mgstruct.latt[1]->get_lattice_size();
+    int nc = mgstruct.latt[1]->get_nc();
+    
+    complex<double>* tmp_rhs = new complex<double>[latt_size];
+    complex<double>* tmp_lhs = new complex<double>[latt_size];
+    
+    // Stencil first. Currently inefficient---we apply a Dslash for every site on the lattice. Bad!
+    for (i = 0; i < latt_size; i++)
+    {
+        int coord[2];
+        int coord_tmp[2];
+        int color;
+        mgstruct.latt[1]->index_to_coord(i, (int*)coord, color);
+        
+        // Place a site!
+        zero<double>(tmp_rhs, latt_size);
+        tmp_rhs[i] = 1.0;
+        
+        zero<double>(tmp_lhs, latt_size);
+        coarse_square_staggered(tmp_lhs, tmp_rhs, (void*)&mgstruct);
+        
+        for (int c = 0; c < nc; c++)
+        {
+            // clover.
+            stenc.clover[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord, c)] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord, c)];
+            
+            // hopping.
+            
+            // +x 
+            coord_tmp[0] = (coord[0]-1+mgstruct.latt[1]->get_lattice_dimension(0))%mgstruct.latt[1]->get_lattice_dimension(0);
+            coord_tmp[1] = coord[1];
+            stenc.hopping[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+0*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+            
+            // +y
+            coord_tmp[0] = coord[0];
+            coord_tmp[1] = (coord[1]-1+mgstruct.latt[1]->get_lattice_dimension(1))%mgstruct.latt[1]->get_lattice_dimension(1);
+            stenc.hopping[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+1*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+            
+            // -x 
+            coord_tmp[0] = (coord[0]+1)%mgstruct.latt[1]->get_lattice_dimension(0);
+            coord_tmp[1] = coord[1];
+            stenc.hopping[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+2*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+            
+            // -y
+            coord_tmp[0] = coord[0];
+            coord_tmp[1] = (coord[1]+1)%mgstruct.latt[1]->get_lattice_dimension(1);
+            stenc.hopping[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+3*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+            
+            // two link.
+            if (stenc.has_two)
+            {
+                // +2x 
+                coord_tmp[0] = (coord[0]-2+2*mgstruct.latt[1]->get_lattice_dimension(0))%mgstruct.latt[1]->get_lattice_dimension(0);
+                coord_tmp[1] = coord[1];
+                stenc.two_link[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+0*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+
+                // +x+y
+                coord_tmp[0] = (coord[0]-1+2*mgstruct.latt[1]->get_lattice_dimension(0))%mgstruct.latt[1]->get_lattice_dimension(0);
+                coord_tmp[1] = (coord[1]-1+2*mgstruct.latt[1]->get_lattice_dimension(1))%mgstruct.latt[1]->get_lattice_dimension(1);
+                stenc.two_link[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+1*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+
+                // +2y
+                coord_tmp[0] = coord[0];
+                coord_tmp[1] = (coord[1]-2+2*mgstruct.latt[1]->get_lattice_dimension(1))%mgstruct.latt[1]->get_lattice_dimension(1);
+                stenc.two_link[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+2*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+
+                // -x+y
+                coord_tmp[0] = (coord[0]+1)%mgstruct.latt[1]->get_lattice_dimension(0);
+                coord_tmp[1] = (coord[1]-1+2*mgstruct.latt[1]->get_lattice_dimension(1))%mgstruct.latt[1]->get_lattice_dimension(1);
+                stenc.two_link[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+3*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+                
+                // -2x 
+                coord_tmp[0] = (coord[0]+2)%mgstruct.latt[1]->get_lattice_dimension(0);
+                coord_tmp[1] = coord[1];
+                stenc.two_link[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+4*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+
+                // -x-y
+                coord_tmp[0] = (coord[0]+1)%mgstruct.latt[1]->get_lattice_dimension(0);
+                coord_tmp[1] = (coord[1]+1)%mgstruct.latt[1]->get_lattice_dimension(1);
+                stenc.two_link[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+5*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+
+                // -2y
+                coord_tmp[0] = coord[0];
+                coord_tmp[1] = (coord[1]+2)%mgstruct.latt[1]->get_lattice_dimension(1);
+                stenc.two_link[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+6*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+
+                // +x-y
+                coord_tmp[0] = (coord[0]-1+2*mgstruct.latt[1]->get_lattice_dimension(0))%mgstruct.latt[1]->get_lattice_dimension(0);
+                coord_tmp[1] = (coord[1]+1)%mgstruct.latt[1]->get_lattice_dimension(1);
+                stenc.two_link[color+nc*mgstruct.latt[1]->coord_to_index((int*)coord_tmp,c)+7*nc*latt_size] = tmp_lhs[mgstruct.latt[1]->coord_to_index((int*)coord_tmp, c)];
+            }
+        }
+    }
+    
+    // Whelp, it's something. Let's test it.
+    zero<double>(tmp_rhs, mgstruct.latt[1]->get_lattice_size());
+    tmp_rhs[0] = 1.0;
+    apply_stencil_2d(tmp_lhs, tmp_rhs, (void*)&stenc);
+    
+    // Compare
+    /*for (i = 0; i < mgstruct.latt[1]->get_lattice_size(); i++)
+    {
+        tmp2[i] = MASS*check[i]; // Since it's clover only for now.
+    }*/
+    
+    complex<double>* tmp_lhs2 = new complex<double>[latt_size];
+    coarse_square_staggered(tmp_lhs2, tmp_rhs, (void*)&mgstruct);
+    
+    // Get squared difference.
+    cout << "Squared difference: " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[1]->get_lattice_size()) << "\n";
+    
+    delete[] stenc.clover;
+    delete[] stenc.hopping;
+    if (stenc.has_two)
+    {
+        delete[] stenc.two_link;
+    }
+    delete[] tmp_lhs;
+    delete[] tmp_lhs2;
+    
+    return 0; 
+    
+#endif // COARSE_CONSTRUCT_4
+
 
     
 #ifdef PDAGP_TEST

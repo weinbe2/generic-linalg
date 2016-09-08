@@ -30,6 +30,7 @@ struct stencil_2d
 // Applies an (up to two link) stencil as defined by a stencil_2d object.
 void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
-
+// Generate a stencil operator given a function and a coarsening distance (max 2...)
+//void generate_stencil_2d(
 
 #endif // MG_COARSE_STENCIL
