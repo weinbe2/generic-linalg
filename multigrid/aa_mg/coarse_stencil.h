@@ -34,19 +34,24 @@ struct stencil_2d
         generated = false; 
         lat = 0;
         has_two = false;
+        
+        clover = 0;
+        hopping = 0;
+        two_link = 0; 
     }
     
     ~stencil_2d()
     {
-        if (generated)
+        /*if (generated)
         {
-            delete[] clover;
-            delete[] hopping;
+            if (clover != 0) { delete[] clover; clover = 0; }
+            if (hopping != 0) { delete[] hopping; hopping = 0; }
             if (has_two)
             {
-                delete[] two_link;
+                if (two_link != 0) { delete[] two_link; two_link = 0; }
             }
-        }
+            generated = false; 
+        }*/
     }
     
 };

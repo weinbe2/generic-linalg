@@ -5,6 +5,9 @@
 #include <complex>
 #include <random>
 
+#ifndef GENERIC_VECTOR
+#define GENERIC_VECTOR
+
 // Zeroes a vector.
 template<typename T> inline void zero(T* v1, int size)
 {
@@ -245,4 +248,5 @@ inline void orthogonal(std::complex<T>* v1, std::complex<T>* v2, int size)
     }
 }
 
+#endif // GENERIC_VECTOR
 

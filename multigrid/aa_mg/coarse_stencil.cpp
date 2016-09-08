@@ -32,6 +32,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
         // Get the coordinate and color index.
         links.lat->index_to_coord(i, (int*)coords, color);
         
+        
         // Step 1: Clover term!
         for (c = 0; c < nc; c++)
         {
@@ -82,7 +83,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
             coords_tmp[1] = coords[1];
             for (c = 0; c < nc; c++)
             {
-                lhs[i] += links.two_link[c + nc*i+0*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+                lhs[i] += links.two_link[c + nc*i+0*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
             }
 
             // +xhat+yhat
@@ -90,7 +91,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
             coords_tmp[1] = (coords[1] + 1)%links.lat->get_lattice_dimension(1);
             for (c = 0; c < nc; c++)
             {
-                lhs[i] += links.two_link[c + nc*i+1*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+                lhs[i] += links.two_link[c + nc*i+1*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
             }
 
             // +2 yhat
@@ -98,7 +99,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
             coords_tmp[1] = (coords[1] + 2)%links.lat->get_lattice_dimension(1);
             for (c = 0; c < nc; c++)
             {
-                lhs[i] += links.two_link[c + nc*i+2*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+                lhs[i] += links.two_link[c + nc*i+2*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
             }
 
             // -xhat + yhat
@@ -106,7 +107,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
             coords_tmp[1] = (coords[1] + 1)%links.lat->get_lattice_dimension(1);
             for (c = 0; c < nc; c++)
             {
-                lhs[i] += links.two_link[c + nc*i+3*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+                lhs[i] += links.two_link[c + nc*i+3*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
             }
 
             // -2 xhat.
@@ -114,7 +115,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
             coords_tmp[1] = coords[1];
             for (c = 0; c < nc; c++)
             {
-                lhs[i] += links.two_link[c + nc*i+4*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+                lhs[i] += links.two_link[c + nc*i+4*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
             }
 
             // -xhat-yhat
@@ -122,7 +123,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
             coords_tmp[1] = (coords[1] - 1 + 2*links.lat->get_lattice_dimension(1))%links.lat->get_lattice_dimension(1);
             for (c = 0; c < nc; c++)
             {
-                lhs[i] += links.two_link[c + nc*i+5*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+                lhs[i] += links.two_link[c + nc*i+5*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
             }
 
             // -2 yhat
@@ -130,7 +131,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
             coords_tmp[1] = (coords[1] - 2 + 2*links.lat->get_lattice_dimension(1))%links.lat->get_lattice_dimension(1);
             for (c = 0; c < nc; c++)
             {
-                lhs[i] += links.two_link[c + nc*i+6*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+                lhs[i] += links.two_link[c + nc*i+6*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
             }
 
             // +xhat - yhat
@@ -138,7 +139,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
             coords_tmp[1] = (coords[1] - 1 + 2*links.lat->get_lattice_dimension(1))%links.lat->get_lattice_dimension(1);
             for (c = 0; c < nc; c++)
             {
-                lhs[i] += links.two_link[c + nc*i+7*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+                lhs[i] += links.two_link[c + nc*i+7*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
             }
 
         }
@@ -148,7 +149,6 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
 
 
 // Generate a stencil operator given a function and a coarsening distance (max 2...)
-// Currently not working...
 void generate_stencil_2d(stencil_2d* stenc, int stencil_distance, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_data)
 {
     if (stenc->generated || stencil_distance > 2)
@@ -166,12 +166,16 @@ void generate_stencil_2d(stencil_2d* stenc, int stencil_distance, void (*matrix_
     int latt_size = latt->get_lattice_size();
     int nc = latt->get_nc();
     
-    stenc->clover = new complex<double>(latt_size*nc);
-    stenc->hopping = new complex<double>(latt_size*nc*4); // 4 for the 4 directions
+    stenc->clover = new complex<double>[latt_size*nc];
+    zero<double>(stenc->clover, latt_size*nc);
+    
+    stenc->hopping = new complex<double>[latt_size*nc*4]; // 4 for the 4 directions
+    zero<double>(stenc->hopping, latt_size*nc*4);
     if (stencil_distance == 2)
     {
         stenc->has_two = true;
-        stenc->two_link = new complex<double>(latt_size*nc*8);
+        stenc->two_link = new complex<double>[latt_size*nc*8];
+        zero<double>(stenc->two_link, latt_size*nc*8);
     }
     
     complex<double>* tmp_rhs = new complex<double>[latt_size];
@@ -192,7 +196,7 @@ void generate_stencil_2d(stencil_2d* stenc, int stencil_distance, void (*matrix_
         for (int c = 0; c < nc; c++)
         {
             // clover.
-            stenc->clover[color+nc*latt->coord_to_index((int*)coord, c)] = tmp_lhs[latt->coord_to_index((int*)coord, c)];
+            stenc->clover[color+nc*latt->coord_to_index((int*)coord, c)] += tmp_lhs[latt->coord_to_index((int*)coord, c)];
             
             
             // hopping.
@@ -200,32 +204,23 @@ void generate_stencil_2d(stencil_2d* stenc, int stencil_distance, void (*matrix_
             // +x 
             coord_tmp[0] = (coord[0]-1+latt->get_lattice_dimension(0))%latt->get_lattice_dimension(0);
             coord_tmp[1] = coord[1];
-            
-            stenc->hopping[color+nc*latt->coord_to_index((int*)coord_tmp,c)+0*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
-            
-            cout << "Built hop +x " << i << "\n" << flush;
+            stenc->hopping[color+nc*latt->coord_to_index((int*)coord_tmp,c)+0*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
             
             // +y
             coord_tmp[0] = coord[0];
             coord_tmp[1] = (coord[1]-1+latt->get_lattice_dimension(1))%latt->get_lattice_dimension(1);
             
-            stenc->hopping[color+nc*latt->coord_to_index((int*)coord_tmp,c)+1*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
-            
-            cout << "Built hop +y " << i << "\n" << flush;
+            stenc->hopping[color+nc*latt->coord_to_index((int*)coord_tmp,c)+1*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
             
             // -x 
             coord_tmp[0] = (coord[0]+1)%latt->get_lattice_dimension(0);
             coord_tmp[1] = coord[1];
-            stenc->hopping[color+nc*latt->coord_to_index((int*)coord_tmp,c)+2*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
-            
-            cout << "Built hop -x " << i << "\n" << flush;
-            
+            stenc->hopping[color+nc*latt->coord_to_index((int*)coord_tmp,c)+2*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
+
             // -y
             coord_tmp[0] = coord[0];
             coord_tmp[1] = (coord[1]+1)%latt->get_lattice_dimension(1);
-            stenc->hopping[color+nc*latt->coord_to_index((int*)coord_tmp,c)+3*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
-            
-            cout << "Built hop -y " << i << "\n" << flush;
+            stenc->hopping[color+nc*latt->coord_to_index((int*)coord_tmp,c)+3*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
             
             // two link.
             if (stenc->has_two)
@@ -233,42 +228,42 @@ void generate_stencil_2d(stencil_2d* stenc, int stencil_distance, void (*matrix_
                 // +2x 
                 coord_tmp[0] = (coord[0]-2+2*latt->get_lattice_dimension(0))%latt->get_lattice_dimension(0);
                 coord_tmp[1] = coord[1];
-                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+0*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
+                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+0*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
 
                 // +x+y
                 coord_tmp[0] = (coord[0]-1+2*latt->get_lattice_dimension(0))%latt->get_lattice_dimension(0);
                 coord_tmp[1] = (coord[1]-1+2*latt->get_lattice_dimension(1))%latt->get_lattice_dimension(1);
-                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+1*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
+                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+1*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
 
                 // +2y
                 coord_tmp[0] = coord[0];
                 coord_tmp[1] = (coord[1]-2+2*latt->get_lattice_dimension(1))%latt->get_lattice_dimension(1);
-                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+2*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
+                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+2*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
 
                 // -x+y
                 coord_tmp[0] = (coord[0]+1)%latt->get_lattice_dimension(0);
                 coord_tmp[1] = (coord[1]-1+2*latt->get_lattice_dimension(1))%latt->get_lattice_dimension(1);
-                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+3*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
+                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+3*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
                 
                 // -2x 
                 coord_tmp[0] = (coord[0]+2)%latt->get_lattice_dimension(0);
                 coord_tmp[1] = coord[1];
-                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+4*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
+                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+4*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
 
                 // -x-y
                 coord_tmp[0] = (coord[0]+1)%latt->get_lattice_dimension(0);
                 coord_tmp[1] = (coord[1]+1)%latt->get_lattice_dimension(1);
-                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+5*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
+                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+5*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
 
                 // -2y
                 coord_tmp[0] = coord[0];
                 coord_tmp[1] = (coord[1]+2)%latt->get_lattice_dimension(1);
-                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+6*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
+                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+6*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
 
                 // +x-y
                 coord_tmp[0] = (coord[0]-1+2*latt->get_lattice_dimension(0))%latt->get_lattice_dimension(0);
                 coord_tmp[1] = (coord[1]+1)%latt->get_lattice_dimension(1);
-                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+7*nc*latt_size] = tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
+                stenc->two_link[color+nc*latt->coord_to_index((int*)coord_tmp,c)+7*nc*latt_size] += tmp_lhs[latt->coord_to_index((int*)coord_tmp, c)];
             }
         }
     }
