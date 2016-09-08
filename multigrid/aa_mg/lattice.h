@@ -55,14 +55,31 @@ public:
         i = 0;
 
         // Iterate over dimensions
-        for (mu = nd-1; mu >= 0; mu++)
+        for (mu = nd-1; mu >= 0; mu--)
         {
-            i += i*lattice[mu]+coord[mu];
+            i = i*lattice[mu]+coord[mu];
         }
 
         // Factor in color.
         i = i*nc + color;
 
+    }
+    
+    inline int coord_to_index(int* coord, int color)
+    {
+        int mu;
+        int i = 0;
+
+        // Iterate over dimensions
+        for (mu = nd-1; mu >= 0; mu--)
+        {
+            i = i*lattice[mu]+coord[mu];
+        }
+
+        // Factor in color.
+        i = i*nc + color;
+
+        return i; 
     }
     
     // Convert from index to coordinate + color.

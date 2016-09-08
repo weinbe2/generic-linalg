@@ -30,6 +30,7 @@
 #include "u1_utils.h"
 #include "lattice.h"
 #include "operators.h"
+#include "coarse_stencil.h"
 
 // Are we checking eigenvalues?
 #define EIGEN_TEST
@@ -45,6 +46,9 @@
 
 // Test for looking at free stencil.
 //#define COARSE_CONSTRUCT_2
+
+// "Construct" the fine operator via our stencil class!
+//#define COARSE_CONSTRUCT_3
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -2084,6 +2088,8 @@ int main(int argc, char** argv)
     return 0; 
     
 #endif // COARSE_CONSTRUCT_1
+    
+    
 
 #ifdef COARSE_CONSTRUCT_2
     // Let's do a coarse test!
@@ -2243,6 +2249,57 @@ int main(int argc, char** argv)
     return 0; 
     
 #endif // COARSE_CONSTRUCT_2
+    
+#ifdef COARSE_CONSTRUCT_3
+    
+    // Test "constructing" the fine stencil in our arbitrary stencil paradigm.
+    
+    stencil_2d stenc;
+    stenc.lat = &Lat;
+    stenc.clover = new complex<double>[Lat.get_lattice_size()*Lat.get_nc()];
+    
+    
+    
+    // Stencil first. Currently inefficient---we apply a Dslash for every site on the lattice. Bad!
+    for (i = 0; i < Lat.get_lattice_size(); i++)
+    {
+        int coord[2];
+        int color;
+        Lat.index_to_coord(i, (int*)coord, color);
+        
+        // Place a site!
+        zero<double>(check, Lat.get_lattice_size());
+        check[i] = 1.0;
+        
+        zero<double>(tmp, Lat.get_lattice_size());
+        fine_square_staggered(tmp, check, (void*)&mgstruct);
+        
+        for (int c = 0; c < Lat.get_nc(); c++)
+        {
+            stenc.clover[color+Lat.get_nc()*Lat.coord_to_index((int*)coord, c)] = tmp[Lat.coord_to_index((int*)coord, c)];
+        }
+    }
+    
+    // Whelp, it's something. Let's test it.
+    zero<double>(check, Lat.get_lattice_size());
+    check[0] = 1.0;
+    apply_stencil_2d(tmp, check, (void*)&stenc);
+    
+    // Compare
+    for (i = 0; i < Lat.get_lattice_size(); i++)
+    {
+        tmp2[i] = MASS*check[i]; // Since it's clover only for now.
+    }
+    //fine_square_staggered(tmp2, check, (void*)&mgstruct);
+    
+    // Get squared difference.
+    cout << "Squared difference: " << diffnorm2sq<double>(tmp, tmp2, Lat.get_lattice_size()) << "\n";
+    
+    delete[] stenc.clover;
+    
+    return 0; 
+    
+#endif // COARSE_CONSTRUCT_3
 
     
 #ifdef PDAGP_TEST
