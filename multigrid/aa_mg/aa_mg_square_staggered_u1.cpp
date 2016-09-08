@@ -51,7 +51,7 @@
 //#define COARSE_CONSTRUCT_3
 
 // Construct the coarse operator via the stencil class.
-//#define COARSE_CONSTRUCT_4
+#define COARSE_CONSTRUCT_4
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -2395,6 +2395,20 @@ int main(int argc, char** argv)
     
     // Test constructing the first coarse stencil in our arbitrary stencil paradigm.
     
+    /*stencil_2d stenc;
+    stenc.lat = mgstruct.latt[1];
+    
+    if (opt == STAGGERED_NORMAL)
+    {
+        generate_stencil_2d(&stenc, 2, coarse_square_staggered, (void*)&mgstruct);
+    }
+    else // 1 step stencil
+    {
+        generate_stencil_2d(&stenc, 1, coarse_square_staggered, (void*)&mgstruct);
+    }
+    
+    cout << "Generated the stencil.\n" << flush;*/
+    
     stencil_2d stenc;
     stenc.lat = mgstruct.latt[1];
     stenc.clover = new complex<double>[mgstruct.latt[1]->get_lattice_size()*mgstruct.latt[1]->get_nc()];
@@ -2415,7 +2429,7 @@ int main(int argc, char** argv)
     complex<double>* tmp_rhs = new complex<double>[latt_size];
     complex<double>* tmp_lhs = new complex<double>[latt_size];
     
-    // Stencil first. Currently inefficient---we apply a Dslash for every site on the lattice. Bad!
+    // Stencil. Currently inefficient---we apply a Dslash for every site on the lattice. Bad!
     for (i = 0; i < latt_size; i++)
     {
         int coord[2];
@@ -2503,6 +2517,9 @@ int main(int argc, char** argv)
         }
     }
     
+    //complex<double>* tmp_rhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    //complex<double>* tmp_lhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    
     // Whelp, it's something. Let's test it.
     zero<double>(tmp_rhs, mgstruct.latt[1]->get_lattice_size());
     tmp_rhs[0] = 1.0;
@@ -2514,7 +2531,7 @@ int main(int argc, char** argv)
         tmp2[i] = MASS*check[i]; // Since it's clover only for now.
     }*/
     
-    complex<double>* tmp_lhs2 = new complex<double>[latt_size];
+    complex<double>* tmp_lhs2 = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
     coarse_square_staggered(tmp_lhs2, tmp_rhs, (void*)&mgstruct);
     
     // Get squared difference.
