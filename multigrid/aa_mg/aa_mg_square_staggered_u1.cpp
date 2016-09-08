@@ -2258,6 +2258,15 @@ int main(int argc, char** argv)
     stenc.lat = &Lat;
     stenc.clover = new complex<double>[Lat.get_lattice_size()*Lat.get_nc()];
     stenc.hopping = new complex<double>[Lat.get_lattice_size()*Lat.get_nc()*4]; // 4 for the 4 directions.
+    if (opt == STAGGERED_NORMAL)
+    {
+        stenc.has_two = true;
+        stenc.two_link = new complex<double>[Lat.get_lattice_size()*Lat.get_nc()*8]; // 8 for the 8 two link jumps.
+    }
+    else
+    {
+        stenc.has_two = false;
+    }
     
     // Stencil first. Currently inefficient---we apply a Dslash for every site on the lattice. Bad!
     for (i = 0; i < Lat.get_lattice_size(); i++)
@@ -2274,34 +2283,82 @@ int main(int argc, char** argv)
         zero<double>(tmp, Lat.get_lattice_size());
         fine_square_staggered(tmp, check, (void*)&mgstruct);
         
+        int lattice_size = Lat.get_lattice_size();
+        int nc = Lat.get_nc();
+        
         
         
         for (int c = 0; c < Lat.get_nc(); c++)
         {
             // clover.
-            stenc.clover[color+Lat.get_nc()*Lat.coord_to_index((int*)coord, c)] = tmp[Lat.coord_to_index((int*)coord, c)];
+            stenc.clover[color+nc*Lat.coord_to_index((int*)coord, c)] = tmp[Lat.coord_to_index((int*)coord, c)];
             
             // hopping.
             
             // +x 
             coord_tmp[0] = (coord[0]-1+Lat.get_lattice_dimension(0))%Lat.get_lattice_dimension(0);
             coord_tmp[1] = coord[1];
-            stenc.hopping[color+Lat.get_nc()*(c+Lat.get_nc()*(0+4*Lat.coord_to_index((int*)coord,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+            stenc.hopping[color+nc*(Lat.coord_to_index((int*)coord_tmp,c)+0*nc*nc*lattice_size)] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
             
             // +y
             coord_tmp[0] = coord[0];
             coord_tmp[1] = (coord[1]-1+Lat.get_lattice_dimension(1))%Lat.get_lattice_dimension(1);
-            stenc.hopping[color+Lat.get_nc()*(c+Lat.get_nc()*(1+4*Lat.coord_to_index((int*)coord,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+            stenc.hopping[color+nc*(Lat.coord_to_index((int*)coord_tmp,c)+1*nc*nc*lattice_size)] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
             
             // -x 
             coord_tmp[0] = (coord[0]+1)%Lat.get_lattice_dimension(0);
             coord_tmp[1] = coord[1];
-            stenc.hopping[color+Lat.get_nc()*(c+Lat.get_nc()*(2+4*Lat.coord_to_index((int*)coord,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+            stenc.hopping[color+nc*(Lat.coord_to_index((int*)coord_tmp,c)+2*nc*nc*lattice_size)] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
             
             // -y
             coord_tmp[0] = coord[0];
             coord_tmp[1] = (coord[1]+1)%Lat.get_lattice_dimension(1);
-            stenc.hopping[color+Lat.get_nc()*(c+Lat.get_nc()*(3+4*Lat.coord_to_index((int*)coord,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+            stenc.hopping[color+nc*(Lat.coord_to_index((int*)coord_tmp,c)+3*nc*nc*lattice_size)] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+            
+            
+            // two link.
+            if (stenc.has_two)
+            {
+                // +2x 
+                coord_tmp[0] = (coord[0]-2+2*Lat.get_lattice_dimension(0))%Lat.get_lattice_dimension(0);
+                coord_tmp[1] = coord[1];
+                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(0+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+
+                // +x+y
+                coord_tmp[0] = (coord[0]-1+2*Lat.get_lattice_dimension(0))%Lat.get_lattice_dimension(0);
+                coord_tmp[1] = (coord[1]-1+2*Lat.get_lattice_dimension(1))%Lat.get_lattice_dimension(1);
+                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(1+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+
+                // +2y
+                coord_tmp[0] = coord[0];
+                coord_tmp[1] = (coord[1]-2+2*Lat.get_lattice_dimension(1))%Lat.get_lattice_dimension(1);
+                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(2+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+
+                // -x+y
+                coord_tmp[0] = (coord[0]+1)%Lat.get_lattice_dimension(0);
+                coord_tmp[1] = (coord[1]-1+2*Lat.get_lattice_dimension(1))%Lat.get_lattice_dimension(1);
+                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(3+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+                
+                // -2x 
+                coord_tmp[0] = (coord[0]+2)%Lat.get_lattice_dimension(0);
+                coord_tmp[1] = coord[1];
+                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(4+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+
+                // -x-y
+                coord_tmp[0] = (coord[0]+1)%Lat.get_lattice_dimension(0);
+                coord_tmp[1] = (coord[1]+1)%Lat.get_lattice_dimension(1);
+                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(5+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+
+                // -2y
+                coord_tmp[0] = coord[0];
+                coord_tmp[1] = (coord[1]+2)%Lat.get_lattice_dimension(1);
+                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(6+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+
+                // +x-y
+                coord_tmp[0] = (coord[0]-1+2*Lat.get_lattice_dimension(0))%Lat.get_lattice_dimension(0);
+                coord_tmp[1] = (coord[1]+1)%Lat.get_lattice_dimension(1);
+                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(7+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+            }
         }
     }
     
@@ -2322,6 +2379,10 @@ int main(int argc, char** argv)
     
     delete[] stenc.clover;
     delete[] stenc.hopping;
+    if (stenc.has_two)
+    {
+        delete[] stenc.two_link;
+    }
     
     return 0; 
     

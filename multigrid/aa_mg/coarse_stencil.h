@@ -16,13 +16,13 @@ struct stencil_2d
     // Nc x Nc x X x Y
     complex<double>* clover;
     
-    // Nc x Nc x {+X,+Y,-X,-Y} x X x Y
+    // Nc x Nc x X x Y x {+X,+Y,-X,-Y} 
     complex<double>* hopping;
     
     // is there a two-link term? (for normal eqn)
     bool has_two; 
     
-    // Nc x Nc x {+2X, +X+Y, +2Y, -X+Y, -2X, -X-Y, -2Y, +X-Y} x X x Y
+    // Nc x Nc x X x Y x {+2X, +X+Y, +2Y, -X+Y, -2X, -X-Y, -2Y, +X-Y}
     complex<double>* two_link; 
     
 };

@@ -43,7 +43,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
         coords_tmp[1] = coords[1];
         for (c = 0; c < nc; c++)
         {
-            lhs[i] += links.hopping[c + nc*links.lat->index_to_color(i)+0*nc*nc+4*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            lhs[i] += links.hopping[c + nc*i + 0*nc*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
         }
         
         // +yhat
@@ -51,7 +51,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
         coords_tmp[1] = (coords[1] + 1)%links.lat->get_lattice_dimension(1);
         for (c = 0; c < nc; c++)
         {
-            lhs[i] += links.hopping[c + nc*links.lat->index_to_color(i)+1*nc*nc+4*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            lhs[i] += links.hopping[c + nc*i + 1*nc*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
         }
         
         // -xhat
@@ -59,7 +59,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
         coords_tmp[1] = coords[1];
         for (c = 0; c < nc; c++)
         {
-            lhs[i] += links.hopping[c + nc*links.lat->index_to_color(i)+2*nc*nc+4*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            lhs[i] += links.hopping[c + nc*i + 2*nc*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
         }
         
         // -yhat
@@ -67,7 +67,80 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
         coords_tmp[1] = (coords[1] - 1 + links.lat->get_lattice_dimension(1))%links.lat->get_lattice_dimension(1);
         for (c = 0; c < nc; c++)
         {
-            lhs[i] += links.hopping[c + nc*links.lat->index_to_color(i)+3*nc*nc+4*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            lhs[i] += links.hopping[c + nc*i + 3*nc*nc*lattice_size]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
         }
+        
+        // Step 3: Two-link term, if need be.
+        
+        if (links.has_two)
+        {
+        
+            // +2 xhat.
+            coords_tmp[0] = (coords[0] + 2)%links.lat->get_lattice_dimension(0);
+            coords_tmp[1] = coords[1];
+            for (c = 0; c < nc; c++)
+            {
+                lhs[i] += links.two_link[c + nc*links.lat->index_to_color(i)+0*nc*nc+8*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            }
+
+            // +xhat+yhat
+            coords_tmp[0] = (coords[0] + 1)%links.lat->get_lattice_dimension(0);
+            coords_tmp[1] = (coords[1] + 1)%links.lat->get_lattice_dimension(1);
+            for (c = 0; c < nc; c++)
+            {
+                lhs[i] += links.two_link[c + nc*links.lat->index_to_color(i)+1*nc*nc+8*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            }
+
+            // +2 yhat
+            coords_tmp[0] = coords[0];
+            coords_tmp[1] = (coords[1] + 2)%links.lat->get_lattice_dimension(1);
+            for (c = 0; c < nc; c++)
+            {
+                lhs[i] += links.two_link[c + nc*links.lat->index_to_color(i)+2*nc*nc+8*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            }
+
+            // -xhat + yhat
+            coords_tmp[0] = (coords[0] - 1 + 2*links.lat->get_lattice_dimension(0))%links.lat->get_lattice_dimension(0);
+            coords_tmp[1] = (coords[1] + 1)%links.lat->get_lattice_dimension(1);
+            for (c = 0; c < nc; c++)
+            {
+                lhs[i] += links.two_link[c + nc*links.lat->index_to_color(i)+3*nc*nc+8*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            }
+
+            // -2 xhat.
+            coords_tmp[0] = (coords[0] - 2 + 2*links.lat->get_lattice_dimension(0))%links.lat->get_lattice_dimension(0);
+            coords_tmp[1] = coords[1];
+            for (c = 0; c < nc; c++)
+            {
+                lhs[i] += links.two_link[c + nc*links.lat->index_to_color(i)+4*nc*nc+8*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            }
+
+            // -xhat-yhat
+            coords_tmp[0] = (coords[0] - 1 + 2*links.lat->get_lattice_dimension(0))%links.lat->get_lattice_dimension(0);
+            coords_tmp[1] = (coords[1] - 1 + 2*links.lat->get_lattice_dimension(1))%links.lat->get_lattice_dimension(1);
+            for (c = 0; c < nc; c++)
+            {
+                lhs[i] += links.two_link[c + nc*links.lat->index_to_color(i)+5*nc*nc+8*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            }
+
+            // -2 yhat
+            coords_tmp[0] = coords[0];
+            coords_tmp[1] = (coords[1] - 2 + 2*links.lat->get_lattice_dimension(1))%links.lat->get_lattice_dimension(1);
+            for (c = 0; c < nc; c++)
+            {
+                lhs[i] += links.two_link[c + nc*links.lat->index_to_color(i)+6*nc*nc+8*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            }
+
+            // +xhat - yhat
+            coords_tmp[0] = (coords[0] + 1)%links.lat->get_lattice_dimension(0);
+            coords_tmp[1] = (coords[1] - 1 + 2*links.lat->get_lattice_dimension(1))%links.lat->get_lattice_dimension(1);
+            for (c = 0; c < nc; c++)
+            {
+                lhs[i] += links.two_link[c + nc*links.lat->index_to_color(i)+7*nc*nc+8*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+            }
+
+        }
+        
+        
     }
 }
