@@ -2257,13 +2257,13 @@ int main(int argc, char** argv)
     stencil_2d stenc;
     stenc.lat = &Lat;
     stenc.clover = new complex<double>[Lat.get_lattice_size()*Lat.get_nc()];
-    
-    
+    stenc.hopping = new complex<double>[Lat.get_lattice_size()*Lat.get_nc()*4]; // 4 for the 4 directions.
     
     // Stencil first. Currently inefficient---we apply a Dslash for every site on the lattice. Bad!
     for (i = 0; i < Lat.get_lattice_size(); i++)
     {
         int coord[2];
+        int coord_tmp[2];
         int color;
         Lat.index_to_coord(i, (int*)coord, color);
         
@@ -2274,9 +2274,34 @@ int main(int argc, char** argv)
         zero<double>(tmp, Lat.get_lattice_size());
         fine_square_staggered(tmp, check, (void*)&mgstruct);
         
+        
+        
         for (int c = 0; c < Lat.get_nc(); c++)
         {
+            // clover.
             stenc.clover[color+Lat.get_nc()*Lat.coord_to_index((int*)coord, c)] = tmp[Lat.coord_to_index((int*)coord, c)];
+            
+            // hopping.
+            
+            // +x 
+            coord_tmp[0] = (coord[0]-1+Lat.get_lattice_dimension(0))%Lat.get_lattice_dimension(0);
+            coord_tmp[1] = coord[1];
+            stenc.hopping[color+Lat.get_nc()*(c+Lat.get_nc()*(0+4*Lat.coord_to_index((int*)coord,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+            
+            // +y
+            coord_tmp[0] = coord[0];
+            coord_tmp[1] = (coord[1]-1+Lat.get_lattice_dimension(1))%Lat.get_lattice_dimension(1);
+            stenc.hopping[color+Lat.get_nc()*(c+Lat.get_nc()*(1+4*Lat.coord_to_index((int*)coord,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+            
+            // -x 
+            coord_tmp[0] = (coord[0]+1)%Lat.get_lattice_dimension(0);
+            coord_tmp[1] = coord[1];
+            stenc.hopping[color+Lat.get_nc()*(c+Lat.get_nc()*(2+4*Lat.coord_to_index((int*)coord,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
+            
+            // -y
+            coord_tmp[0] = coord[0];
+            coord_tmp[1] = (coord[1]+1)%Lat.get_lattice_dimension(1);
+            stenc.hopping[color+Lat.get_nc()*(c+Lat.get_nc()*(3+4*Lat.coord_to_index((int*)coord,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
         }
     }
     
@@ -2286,16 +2311,17 @@ int main(int argc, char** argv)
     apply_stencil_2d(tmp, check, (void*)&stenc);
     
     // Compare
-    for (i = 0; i < Lat.get_lattice_size(); i++)
+    /*for (i = 0; i < Lat.get_lattice_size(); i++)
     {
         tmp2[i] = MASS*check[i]; // Since it's clover only for now.
-    }
-    //fine_square_staggered(tmp2, check, (void*)&mgstruct);
+    }*/
+    fine_square_staggered(tmp2, check, (void*)&mgstruct);
     
     // Get squared difference.
     cout << "Squared difference: " << diffnorm2sq<double>(tmp, tmp2, Lat.get_lattice_size()) << "\n";
     
     delete[] stenc.clover;
+    delete[] stenc.hopping;
     
     return 0; 
     

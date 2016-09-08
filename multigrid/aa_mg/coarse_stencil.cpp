@@ -14,6 +14,7 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
     int lattice_size; 
     int nc;
     int coords[2];
+    int coords_tmp[2];
     int color;
     stencil_2d links = *(stencil_2d*)extra_data;
     
@@ -35,6 +36,38 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
             lhs[i] += links.clover[c + nc*i]*rhs[links.lat->coord_to_index((int*)coords, c)];
         }
         
-        // And let's stop there for now. 
+        // Step 2: Hopping term. 
+        
+        // +xhat.
+        coords_tmp[0] = (coords[0] + 1)%links.lat->get_lattice_dimension(0);
+        coords_tmp[1] = coords[1];
+        for (c = 0; c < nc; c++)
+        {
+            lhs[i] += links.hopping[c + nc*links.lat->index_to_color(i)+0*nc*nc+4*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+        }
+        
+        // +yhat
+        coords_tmp[0] = coords[0];
+        coords_tmp[1] = (coords[1] + 1)%links.lat->get_lattice_dimension(1);
+        for (c = 0; c < nc; c++)
+        {
+            lhs[i] += links.hopping[c + nc*links.lat->index_to_color(i)+1*nc*nc+4*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+        }
+        
+        // -xhat
+        coords_tmp[0] = (coords[0] - 1 + links.lat->get_lattice_dimension(0))%links.lat->get_lattice_dimension(0);
+        coords_tmp[1] = coords[1];
+        for (c = 0; c < nc; c++)
+        {
+            lhs[i] += links.hopping[c + nc*links.lat->index_to_color(i)+2*nc*nc+4*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+        }
+        
+        // -yhat
+        coords_tmp[0] = coords[0];
+        coords_tmp[1] = (coords[1] - 1 + links.lat->get_lattice_dimension(1))%links.lat->get_lattice_dimension(1);
+        for (c = 0; c < nc; c++)
+        {
+            lhs[i] += links.hopping[c + nc*links.lat->index_to_color(i)+3*nc*nc+4*nc*nc*links.lat->coord_to_index((int*)coords,0)]*rhs[links.lat->coord_to_index((int*)coords_tmp, c)];
+        }
     }
 }
