@@ -56,7 +56,11 @@
 
 // Stencil constructing golden test! Compare constructed to P^\dag A P.
 // Currently doesn't work for lattices that are too small (2x2 for D, 4x4 for D^\dag D)
-// #define STENCIL_CONSTRUCT_TEST
+//#define STENCIL_CONSTRUCT_TEST
+
+// Stencil piece test! Compare using the full stencil to 
+// summing over all pieces (+x, +y, etc) of the stencil.
+//#define STENCIL_PIECE_TEST
 
 // Do restrict/prolong test?
 //#define PDAGP_TEST
@@ -2462,6 +2466,27 @@ int main(int argc, char** argv)
 
     return 0; 
 #endif
+
+    
+#ifdef STENCIL_PIECE_TEST
+    if (opt == STAGGERED_NORMAL)
+    {
+        for (i = 0; i <= mgstruct.n_refine; i++)
+        {
+            test_stencil_piece(&mgstruct, i, 2); 
+        }
+    }
+    else
+    {
+        for (i = 0; i <= mgstruct.n_refine; i++)
+        {
+            test_stencil_piece(&mgstruct, i, 1); 
+        }
+    }
+
+    return 0; 
+#endif
+
     
 #ifdef PDAGP_TEST
     {

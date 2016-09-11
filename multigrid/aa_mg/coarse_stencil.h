@@ -8,10 +8,33 @@
 
 using namespace std;
 
+// Enum for all possible stencil directions.
+// Largely used for generating additional refinements.
+enum stencil_dir
+{
+    DIR_ALL = 0, // default, full stencil.
+    DIR_0 = 1,   // clover
+    DIR_XP1 = 2, // +x
+    DIR_YP1 = 3, // +y
+    DIR_XM1 = 4, // -x
+    DIR_YM1 = 5, // -y
+    DIR_XP2 = 6, // +2x
+    DIR_XP1YP1 = 7, // +x+y
+    DIR_YP2 = 8, // +2y
+    DIR_XM1YP1 = 9, // -x+y
+    DIR_XM2 = 10, // -2x
+    DIR_XM1YM1 = 11, // -x-y
+    DIR_YM2 = 12, // -2y
+    DIR_XP1YM1 = 13, // +x-y
+};
+
 struct stencil_2d
 {
     // Associated lattice!
     Lattice* lat; 
+    
+    // What version of the stencil are we using? Default all.
+    stencil_dir sdir; 
     
     // Nc x Nc x X x Y
     complex<double>* clover;
@@ -38,6 +61,8 @@ struct stencil_2d
         clover = 0;
         hopping = 0;
         two_link = 0; 
+        
+        sdir = DIR_ALL; 
     }
     
     ~stencil_2d()
