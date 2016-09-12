@@ -18,6 +18,25 @@ make bicgstab_l
 grep "Time" ./test_output/b60_output_fix.out > ./test_output/b60_summary.dat
 grep "Time" ./test_output/unit_output_fix.out > ./test_output/unit_summary.dat
 
+# Put some outputs from this into the bare plots file.
+
+ut0=$(grep "\[BICGSTAB\]:" ./test_output/unit_summary.dat | awk ' { printf "%3.2f", $12 } ')
+ut1=$(grep "\[BICGSTAB-1\]:" ./test_output/unit_summary.dat | awk ' { printf "%3.2f", $12 } ')
+ut2=$(grep "\[BICGSTAB-2\]:" ./test_output/unit_summary.dat | awk ' { printf "%3.2f", $12 } ')
+ut4=$(grep "\[BICGSTAB-4\]:" ./test_output/unit_summary.dat | awk ' { printf "%3.2f", $12 } ')
+ut8=$(grep "\[BICGSTAB-8\]:" ./test_output/unit_summary.dat | awk ' { printf "%3.2f", $12 } ')
+ut16=$(grep "\[BICGSTAB-16\]:" ./test_output/unit_summary.dat | awk ' { printf "%3.2f", $12 } ')
+
+
+bt0=$(grep "\[BICGSTAB\]:" ./test_output/b60_summary.dat | awk ' { printf "%3.2f", $12 } ')
+bt1=$(grep "\[BICGSTAB-1\]:" ./test_output/b60_summary.dat | awk ' { printf "%3.2f", $12 } ')
+bt2=$(grep "\[BICGSTAB-2\]:" ./test_output/b60_summary.dat | awk ' { printf "%3.2f", $12 } ')
+bt4=$(grep "\[BICGSTAB-4\]:" ./test_output/b60_summary.dat | awk ' { printf "%3.2f", $12 } ')
+bt8=$(grep "\[BICGSTAB-8\]:" ./test_output/b60_summary.dat | awk ' { printf "%3.2f", $12 } ')
+bt16=$(grep "\[BICGSTAB-16\]:" ./test_output/b60_summary.dat | awk ' { printf "%3.2f", $12 } ')
+
+sed -e "s/:UNIT0:/${ut0}/g" -e "s/:UNIT1:/${ut1}/g" -e "s/:UNIT2:/${ut2}/g" -e "s/:UNIT4:/${ut4}/g" -e "s/:UNIT8:/${ut8}/g" -e "s/:UNIT16:/${ut16}/g" -e "s/:BETA0:/${bt0}/g" -e "s/:BETA1:/${bt1}/g" -e "s/:BETA2:/${bt2}/g" -e "s/:BETA4:/${bt4}/g" -e "s/:BETA8:/${bt8}/g" -e "s/:BETA16:/${bt16}/g" ./test_output/plots_bare.plt > ./test_output/plots.plt
+
 # Isolate the relative residual history for each solve separately.
 grep "\[BICGSTAB\]:" ./test_output/b60_output_fix.out | grep -v "Success" | awk ' { print $4,$6,$8 } '  > ./test_output/b60_detail_bicgstab.dat
 grep "\[BICGSTAB-1\]:" ./test_output/b60_output_fix.out | grep -v "Success" | awk ' { print $4,$6,$8 } '  > ./test_output/b60_detail_bicgstab1.dat
@@ -32,6 +51,8 @@ grep "\[BICGSTAB-2\]:" ./test_output/unit_output_fix.out | grep -v "Success" | a
 grep "\[BICGSTAB-4\]:" ./test_output/unit_output_fix.out | grep -v "Success" | awk ' { print $4,$6,$8 } '  > ./test_output/unit_detail_bicgstab4.dat
 grep "\[BICGSTAB-8\]:" ./test_output/unit_output_fix.out | grep -v "Success" | awk ' { print $4,$6,$8 } '  > ./test_output/unit_detail_bicgstab8.dat
 grep "\[BICGSTAB-16\]:" ./test_output/unit_output_fix.out | grep -v "Success" | awk ' { print $4,$6,$8 } '  > ./test_output/unit_detail_bicgstab16.dat
+
+cd test_output
 
 # Prepare plots.
 gnuplot -e "load \"plots.plt\""
@@ -54,3 +75,6 @@ rm *.tex
 rm *.log
 rm *.aux
 rm *-inc.pdf
+rm plots.plt
+
+cd ..
