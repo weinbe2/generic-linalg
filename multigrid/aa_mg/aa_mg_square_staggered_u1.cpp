@@ -23,6 +23,7 @@
 #include "generic_cg_flex_precond.h"
 #include "generic_gcr_var_precond.h"
 #include "generic_bicgstab_precond.h"
+#include "generic_bicgstab_l.h"
 
 #include "mg.h"
 #include "mg_complex.h"
@@ -150,11 +151,13 @@ void display_usage()
     cout << "--outer-restart-freq [#]                          (default 64)\n";
     cout << "--null-operator [laplace, laplace2, staggered\n";
     cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
-    cout << "--null-solver [gcr, bicgstab, cg, minres, arpack] (default bicgstab)\n";
+    cout << "--null-solver [gcr, bicgstab, cg, minres,\n";
+    cout << "       arpack, bicgstab-l]                        (default bicgstab)\n";
     cout << "--null-precision [null prec]                      (default 5e-5)\n";
     cout << "--null-max-iter [null maximum iterations]         (default 500)\n";
     cout << "--null-restart [yes, no]                          (default no)\n";
     cout << "--null-restart-freq [#]                           (default 8 if restarting is enabled)\n";
+    cout << "--null-bicgstab-l [#]                             (default 4 if using bicgstab-l)\n"; 
     cout << "--null-mass [mass]                                (default 1e-4)\n";
     cout << "--null-eo [corner, yes, no, topo]                 (default yes)\n";
     cout << "--null-global-ortho-conj [yes, no]                (default no, it only helps in some weird fluke cases)\n";
@@ -224,7 +227,7 @@ int main(int argc, char** argv)
     mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
     // How are we generating null vectors?
-    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MINRES
+    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MINRES, NULL_BICGSTAB_L
     
     // L_x = L_y = Dimension for a lattice.
     int lattice_size_x = 32; // Can be set on command line with --lattice-size. 
@@ -274,6 +277,7 @@ int main(int argc, char** argv)
     bool null_restart = false; // do we restart?
     int null_restart_freq = 8; // if we are restarting, what's the frequency?
     double null_mass = 1e-4; // What mass do we use for null vector generation?
+    int null_bicgstab_l = 4; // What l to use if we're using BiCGStab-l for null vector generation. 
     
     // Do we globally orthogonalize null vectors both against previous null vectors and their conjugate?
     bool do_global_ortho_conj = false;
@@ -475,6 +479,11 @@ int main(int argc, char** argv)
                 null_restart_freq = atoi(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--null-bicgstab-l") == 0)
+            {
+                null_bicgstab_l = atoi(argv[i+1]);
+                i++;
+            }
             else if (strcmp(argv[i], "--null-mass") == 0)
             {
                 null_mass = atof(argv[i+1]);
@@ -506,6 +515,10 @@ int main(int argc, char** argv)
                     cout << "[ERROR]: Cannot use eigenvectors as null vectors without arpack bindings.\n";
                     return 0;
 #endif //EIGEN_TEST
+                }
+                else if (strcmp(argv[i+1], "bicgstab-l") == 0)
+                {
+                    null_gen = NULL_BICGSTAB_L;
                 }
                 i++;
             }
@@ -1230,7 +1243,7 @@ int main(int argc, char** argv)
                 
                 cout << "Generated vectors.\n" << flush;
             }
-            else if (null_gen != NULL_ARPACK)
+            else if (null_gen != NULL_ARPACK) // Generate null vectors. 
             {
 
                 // We generate null vectors by solving Ax = 0, with a
@@ -1313,6 +1326,16 @@ int main(int argc, char** argv)
                             invif = minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
                             break;
                         case NULL_ARPACK: // it can't get here. 
+                            break;
+                        case NULL_BICGSTAB_L:
+                            if (null_restart)
+                            {
+                                invif = minv_vector_bicgstab_l_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
+                            }
+                            else
+                            {
+                                invif = minv_vector_bicgstab_l(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
+                            }
                             break;
                     }
 
