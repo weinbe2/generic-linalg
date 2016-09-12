@@ -165,6 +165,72 @@ int main(int argc, char** argv)
    printf("End Check restarted BiCGStab(8).\n");
    printf("\n\n\n");
     
+   printf("Begin Check BiCGStab-1.\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+   invif = minv_vector_bicgstab_l(lhs, rhs, N*N, 10000, 1e-6, 1, square_laplacian, NULL, &verb);
+   if (invif.success == true)
+   {
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   else
+   {
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check BiCGStab-1.\n");
+   printf("\n\n\n");
+    
+   printf("Begin Check BiCGStab-2.\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+   invif = minv_vector_bicgstab_l(lhs, rhs, N*N, 10000, 1e-6, 2, square_laplacian, NULL, &verb);
+   if (invif.success == true)
+   {
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   else
+   {
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check BiCGStab-2.\n");
+   printf("\n\n\n");
+   
+   printf("Begin Check BiCGStab-8.\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+   invif = minv_vector_bicgstab_l(lhs, rhs, N*N, 10000, 1e-6, 8, square_laplacian, NULL, &verb);
+   if (invif.success == true)
+   {
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   else
+   {
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check BiCGStab-8.\n");
+   printf("\n\n\n");
+    
+   printf("Begin Check BiCGStab-8(64).\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+   invif = minv_vector_bicgstab_l_restart(lhs, rhs, N*N, 10000, 1e-6, 64, 8, square_laplacian, NULL, &verb);
+   if (invif.success == true)
+   {
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   else
+   {
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check BiCGStab-8(64).\n");
+   printf("\n\n\n");
+    
+    return 0; 
+    
    printf("Begin Check GCR.\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
    invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, &verb);

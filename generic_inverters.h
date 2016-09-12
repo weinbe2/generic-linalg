@@ -45,6 +45,10 @@ using std::complex;
 // Makes no assumptions about the matrix.
 #include "generic_bicgstab.h"
 
+// Solves lhs = A^(-1) rhs with bicgstab-l
+// Makes no assumptions about the matrix.
+#include "generic_bicgstab_l.h"
+
 // Solves lhs = A^(-1) rhs with GMRES, no restarts.
 // Makes no assumption about matrix.
 #include "generic_gmres.h"
