@@ -1,6 +1,4 @@
-// Calculate level crossings for the hermitian index staggered operator.
-// Uses inverse power iterations to get the eigenvalues of the operator squared,
-// then figure out if the proper eigenvalue is +/- sqrt(eigen).
+// Test file to compare BiCGStab with BiCGStab-l, as well as restarted versions. 
 
 #include <iostream>
 #include <iomanip> // to set output precision.
@@ -11,7 +9,15 @@
 #include <random>
 #include <cstring> // should be replaced by using sstream
 
-#include "arpack_interface.h"
+// Things for timing. 
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
+
+
+#include "generic_bicgstab.h"
+#include "generic_bicgstab_l.h"
+#include "generic_gcr.h"
 #include "generic_vector.h"
 #include "verbosity.h"
 #include "u1_utils.h"
@@ -34,46 +40,63 @@ enum op_type
 // Custom routine to load gauge field.
 void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, double BETA);
 
+// Timing routine.
+timespec diff(timespec start, timespec end)
+{
+    timespec tmp;
+    if ((end.tv_nsec-start.tv_nsec) < 0)
+    {
+        tmp.tv_sec = end.tv_sec-start.tv_sec-1;
+        tmp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+    }
+    else
+    {
+        tmp.tv_sec = end.tv_sec-start.tv_sec;
+        tmp.tv_nsec = end.tv_nsec-start.tv_nsec;
+    }
+    return tmp;
+}
+
 int main(int argc, char** argv)
 {  
     // Declare some variables.
     cout << setiosflags(ios::scientific) << setprecision(6);
-    int i,j;
+    int i,j,x,y;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
-    complex<double> *evals, **evecs; // Hold eigenvalues, eigenvectors. 
     complex<double> tmp; 
     complex<double>* tmp2; 
     std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
     inversion_info invif;
     staggered_u1_op stagif;
-    stringstream ss;
+    double bnorm; 
+    stringstream sstream; 
     
-    
+    // Timing.
+    timespec time1, time2, timediff;
+
     // Set parameters. 
     
     // L_x = L_y = Dimension for a square lattice.
-    int square_size = 32; // Can be set on command line with --square_size. 
+    int square_size = 64; // Can be set on command line with --square_size. 
     
-    // Describe the staggered fermions.
-    double MASS = 1e-2; // for Rayleigh Quotient. 
+    // What masses should we use?
+    double mass = 1e-2;
     
-    // Eigensolver precision.
-    double precision = 1e-7; 
+    // Solver precision.
+    double outer_precision = 1e-10; 
+    
+    // Restart iterations.
+    int outer_restart = 64;
     
     // What operator should we use?
     op_type opt = STAGGERED; // STAGGERED, LAPLACE, G5_STAGGERED, STAGGERED_NORMAL
+    
     
     // Gauge field information.
     double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
                        // For heatbath gauge field, corresponds to non-compact beta.
                        // Can be set on command line with --beta.
-    
-    // Number of eigenvalues to get.
-    int n_evals = 6;
-    
-    // Number of internal values to get. By default n_evals*2.5.
-    int n_cv = -1;
     
     // Load an external cfg?
     char* load_cfg = NULL;
@@ -89,10 +112,8 @@ int main(int argc, char** argv)
             cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
             cout << "--operator [laplace, staggered, g5_staggered, \n";
             cout << "       normal_staggered, index]        (default staggered)\n";
-            cout << "--mass                                 (default 1e-2)\n";
-            cout << "--lattice-size [32, 64, 128]           (default 32)\n";
-            cout << "--n-evals [#]                          (default 6)\n";
-            cout << "--n-internal-vals [#]                  (default 2.5*n-evals)\n";
+            cout << "--lattice-size [32, 64, 128]           (default 64)\n";
+            cout << "--mass [#]                             (default 1e-2)\n";
             cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
             return 0;
         }
@@ -127,24 +148,14 @@ int main(int argc, char** argv)
                 }
                 i++;
             }
-            else if (strcmp(argv[i], "--mass") == 0)
-            {
-                MASS = atof(argv[i+1]);
-                i++;
-            }
             else if (strcmp(argv[i], "--lattice-size") == 0)
             {
                 square_size = atoi(argv[i+1]);
                 i++;
             }
-            else if (strcmp(argv[i], "--n-evals") == 0)
+            else if (strcmp(argv[i], "--mass") == 0)
             {
-                n_evals = atoi(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--n-internal-vals") == 0)
-            {
-                n_cv = atoi(argv[i+1]);
+                mass = atof(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--load-cfg") == 0)
@@ -156,12 +167,10 @@ int main(int argc, char** argv)
             else
             {
                 cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
-                cout << "--operator [laplace, staggered,\n";
-                cout << "       g5_staggered, normal_staggered] (default staggered)\n";
-                cout << "--mass                                 (default 1e-2)\n";
+                cout << "--operator [laplace, staggered, g5_staggered, \n";
+                cout << "       normal_staggered, index]        (default staggered)\n";
                 cout << "--lattice-size [32, 64, 128]           (default 32)\n";
-                cout << "--n-evals [#]                          (default 1)\n";
-                cout << "--n-internal-vals [#]                  (default 2.5*n-evals)\n";
+                cout << "--mass [#]                             (default 1e-2)\n";
                 cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
                 return 0;
             }
@@ -201,7 +210,7 @@ int main(int argc, char** argv)
             op = staggered_index_operator;
             break; 
     }
-    cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
+    cout << "[OP]: Operator " << op_name << " Mass " << mass << "\n";
     
     // Only relevant for free laplace test.
     int Nc = 1;  // Only value that matters for staggered
@@ -227,41 +236,17 @@ int main(int argc, char** argv)
     zero<double>(check, fine_size);
     //
     
-    // Allocate space for eigenvalues, eigenvectors.
-    if (n_evals > 0)
-    {
-        evals = new complex<double>[n_evals];
-        evecs = new complex<double>*[n_evals];
-        for (i = 0; i < n_evals; i++)
-        {
-            evecs[i] = new complex<double>[fine_size];
-            zero<double>(evecs[i], fine_size); // Generate some initial vectors. 
-        }
-    }
-    else
-    {
-        cout << "ERROR! Negative number of eigenvalues requested.\n";
-        return 0;
-    }
-    
-    // Check that number of internal vals is sane.
-    if (n_cv == -1 || n_cv < n_evals)
-    {
-        n_cv = (2*n_evals + n_evals/2);
-    }
-    cout << "[EVAL]: NEval " << n_evals << " Internal vals " << n_cv << "\n";
-    
     // Fill stagif.
     stagif.lattice = lattice;
-    stagif.mass = MASS; 
+    stagif.mass = mass;  
     stagif.x_fine = x_fine;
     stagif.y_fine = y_fine; 
     stagif.Nc = Nc; // Only relevant for laplace test only.
     
     // Create the verbosity structure.
     inversion_verbose_struct verb;
-    verb.verbosity = VERB_SUMMARY;
-    verb.verb_prefix = "[L1]: ";
+    verb.verbosity = VERB_DETAIL;
+    verb.verb_prefix = "[BICGSTAB]: ";
     verb.precond_verbosity = VERB_DETAIL;
     verb.precond_verb_prefix = "Prec ";
     
@@ -283,58 +268,54 @@ int main(int argc, char** argv)
     cout << "[GAUGE]: The average plaquette is " << get_plaquette_u1(lattice, x_fine, y_fine) << ".\n";
     cout << "[GAUGE]: The topological charge is " << get_topo_u1(lattice, x_fine, y_fine) << ".\n";
     
-    // Okay! Time to pull in the arpack bindings. 
+    // Compare BiCGStab to BiCGStab-1, BiCGStab-2, BiCGStab-4, BiCGStab-8, BiCGStab-16.
     
-    // Make an arpack struct.
-    arpack_dcn_t* ar_strc = arpack_dcn_init(fine_size, n_evals, n_cv); // max eigenvectors, max internal vectors
-    char eigtype[3]; strcpy(eigtype, "SM"); // This could be SM (smallest magnitude).
-                 // This could also be LM (largest magnitude)
-                 // SR (smallest real), SI (smallest imaginary),
-                 // and similar for largest.
-    arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, evals, evecs, fine_size, n_evals, n_cv, 4000, eigtype, precision, 0.0, op, (void*)&stagif); 
-    arpack_dcn_free(&ar_strc);
+    // Set a random source. Should be the same every time b/c we hard code the seed above.
+    gaussian<double>(rhs, fine_size, generator); 
     
-    // Print info about the eigensolve.
-    cout << "[ARPACK]: Number of converged eigenvalues: " << info_solve.nconv << "\n";
-    cout << "[ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
-    cout << "[ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
+    // NON-RESTARTED TESTS
     
-    // End of arpack bindings!
+    // Test an inversion.
+    zero<double>(lhs, fine_size);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    invif = minv_vector_bicgstab(lhs, rhs, fine_size, 100000, outer_precision, op, (void*)&stagif, &verb);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
     
-    // Sort eigenvalues (done differently depending on the operator).
-    for (i = 0; i < n_evals; i++)
+    // Test BiCGStab-l inversions in powers of 2.
+    for (i = 1; i <= 16; i*=2)
     {
-        for (j = 0; j < n_evals-1; j++)
-        {
-            switch (opt)
-            {
-                case STAGGERED:
-                    if (imag(evals[j]) > imag(evals[j+1]))
-                    {
-                        tmp = evals[j]; evals[j] = evals[j+1]; evals[j+1] = tmp;
-                        tmp2 = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tmp2;
-                    }
-                    break;
-                case LAPLACE:
-                case G5_STAGGERED:
-                case STAGGERED_NORMAL:
-                case STAGGERED_INDEX:
-                    if (real(evals[j]) > real(evals[j+1]))
-                    {
-                        tmp = evals[j]; evals[j] = evals[j+1]; evals[j+1] = tmp;
-                        tmp2 = evecs[j]; evecs[j] = evecs[j+1]; evecs[j+1] = tmp2;
-                    }
-                    break; 
-            }
-        }
+        sstream.str(string()); // Clear the string stream.
+        sstream << "[BICGSTAB-" << i << "]: "; // Set the string stream.
+        verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        
+        zero<double>(lhs, fine_size);
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+        invif = minv_vector_bicgstab_l(lhs, rhs, fine_size, 100000, outer_precision, i, op, (void*)&stagif, &verb);
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
     }
-                    
     
-    cout << "\n\nAll eigenvalues:\n";
-    for (i = 0; i < n_evals; i++)
+    // Test restarted BiCGStab(64)
+    /*
+    int restart_freq = 64; 
+    
+    // Test an inversion.
+    sstream.str(string()); // Clear the string stream.
+    sstream << "[BICGSTAB(" << restart_freq << ")]: "; // Set the string stream.
+    verb.verb_prefix = sstream.str(); // Update the verbosity string.
+    
+    zero<double>(lhs, fine_size);
+    invif = minv_vector_bicgstab_restart(lhs, rhs, fine_size, 100000, outer_precision, restart_freq, op, (void*)&stagif, &verb);
+    
+    // Test BiCGStab-l inversions in powers of 2.
+    for (i = 1; i <= 16; i*=2)
     {
-        cout << "[FINEVAL]: Mass " << MASS << " Num " << i << " Eval " << evals[i] << "\n";
-    }
+        sstream.str(string()); // Clear the string stream.
+        sstream << "[BICGSTAB-" << i << "(" << restart_freq << ")]: "; // Set the string stream.
+        verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        
+        zero<double>(lhs, fine_size);
+        invif = minv_vector_bicgstab_l_restart(lhs, rhs, fine_size, 100000, outer_precision, restart_freq, i, op, (void*)&stagif, &verb);
+    }*/
     
     // Free the lattice.
     delete[] lattice;
@@ -342,27 +323,8 @@ int main(int argc, char** argv)
     delete[] rhs;
     delete[] check;
     
-    for (i = 0; i < n_evals; i++)
-    {
-        delete[] evecs[i];
-    }
-    delete[] evecs;
-    delete[] evals; 
     
     return 0; 
-}
-
-// Hermitian index operator squared. 
-void staggered_index_operator_sq(complex<double>* lhs, complex<double>* rhs, void* extra_data)
-{
-    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
-    complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
-    
-    staggered_index_operator(tmp, rhs, extra_data);
-    staggered_index_operator(lhs, tmp, extra_data);
-    
-    delete[] tmp;
-    
 }
 
 
@@ -373,22 +335,22 @@ void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, do
     {
         if (abs(BETA - 3.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l32t32b30_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l32t32b30_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 6.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l32t32b60_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l32t32b60_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 10.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l32t32b100_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l32t32b100_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 10000.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l32t32bperturb_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l32t32bperturb_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else
@@ -400,22 +362,22 @@ void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, do
     {
         if (abs(BETA - 3.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l64t64b30_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l64t64b30_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 6.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l64t64b60_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l64t64b60_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 10.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l64t64b100_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l64t64b100_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 10000.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l64t64bperturb_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l64t64bperturb_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else
@@ -427,17 +389,17 @@ void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, do
     {
         if (abs(BETA - 6.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l128t128b60_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l128t128b60_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 10.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l128t128b100_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l128t128b100_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else if (abs(BETA - 10000.0) < 1e-8)
         {
-            read_gauge_u1(lattice, x_fine, y_fine, "../multigrid/aa_mg/cfg/l128t128bperturb_heatbath.dat");
+            read_gauge_u1(lattice, x_fine, y_fine, "../../multigrid/aa_mg/cfg/l128t128bperturb_heatbath.dat");
             cout << "[GAUGE]: Loaded a U(1) gauge field with non-compact beta = " << 1.0/sqrt(BETA) << "\n";
         }
         else
@@ -451,3 +413,4 @@ void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, do
     }
 
 }
+
