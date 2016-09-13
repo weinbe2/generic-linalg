@@ -17,6 +17,7 @@
 
 #include "generic_bicgstab.h"
 #include "generic_bicgstab_l.h"
+#include "generic_cg.h"
 #include "generic_gcr.h"
 #include "generic_vector.h"
 #include "verbosity.h"
@@ -229,11 +230,13 @@ int main(int argc, char** argv)
     lhs = new complex<double>[fine_size];
     rhs = new complex<double>[fine_size];   
     check = new complex<double>[fine_size];   
+    tmp2 = new complex<double>[fine_size];
     // Zero it out.
     zero<double>(lattice, 2*fine_size);
     zero<double>(rhs, fine_size);
     zero<double>(lhs, fine_size);
     zero<double>(check, fine_size);
+    zero<double>(tmp2, fine_size);
     //
     
     // Fill stagif.
@@ -293,6 +296,23 @@ int main(int argc, char** argv)
         invif = minv_vector_bicgstab_l(lhs, rhs, fine_size, 100000, outer_precision, i, op, (void*)&stagif, &verb);
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
     }
+
+    // Suggestion from Kate: if the operator is staggered or g5_staggered, test the normal equations with CG.
+    if (opt == STAGGERED || opt == G5_STAGGERED)
+    {
+        verb.verb_prefix = "[CG_NORMAL]: ";
+        
+        zero<double>(lhs, fine_size);
+        
+        // Apply D^\dagger
+        zero<double>(check, fine_size); gamma_5(check, rhs, (void*)&stagif);
+        zero<double>(tmp2, fine_size); square_staggered_u1(tmp2, check, (void*)&stagif);
+        zero<double>(check, fine_size); gamma_5(check, tmp2, (void*)&stagif);
+        
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+        invif = minv_vector_cg(lhs, check, fine_size, 100000, outer_precision, square_staggered_normal_u1, (void*)&stagif, &verb); // Remark: Dslash count should be doubled. 
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
+    }
     
     // Test restarted BiCGStab(64)
     /*
@@ -322,6 +342,7 @@ int main(int argc, char** argv)
     delete[] lhs;
     delete[] rhs;
     delete[] check;
+    delete[] tmp2; 
     
     
     return 0; 

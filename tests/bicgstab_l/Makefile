@@ -3,9 +3,9 @@
 
 #============================================================
 
-C_SOURCES =  ../../generic_bicgstab.cpp ../../generic_bicgstab_l.cpp ../../generic_gcr.cpp ../../u1_utils/u1_utils.cpp ../../operator_utils/operators.cpp
-C_OBJS    = generic_bicgstab.o generic_bicgstab_l.o generic_gcr.o u1_utils.o operators.o
-C_INCLUDES  = generic_bicgstab.h generic_bicgstab_l.h generic_gcr.h generic_vector.h
+C_SOURCES =  ../../generic_cg.cpp ../../generic_bicgstab.cpp ../../generic_bicgstab_l.cpp ../../generic_gcr.cpp ../../u1_utils/u1_utils.cpp ../../operator_utils/operators.cpp
+C_OBJS    = generic_cg.o generic_bicgstab.o generic_bicgstab_l.o generic_gcr.o u1_utils.o operators.o
+C_INCLUDES  = generic_ch.h generic_bicgstab.h generic_bicgstab_l.h generic_gcr.h generic_vector.h
 C_LIBS    = -lm -lrt
 EXAMPLES = bicgstab_l
 
