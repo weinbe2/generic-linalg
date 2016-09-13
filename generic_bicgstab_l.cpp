@@ -75,7 +75,7 @@ inversion_info minv_vector_bicgstab_l(double  *phi, double  *phi0, int size, int
   }
 
   // Initialize values.
-  rsq = 0.0; bsqrt = 0.0; truersq = 0.0;
+  /*rsq = 0.0; */bsqrt = 0.0; truersq = 0.0;
   rho0 = 1;
   alpha = 0;
   omega = 1; 
@@ -367,7 +367,7 @@ inversion_info minv_vector_bicgstab_l(complex<double>  *phi, complex<double>  *p
   }
 
   // Initialize values.
-  rsq = 0.0; bsqrt = 0.0; truersq = 0.0;
+  /*rsq = 0.0; */bsqrt = 0.0; truersq = 0.0;
   rho0 = 1;
   alpha = 0;
   omega = 1; 

@@ -229,8 +229,6 @@ int main(int argc, char** argv)
    printf("End Check BiCGStab-8(64).\n");
    printf("\n\n\n");
     
-    return 0; 
-    
    printf("Begin Check GCR.\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
    invif = minv_vector_gcr(lhs, rhs, N*N, 4000, 1e-6, square_laplacian, NULL, &verb);
@@ -432,6 +430,31 @@ int main(int argc, char** argv)
    printf("Explicit Resid: %.15e.\n", explicit_resid);
    printf("End Check Preconditioned BiCGStab (6 iter MinRes).\n");
    printf("\n\n\n");
+    
+    
+   printf("Begin Check Preconditioned BiCGStab (8 iter GCR).\n");
+   initialize_test(lattice, lhs, rhs, check, N*N);
+    //Prepare  GCR preconditioner. 
+   gcr_precond_struct_real gps; 
+   gps.n_step = 8; 
+   gps.rel_res = 1e-20; // Make n_step the dominant factor. 
+   gps.matrix_vector = square_laplacian; 
+   gps.matrix_extra_data = NULL;
+   // End Prepare GCR preconditioner.
+   invif = minv_vector_bicgstab_precond(lhs, rhs, N*N, 10000, 1e-6, square_laplacian, NULL, gcr_preconditioner, (void*)&gps, &verb);
+   if (invif.success == true)
+   {
+      printf("GOOD Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   else
+   {
+      printf("FAIL Iter: %d Ops: %d Resid: %.15e.\n", invif.iter, invif.ops_count, sqrt(invif.resSq));
+   }
+   explicit_resid = check_test(lhs, rhs, check, N*N, square_laplacian, NULL); 
+   printf("Explicit Resid: %.15e.\n", explicit_resid);
+   printf("End Check Preconditioned BiCGStab (8 iter GCR).\n");
+   printf("\n\n\n");
+   
 	
    printf("Begin Check Preconditioned Restarted BiCGStab(8) (6 iter MinRes).\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
@@ -480,7 +503,6 @@ int main(int argc, char** argv)
    printf("Begin Check Variably Preconditioned GCR (8 iter GCR).\n");
    initialize_test(lattice, lhs, rhs, check, N*N);
    //Prepare  GCR preconditioner. 
-   gcr_precond_struct_real gps; 
    gps.n_step = 8; 
    gps.rel_res = 1e-20; // Make n_step the dominant factor. 
    gps.matrix_vector = square_laplacian; 

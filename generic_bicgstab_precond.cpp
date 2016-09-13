@@ -101,13 +101,10 @@ inversion_info minv_vector_bicgstab_precond(double  *phi, double  *phi0, int siz
     zero<double>(stilde, size);
     (*precond_matrix_vector)(stilde, s, size, precond_info, &verb_prec);
     
-    // 8. Compute Astilde, w = <stilde, Astilde>/(Astilde, Astilde)
+    // 8. Compute Astilde, w = <s, Astilde>/(Astilde, Astilde)
     zero<double>(Astilde, size);
     (*matrix_vector)(Astilde, stilde, extra_info); invif.ops_count++;
-    //zero<double>(Aptilde, size);
-    //(*precond_matrix_vector)(Aptilde, Astilde, size, precond_info, &verb_prec);
-    //omega = dot<double>(Astilde, Aptilde, size)/dot<double>(Aptilde, Aptilde, size);
-    omega = dot<double>(Astilde, stilde, size)/dot<double>(Astilde, Astilde, size);
+    omega = dot<double>(s, Astilde, size)/dot<double>(Astilde, Astilde, size);
     
     // 9. Update phi = phi + alpha*ptilde + omega*stilde
     for (i = 0; i < size; i++)
@@ -254,14 +251,14 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
   Astilde = new complex<double>[size];
   
   // Zero vectors. 
-  zero<complex<double>>(r, size);
-  zero<complex<double>>(r0, size);
-  zero<complex<double>>(p, size);
-  zero<complex<double>>(s, size);
-  zero<complex<double>>(ptilde, size);
-  zero<complex<double>>(Aptilde, size);
-  zero<complex<double>>(stilde, size);
-  zero<complex<double>>(Astilde, size);
+  zero<double>(r, size);
+  zero<double>(r0, size);
+  zero<double>(p, size);
+  zero<double>(s, size);
+  zero<double>(ptilde, size);
+  zero<double>(Aptilde, size);
+  zero<double>(stilde, size);
+  zero<double>(Astilde, size);
 
   // Initialize values.
   rsq = 0.0; bsqrt = 0.0; truersq = 0.0;
@@ -308,13 +305,10 @@ inversion_info minv_vector_bicgstab_precond(complex<double>  *phi, complex<doubl
     zero<double>(stilde, size);
     (*precond_matrix_vector)(stilde, s, size, precond_info, &verb_prec);
     
-    // 8. Compute Astilde, w = <stilde, Astilde>/(Astilde, Astilde)
+    // 8. Compute Astilde, w = <s, Astilde>/(Astilde, Astilde)
     zero<double>(Astilde, size);
     (*matrix_vector)(Astilde, stilde, extra_info); invif.ops_count++;
-    //zero<double>(Aptilde, size);
-    //(*precond_matrix_vector)(Aptilde, Astilde, size, precond_info, &verb_prec);
-    //omega = dot<double>(Astilde, Aptilde, size)/dot<double>(Aptilde, Aptilde, size);
-    omega = dot<double>(Astilde, stilde, size)/dot<double>(Astilde, Astilde, size);
+    omega = dot<double>(s, Astilde, size)/dot<double>(Astilde, Astilde, size);
     
     // 9. Update phi = phi + alpha*ptilde + omega*stilde
     for (i = 0; i < size; i++)
