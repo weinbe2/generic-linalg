@@ -29,7 +29,7 @@ inversion_info minv_vector_bicgstab_l(double  *phi, double  *phi0, int size, int
   double *r0, **r, **u;
   double rho0, rho1, alpha, omega, beta;
   double *sigma, *gamma, *gamma_prime, *gamma_prime_prime, **tau; 
-  double rsq, bsqrt, truersq; 
+  double /*rsq, */bsqrt, truersq; 
   int k,i,j,h;
   inversion_info invif;
   
@@ -217,7 +217,7 @@ inversion_info minv_vector_bicgstab_l(double  *phi, double  *phi0, int size, int
     // Check for convergence.
     if (sqrt(sigma[0]) < eps*bsqrt)
     {
-      rsq = sigma[0];
+      //rsq = sigma[0];
       break;
     }
   }
@@ -321,7 +321,7 @@ inversion_info minv_vector_bicgstab_l(complex<double>  *phi, complex<double>  *p
   complex<double> *r0, **r, **u;
   complex<double> rho0, rho1, alpha, omega, beta;
   complex<double> *gamma, *gamma_prime, *gamma_prime_prime, **tau; 
-  double *sigma, rsq, bsqrt, truersq; 
+  double *sigma,/* rsq,*/ bsqrt, truersq; 
   int k,i,j,h;
   inversion_info invif;
   
@@ -509,7 +509,7 @@ inversion_info minv_vector_bicgstab_l(complex<double>  *phi, complex<double>  *p
     // Check for convergence.
     if (sqrt(sigma[0]) < eps*bsqrt)
     {
-      rsq = sigma[0];
+      //rsq = sigma[0];
       break;
     }
   }
