@@ -20,6 +20,7 @@ using namespace std;
 #include "generic_minres.h"
 #include "generic_cg_flex_precond.h"
 #include "generic_gcr_var_precond.h"
+#include "generic_bicgstab_precond.h"
 
 
 #include "mg.h"
@@ -612,7 +613,35 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                     mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data, verb);
                     break;
                 case MLEVEL_RECURSIVE:
-                    invif = minv_vector_gcr_var_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res[mgprecond->mgstruct->curr_level-1], mgprecond->n_restart, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, (void*)mgprecond, verb); 
+                    switch (mgprecond->in_solve_type)
+                    {
+                        case NONE: // The code can't reach here, anyway. 
+                            invif.resSq = 1;
+                            invif.ops_count = 0;
+                            invif.iter = 0;
+                            invif.success = true;
+                            invif.name = "None";
+                            break;
+                        case MINRES: // Really just pretend this is MLEVEL_SMOOTH.
+                            mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data, verb); // Need some way to count these...
+                            invif.resSq = 1;
+                            invif.ops_count = 0; // This gets handled lower down.
+                            invif.iter = 0;
+                            invif.success = true;
+                            invif.name = "None";
+                            break;
+                        case CG:
+                            invif = minv_vector_cg_flex_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res[mgprecond->mgstruct->curr_level-1], mgprecond->n_restart, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, (void*)mgprecond, verb); 
+                            break;
+                        case GCR:
+                        case CR: // Since I don't have flexible CR...
+                            invif = minv_vector_gcr_var_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res[mgprecond->mgstruct->curr_level-1], mgprecond->n_restart, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, (void*)mgprecond, verb); 
+                            break;
+                        case BICGSTAB:
+                            invif = minv_vector_bicgstab_precond(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res[mgprecond->mgstruct->curr_level-1], mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, (void*)mgprecond, verb);  // Should probably add a flag for restarting, but meh, it's bicg, it's already flexible. 
+                            break;
+                            
+                    }
                     printf("[L%d]: Iterations %d RelRes %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
                     mgprecond->mgstruct->dslash_count->krylov[mgprecond->mgstruct->curr_level] += invif.ops_count; 
                     break;
