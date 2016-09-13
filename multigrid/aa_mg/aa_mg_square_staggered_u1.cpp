@@ -167,6 +167,8 @@ void display_usage()
     cout << "--nvec [nvec]                                     (default 4)\n";
     cout << "--nrefine [number coarse]                         (default 1)\n";
     cout << "--cycle-type [v, k]                               (default v)\n";
+    cout << "--smoother-solver [gcr, bicgstab, cg, minres,\n";
+    cout << "         cr, bicgstab-l, none]                    (default gcr)\n"; 
     cout << "--npre-smooth [presmooth steps] {#, #, ...}       (default 6, same for all levels)\n";
     cout << "--npost-smooth [postsmooth steps] {#, #, ...}     (default 6, same for all levels)\n";
     cout << "--coarse-solver [gcr, bicgstab, cg, minres,\n";
@@ -690,6 +692,38 @@ int main(int argc, char** argv)
                 else
                 {
                     lattice_size_y = lattice_size_x; // At the end, don't try to grab the next element!
+                }
+                i++;
+            }
+            else if (strcmp(argv[i], "--smoother-solver") == 0)
+            {
+                if (strcmp(argv[i+1], "gcr") == 0)
+                {
+                    in_smooth = GCR;
+                }
+                else if (strcmp(argv[i+1], "bicgstab") == 0)
+                {
+                    in_smooth = BICGSTAB;
+                }
+                else if (strcmp(argv[i+1], "cg") == 0)
+                {
+                    in_smooth = CG;
+                }
+                else if (strcmp(argv[i+1], "cr") == 0)
+                {
+                    in_smooth = CR;
+                }
+                else if (strcmp(argv[i+1], "minres") == 0)
+                {
+                    in_smooth = MINRES;
+                }
+                else if (strcmp(argv[i+1], "bicgstab-l") == 0)
+                {
+                    in_smooth = BICGSTAB_L;
+                }
+                else if (strcmp(argv[i+1], "none") == 0)
+                {
+                    in_smooth = NONE;
                 }
                 i++;
             }

@@ -14,6 +14,7 @@ using namespace std;
 #include "verbosity.h"
 
 #include "generic_bicgstab.h"
+#include "generic_bicgstab_l.h"
 #include "generic_cg.h"
 #include "generic_cr.h"
 #include "generic_gcr.h"
@@ -526,6 +527,9 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             case CR:
                 invif = minv_vector_cr(z1, rhs, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break; 
+            case BICGSTAB_L:
+                invif = minv_vector_bicgstab_l(z1, rhs, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                break;
         }
         printf("[L%d Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str()); fflush(stdout);
         mgprecond->mgstruct->dslash_count->presmooth[mgprecond->mgstruct->curr_level] += invif.ops_count; 
@@ -711,6 +715,9 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 break;
             case CR:
                 invif = minv_vector_gcr(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                break;
+            case BICGSTAB_L:
+                invif = minv_vector_bicgstab_l(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
         }
         printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());
