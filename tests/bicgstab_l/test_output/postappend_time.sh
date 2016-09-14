@@ -8,4 +8,3 @@ infile=$1
 outfile=$2
 
 perl -00pe 's/\n(?=Time)/ /g' $infile > $outfile
-

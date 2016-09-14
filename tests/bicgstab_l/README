@@ -1,0 +1,2 @@
+This test is meant to compare BiCGStab with BiCGStab-l for various l.
+It also compares against GCR and CGNE for reference.
