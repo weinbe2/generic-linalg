@@ -319,8 +319,6 @@ inversion_info minv_vector_cg(complex<double>  *phi, complex<double>  *phi0, int
   
   // Compute rsq.
   rsq = norm2sq<double>(r, size);
-  
-  print_verbosity_resid(verb, "CG", k+1, invif.ops_count, sqrt(rsqNew)/bsqrt); 
 
   // iterate till convergence
   for(k = 0; k< max_iter; k++) {
