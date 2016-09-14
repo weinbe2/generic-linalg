@@ -1,0 +1,7 @@
+This test is meant to compare the claim in de Forcrand's 95 
+lattice proceeding (arXiv:hep-lat/9509082) that CGNE and GCR
+(equivalent to GMRES) produce the same polynomial in the
+spirit of Krylov solvers.
+In particular, we see from the BiCGStab-l tests that they do not,
+but perhaps that's because we have a combined even+odd solve
+simultaneously. We want to test a source that is -only- even.
