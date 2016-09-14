@@ -296,6 +296,15 @@ int main(int argc, char** argv)
         invif = minv_vector_bicgstab_l(lhs, rhs, fine_size, 100000, outer_precision, i, op, (void*)&stagif, &verb);
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
     }
+    
+    // Test GCR(\infty)
+    verb.verb_prefix = "[GCR]: ";
+        
+    zero<double>(lhs, fine_size);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    invif = minv_vector_gcr(lhs, rhs, fine_size, 100000, outer_precision, op, (void*)&stagif, &verb); // Remark: Dslash count should be doubled. 
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
+    
 
     // Suggestion from Kate: if the operator is staggered or g5_staggered, test the normal equations with CG.
     if (opt == STAGGERED || opt == G5_STAGGERED)
