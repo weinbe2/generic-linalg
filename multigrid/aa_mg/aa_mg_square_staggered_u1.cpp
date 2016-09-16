@@ -31,6 +31,7 @@
 #include "u1_utils.h"
 #include "lattice.h"
 #include "operators.h"
+#include "operators_stencil.h"
 #include "coarse_stencil.h"
 #include "tests.h"
 
