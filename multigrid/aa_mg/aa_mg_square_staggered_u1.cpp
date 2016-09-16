@@ -1520,30 +1520,34 @@ int main(int argc, char** argv)
             cout << "[MG]: Performing block orthonormalize of null vectors...\n";
             block_orthonormalize(&mgstruct); 
             
-            
-            // Build the coarse stencil if we can! We'll have to do a rebuild later
-            // to use the correct mass.
-            
-            // First, make sure we CAN build the coarse stencil. When we tried to allocate stencil objects, 
-            // it failed if the volume wasn't big enough.
-            if (mgstruct.stencils[mgstruct.curr_level+1] != 0)
+            if (n != mgstruct.n_refine-1)
             {
-                if (get_stencil_size(opt) == 2)
+                
+                // Build a temporary coarse stencil if we can! We'll have to do a rebuild later
+                // to use the correct mass.
+
+                // First, make sure we CAN build the coarse stencil. When we tried to allocate stencil objects, 
+                // it failed if the volume wasn't big enough.
+                if (mgstruct.stencils[mgstruct.curr_level+1] != 0)
                 {
-                    // Generate the old, inefficient way.
-                    generate_stencil_2d(mgstruct.stencils[mgstruct.curr_level+1], coarse_square_staggered, (void*)&mgstruct);
-                    cout << "[STENCIL_L" << mgstruct.curr_level+2 << "]: Null vector generation inefficient stencil build.\n" << flush;
+                    if (get_stencil_size(opt) == 2)
+                    {
+                        // Generate the old, inefficient way.
+                        generate_stencil_2d(mgstruct.stencils[mgstruct.curr_level+1], coarse_square_staggered, (void*)&mgstruct);
+                        cout << "[STENCIL_L" << mgstruct.curr_level+2 << "]: Null vector generation inefficient stencil build.\n" << flush;
+                    }
+                    else
+                    {
+                        // Generate the new, shiny way!
+                        generate_coarse_from_fine_stencil(mgstruct.stencils[mgstruct.curr_level+1], mgstruct.stencils[mgstruct.curr_level], &mgstruct); 
+                        cout << "[STENCIL_L" << mgstruct.curr_level+2 << "]: Null vector generation efficient stencil build.\n" << flush;
+                    }
                 }
                 else
                 {
-                    // Generate the new, shiny way!
-                    generate_coarse_from_fine_stencil(mgstruct.stencils[mgstruct.curr_level+1], mgstruct.stencils[mgstruct.curr_level], &mgstruct); 
-                    cout << "[STENCIL_L" << mgstruct.curr_level+2 << "]: Null vector generation efficient stencil build.\n" << flush;
+                    cout << "[STENCIL_L" << mgstruct.curr_level+2 << "]: Lattice too small to build null vector generation stencil.\n" << flush;
                 }
-            }
-            
-            if (n != mgstruct.n_refine-1)
-            {
+                
                 level_down(&mgstruct);
             }
             
@@ -1564,25 +1568,41 @@ int main(int argc, char** argv)
         // We built the previous stencils with the generation mass! Rebuild with the correct mass.
         
         // Clear and rebuild.
-        for (int n = 1; n <= mgstruct.n_refine; n++)
+        for (int n = 0; n < mgstruct.n_refine; n++)
         {
-            if (mgstruct.stencils[n] != 0)
+            if (mgstruct.stencils[n+1] != 0)
             {
-                mgstruct.stencils[n]->clear_stencils();
+                mgstruct.stencils[n+1]->clear_stencils();
                 if (get_stencil_size(opt) == 2)
                 {
                     // Generate the old, inefficient way.
-                    generate_stencil_2d(mgstruct.stencils[n], coarse_square_staggered, (void*)&mgstruct);
-                    cout << "[STENCIL_L" << n+1 << "]: Final inefficient stencil build.\n" << flush;
+                    generate_stencil_2d(mgstruct.stencils[n+1], coarse_square_staggered, (void*)&mgstruct);
+                    cout << "[STENCIL_L" << n+2 << "]: Final inefficient stencil build.\n" << flush;
                 }
                 else
                 {
                     // Generate the new, shiny way!
-                    generate_coarse_from_fine_stencil(mgstruct.stencils[n], mgstruct.stencils[n-1], &mgstruct); 
-                    cout << "[STENCIL_L" << n+1 << "]: Final efficient stencil build.\n" << flush;
+                    generate_coarse_from_fine_stencil(mgstruct.stencils[n+1], mgstruct.stencils[n], &mgstruct); 
+                    cout << "[STENCIL_L" << n+2 << "]: Final efficient stencil build.\n" << flush;
                 }
             }
+            else
+            {
+                cout << "[STENCIL_L" << n+2 << "]: Lattice too small to build stencil.\n" << flush;
+            }
+            
+            if (n != mgstruct.n_refine-1)
+            {
+                level_down(&mgstruct);
+            }
         }
+        
+        // Un-pop to the finest level.
+        for (int n = 1; n < mgstruct.n_refine; n++)
+        {
+            level_up(&mgstruct);
+        }
+        
     } // end skipping generation if we're only doing a top level or smoother test. 
     
     

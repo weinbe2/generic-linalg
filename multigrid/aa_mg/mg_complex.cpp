@@ -75,6 +75,32 @@ void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* e
     // Grab the mg_precond_struct.
     mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
     
+    // Check if we have a stencil!
+    if (mgstruct->stencils[mgstruct->curr_level+1] != 0 && mgstruct->stencils[mgstruct->curr_level+1]->generated == true)
+    {
+        // Just apply the stencil! Life is so good!
+        apply_stencil_2d(lhs, rhs, (void*)mgstruct->stencils[mgstruct->curr_level+1]);
+    }
+    else // We don't have a stencil, do it the old fashioned way!
+    {
+        // prolong, apply fine stencil, restrict.
+        complex<double>* Prhs = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
+        complex<double>* APrhs = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
+        
+        zero<double>(Prhs, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+        zero<double>(APrhs, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+        
+        prolong(Prhs, rhs, mgstruct);
+        
+        fine_square_staggered(APrhs, Prhs, extra_data);
+        
+        restrict(lhs, APrhs, mgstruct);
+        
+        delete[] Prhs;
+        delete[] APrhs;
+    }
+    
+    /*
     // We need to prolong all the way up to the top.
     int curr_level = mgstruct->curr_level+1;
     
@@ -130,7 +156,7 @@ void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* e
     {
         delete[] APx[i];
         delete[] Px[i];
-    }
+    }*/
     
     
 }
@@ -1094,7 +1120,7 @@ void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* ste
     delete[] tmp_Prhs;
     delete[] tmp_APrhs; 
     
-    stenc_fine->generated = true; 
+    stenc_coarse->generated = true; 
     
     // Restore the state of the fine stencil.
     stenc_fine->sdir = saved_dir; 
