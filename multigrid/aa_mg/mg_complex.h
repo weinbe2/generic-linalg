@@ -47,8 +47,7 @@ void level_down(mg_operator_struct_complex* mgstruct);
 // Pull the operator struct up a level, updating curr_* variables.
 void level_up(mg_operator_struct_complex* mgstruct);
 
-// Generate a coarse stencil from a fine stencil. This takes advantage of the prolong and restrict functions
-// explicitly, and also depends on the "sdir" variable the stencil object includes.
+// Generate a coarse stencil from a fine stencil.
 void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct);
 
 // Dslash tracker

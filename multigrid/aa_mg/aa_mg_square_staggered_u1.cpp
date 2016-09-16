@@ -1179,37 +1179,43 @@ int main(int argc, char** argv)
     // Set a point on the lhs.
     //lhs[x_fine/2+(y_fine/2)*x_fine+1] = 1.0;
     
-    // Create a projector.
+    // Allocate null vectors.
     mgstruct.null_vectors = new complex<double>**[mgstruct.n_refine];
-    // The top level is special since there are no color indices.
-    mgstruct.null_vectors[0] = new complex<double>*[mgstruct.n_vector];
-    for (j = 0; j < mgstruct.n_vector; j++)
+    for (i = 0; i < mgstruct.n_refine; i++)
     {
-        mgstruct.null_vectors[0][j] = new complex<double>[Lat.get_lattice_size()];
-        zero<double>(mgstruct.null_vectors[0][j], Lat.get_lattice_size());
-    }
-    // Higher levels are different.
-    if (mgstruct.n_refine > 1)
-    {
-        for (i = 1; i < mgstruct.n_refine; i++)
+        mgstruct.null_vectors[i] = new complex<double>*[mgstruct.n_vector];
+        for (j = 0; j < mgstruct.n_vector; j++)
         {
-            level_down(&mgstruct);
-
-            mgstruct.null_vectors[i] = new complex<double>*[mgstruct.n_vector];
-            for (j = 0; j < mgstruct.n_vector; j++)
-            {
-                mgstruct.null_vectors[i][j] = new complex<double>[mgstruct.curr_x_fine*mgstruct.curr_y_fine*mgstruct.curr_dof_fine];
-                zero<double>(mgstruct.null_vectors[i][j], mgstruct.curr_x_fine*mgstruct.curr_y_fine*mgstruct.curr_dof_fine);
-            }
-        }
-        // Come back up!
-        for (i = mgstruct.n_refine; i > 1; i--)
-        {
-            level_up(&mgstruct);
+            mgstruct.null_vectors[i][j] = new complex<double>[mgstruct.latt[i]->get_lattice_size()];
+            zero<double>(mgstruct.null_vectors[i][j], mgstruct.latt[i]->get_lattice_size());
         }
     }
-
-    cout << "[MG]: Creating " << mgstruct.n_vector << " projector(s).\n";
+    
+    // Allocate stencils.
+    mgstruct.stencils = new stencil_2d*[n_refine+1];
+    for (i = 0; i <= mgstruct.n_refine; i++)
+    {
+        // We can't allocate a stencil if the lattice gets too small.
+        if (get_stencil_size(opt) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
+        {
+            mgstruct.stencils[i] = 0; // We can't generate a stencil. It's small enough that we just explicitly project.
+        }
+        else if (mgstruct.latt[i]->get_lattice_dimension(0) < 2 || mgstruct.latt[i]->get_lattice_dimension(1) < 2) // it's a stencil size 1 or a big enough stencil size 2.
+        {
+            mgstruct.stencils[i] = 0;
+        }
+        else // We can build a stencil.
+        {
+            mgstruct.stencils[i] = new stencil_2d(mgstruct.latt[i], get_stencil_size(opt));
+        }
+    }
+    
+    // Fine level is handled specially. Eventually we'll have a special function to
+    // populate the fine staggered stencil without a bunch of matrix multiplies.
+    generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
+    cout << "[STENCIL_L1]: Built stencil.\n" << flush;
+    
+    cout << "[MG]: Creating " << mgstruct.n_vector << " null vectors.\n";
     // Skip this depending on our test!
 
     if (!(my_test == TOP_LEVEL_ONLY || my_test == SMOOTHER_ONLY))
@@ -1514,10 +1520,33 @@ int main(int argc, char** argv)
             cout << "[MG]: Performing block orthonormalize of null vectors...\n";
             block_orthonormalize(&mgstruct); 
             
+            
+            // Build the coarse stencil if we can! We'll have to do a rebuild later
+            // to use the correct mass.
+            
+            // First, make sure we CAN build the coarse stencil. When we tried to allocate stencil objects, 
+            // it failed if the volume wasn't big enough.
+            if (mgstruct.stencils[mgstruct.curr_level+1] != 0)
+            {
+                if (get_stencil_size(opt) == 2)
+                {
+                    // Generate the old, inefficient way.
+                    generate_stencil_2d(mgstruct.stencils[mgstruct.curr_level+1], coarse_square_staggered, (void*)&mgstruct);
+                    cout << "[STENCIL_L" << mgstruct.curr_level+2 << "]: Null vector generation inefficient stencil build.\n" << flush;
+                }
+                else
+                {
+                    // Generate the new, shiny way!
+                    generate_coarse_from_fine_stencil(mgstruct.stencils[mgstruct.curr_level+1], mgstruct.stencils[mgstruct.curr_level], &mgstruct); 
+                    cout << "[STENCIL_L" << mgstruct.curr_level+2 << "]: Null vector generation efficient stencil build.\n" << flush;
+                }
+            }
+            
             if (n != mgstruct.n_refine-1)
             {
                 level_down(&mgstruct);
             }
+            
         }
         
         // Reset the tricks we've done. 
@@ -1532,7 +1561,28 @@ int main(int argc, char** argv)
             level_up(&mgstruct);
         }
         
+        // We built the previous stencils with the generation mass! Rebuild with the correct mass.
         
+        // Clear and rebuild.
+        for (int n = 1; n <= mgstruct.n_refine; n++)
+        {
+            if (mgstruct.stencils[n] != 0)
+            {
+                mgstruct.stencils[n]->clear_stencils();
+                if (get_stencil_size(opt) == 2)
+                {
+                    // Generate the old, inefficient way.
+                    generate_stencil_2d(mgstruct.stencils[n], coarse_square_staggered, (void*)&mgstruct);
+                    cout << "[STENCIL_L" << n+1 << "]: Final inefficient stencil build.\n" << flush;
+                }
+                else
+                {
+                    // Generate the new, shiny way!
+                    generate_coarse_from_fine_stencil(mgstruct.stencils[n], mgstruct.stencils[n-1], &mgstruct); 
+                    cout << "[STENCIL_L" << n+1 << "]: Final efficient stencil build.\n" << flush;
+                }
+            }
+        }
     } // end skipping generation if we're only doing a top level or smoother test. 
     
     
@@ -2699,9 +2749,12 @@ int main(int argc, char** argv)
         for (i = 1; i <= mgstruct.n_refine; i++)
         {
             delete mgstruct.latt[i];
+            if (mgstruct.stencils[i] != 0) { delete mgstruct.stencils[i]; }
         }
     }
     delete[] mgstruct.latt;
+    delete mgstruct.stencils[0];
+    delete[] mgstruct.stencils; 
     
     delete[] mgprecond.n_pre_smooth;
     delete[] mgprecond.n_post_smooth; 

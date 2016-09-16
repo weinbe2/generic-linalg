@@ -125,6 +125,18 @@ struct stencil_2d
 
     }
     
+    // Clear out stencils!
+    void clear_stencils()
+    {
+        zero<double>(clover, lat->get_volume()*lat->get_nc()*lat->get_nc());
+        zero<double>(hopping, lat->get_volume()*lat->get_nc()*lat->get_nc()*4);
+        if (has_two)
+        {
+            zero<double>(two_link, lat->get_volume()*lat->get_nc()*lat->get_nc()*8);
+        }
+        generated = false; 
+    }
+    
 };
 
 // Applies an (up to two link) stencil as defined by a stencil_2d object.
