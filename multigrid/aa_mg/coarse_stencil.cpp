@@ -356,9 +356,9 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
 
 
 // Generate a stencil operator given a function and a coarsening distance (max 2...). Assumes that the physical lengths are longer than coarsening distance*2. 
-void generate_stencil_2d(stencil_2d* stenc, int stencil_distance, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_data)
+void generate_stencil_2d(stencil_2d* stenc, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_data)
 {
-    if (stenc->generated || stencil_distance > 2)
+    if (stenc->generated || stenc->stencil_size > 2)
     {
         return;
     }
@@ -369,6 +369,8 @@ void generate_stencil_2d(stencil_2d* stenc, int stencil_distance, void (*matrix_
     int coord[2];
     int coord_tmp[2];
     int color;
+    
+    int stencil_distance = stenc->stencil_size; 
     
     int latt_size = latt->get_lattice_size();
     int nc = latt->get_nc();
@@ -485,9 +487,9 @@ void generate_stencil_2d(stencil_2d* stenc, int stencil_distance, void (*matrix_
 
 // Generate a coarse stencil from a fine stencil. This takes advantage of the prolong and restrict functions
 // explicitly, and also depends on the "sdir" variable the stencil object includes.
-void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct, int stencil_distance)
+void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct)
 {
-    if (stenc_coarse->generated || stencil_distance > 2)
+    if (stenc_coarse->generated || stenc_fine->stencil_size > 2 || stenc_coarse->stencil_size > 2)
     {
         return;
     }
@@ -498,6 +500,8 @@ void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* ste
     int i,x,y;
     int coord[2];
     int color, c;
+    
+    int stencil_distance = stenc_coarse->stencil_size; 
     
     int fine_size = latt_fine->get_lattice_size(); // Only required to allocate temporary vectors. 
     int coarse_size = latt_coarse->get_lattice_size();

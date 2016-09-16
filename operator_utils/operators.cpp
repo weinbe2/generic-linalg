@@ -5,6 +5,22 @@
 
 using namespace std;
 
+int get_stencil_size(op_type opt)
+{
+    switch (opt)
+    {
+        case STAGGERED:
+        case LAPLACE:
+        case LAPLACE_NC2:
+        case G5_STAGGERED:
+        case STAGGERED_INDEX:
+            return 1;
+            break;
+        case STAGGERED_NORMAL:
+            return 2;
+    }
+    return 0;
+}
 
 // Square lattice.
 // Kinetic term for a 2D laplace w/ period bc. Applies lhs = A*rhs.

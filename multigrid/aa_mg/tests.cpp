@@ -433,6 +433,7 @@ void test_stencil_construct(mg_operator_struct_complex* mgstruct, int level, int
     
     stencil_2d stenc;
     stenc.lat = mgstruct->latt[level];
+    stenc.stencil_size = stencil_size; 
     
     // Save mgstruct level state.
     int save_level = mgstruct->curr_level;
@@ -458,11 +459,11 @@ void test_stencil_construct(mg_operator_struct_complex* mgstruct, int level, int
     
     if (level == 0)
     {
-        generate_stencil_2d(&stenc, stencil_size, fine_square_staggered, (void*)mgstruct);
+        generate_stencil_2d(&stenc, fine_square_staggered, (void*)mgstruct);
     }
     else
     {
-        generate_stencil_2d(&stenc, stencil_size, coarse_square_staggered, (void*)mgstruct);
+        generate_stencil_2d(&stenc, coarse_square_staggered, (void*)mgstruct);
     }
     
     cout << "[TEST]: Level " << level+1 << " Generated stencil.\n" << flush; 
@@ -540,6 +541,7 @@ void test_stencil_piece(mg_operator_struct_complex* mgstruct, int level, int ste
     
     stencil_2d stenc;
     stenc.lat = mgstruct->latt[level];
+    stenc.stencil_size = stencil_size; 
     
     // Save mgstruct level state.
     int save_level = mgstruct->curr_level;
@@ -565,11 +567,11 @@ void test_stencil_piece(mg_operator_struct_complex* mgstruct, int level, int ste
     
     if (level == 0)
     {
-        generate_stencil_2d(&stenc, stencil_size, fine_square_staggered, (void*)mgstruct);
+        generate_stencil_2d(&stenc, fine_square_staggered, (void*)mgstruct);
     }
     else
     {
-        generate_stencil_2d(&stenc, stencil_size, coarse_square_staggered, (void*)mgstruct);
+        generate_stencil_2d(&stenc, coarse_square_staggered, (void*)mgstruct);
     }
     
     cout << "[TEST]: Level " << level+1 << " Generated stencil.\n" << flush; 

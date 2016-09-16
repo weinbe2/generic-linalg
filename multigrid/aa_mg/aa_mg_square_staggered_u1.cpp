@@ -2113,19 +2113,9 @@ int main(int argc, char** argv)
 
     
 #ifdef STENCIL_CONSTRUCT_TEST
-    if (opt == STAGGERED_NORMAL)
+    for (i = 0; i <= mgstruct.n_refine; i++)
     {
-        for (i = 0; i <= mgstruct.n_refine; i++)
-        {
-            test_stencil_construct(&mgstruct, i, 2); 
-        }
-    }
-    else
-    {
-        for (i = 0; i <= mgstruct.n_refine; i++)
-        {
-            test_stencil_construct(&mgstruct, i, 1); 
-        }
+        test_stencil_construct(&mgstruct, i, get_stencil_size(opt)); 
     }
 
     return 0; 
@@ -2133,19 +2123,9 @@ int main(int argc, char** argv)
 
     
 #ifdef STENCIL_PIECE_TEST
-    if (opt == STAGGERED_NORMAL)
+    for (i = 0; i <= mgstruct.n_refine; i++)
     {
-        for (i = 0; i <= mgstruct.n_refine; i++)
-        {
-            test_stencil_piece(&mgstruct, i, 2); 
-        }
-    }
-    else
-    {
-        for (i = 0; i <= mgstruct.n_refine; i++)
-        {
-            test_stencil_piece(&mgstruct, i, 1); 
-        }
+        test_stencil_piece(&mgstruct, i, get_stencil_size(opt)); 
     }
 
     return 0; 
@@ -2155,16 +2135,18 @@ int main(int argc, char** argv)
     // Do an inefficient build of a stencil for the fine operator.
     stencil_2d stenc_fine;
     stenc_fine.lat = mgstruct.latt[0];
+    stenc_fine.stencil_size = get_stencil_size(opt);
     
-    generate_stencil_2d(&stenc_fine, (opt == STAGGERED_NORMAL) ? 2 : 1, fine_square_staggered, (void*)&mgstruct);
+    generate_stencil_2d(&stenc_fine, fine_square_staggered, (void*)&mgstruct);
     
     // Good! We've built the first level.
     
     // Next, build the coarse operator.
     stencil_2d stenc_coarse;
     stenc_coarse.lat = mgstruct.latt[1];
+    stenc_coarse.stencil_size = get_stencil_size(opt);
     cout << "About to generate coarse stencil.\n" << flush;
-    generate_coarse_from_fine_stencil(&stenc_coarse, &stenc_fine, &mgstruct, (opt == STAGGERED_NORMAL) ? 2 : 1); 
+    generate_coarse_from_fine_stencil(&stenc_coarse, &stenc_fine, &mgstruct); 
     cout << "Generated coarse stenci.\n" << flush; 
     
     /*for (i = 0; i < mgstruct.latt[1]->get_nc()*mgstruct.latt[1]->get_nc(); i++)
@@ -2180,7 +2162,8 @@ int main(int argc, char** argv)
     // Generate the coarse operator the old way.
     stencil_2d stenc_coarse_old;
     stenc_coarse_old.lat = mgstruct.latt[1];
-    generate_stencil_2d(&stenc_coarse_old, 1, coarse_square_staggered, (void*)&mgstruct);
+    stenc_coarse_old.stencil_size = get_stencil_size(opt); 
+    generate_stencil_2d(&stenc_coarse_old, coarse_square_staggered, (void*)&mgstruct);
     
     /*for (i = 0; i < mgstruct.latt[1]->get_nc()*mgstruct.latt[1]->get_nc(); i++)
     {

@@ -23,6 +23,9 @@ enum op_type
     STAGGERED_INDEX = 5
 };
 
+// Get the stencil size (maximum number of hops) as a function of the operator.
+int get_stencil_size(op_type opt);
+
 // Square lattice.
 // Kinetic term for a 2D laplace w/ period bc. Applies lhs = A*rhs.
 // The unit vectors are e_1 = xhat, e_2 = yhat.

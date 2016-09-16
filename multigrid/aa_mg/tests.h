@@ -18,3 +18,5 @@ void test_stencil_construct(mg_operator_struct_complex* mgstruct, int level, int
 // Test constructing the coarse operator, comparing applying the full coarse stencil to the piece-by-piece stencil.
 void test_stencil_piece(mg_operator_struct_complex* mgstruct, int level, int stencil_size);
 
+// Test efficient construct of coarse operator, compared to brute force construct.
+void test_stencil_efficient_construct(mg_operator_struct_complex* mgstruct, int level, int stencil_size); 
