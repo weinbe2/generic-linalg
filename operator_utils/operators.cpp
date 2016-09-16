@@ -13,10 +13,10 @@ int get_stencil_size(op_type opt)
         case LAPLACE:
         case LAPLACE_NC2:
         case G5_STAGGERED:
-        case STAGGERED_INDEX:
             return 1;
             break;
-        case STAGGERED_NORMAL:
+        case STAGGERED_INDEX: // Has around the corner
+        case STAGGERED_NORMAL: // Has around the corner, two link.
             return 2;
     }
     return 0;
