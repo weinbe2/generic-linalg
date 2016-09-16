@@ -743,7 +743,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 invif = minv_vector_gcr(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
             case BICGSTAB_L:
-                invif = minv_vector_bicgstab_l(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_bicgstab_l(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
                 break;
         }
         printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());
