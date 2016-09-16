@@ -13,6 +13,15 @@ struct staggered_u1_op
     int Nc; // only relevant for square laplace. 
 };
 
+enum op_type
+{
+    STAGGERED = 0,
+    LAPLACE = 1,
+    LAPLACE_NC2 = 2,
+    G5_STAGGERED = 3,
+    STAGGERED_NORMAL = 4,
+    STAGGERED_INDEX = 5
+};
 
 // Square lattice.
 // Kinetic term for a 2D laplace w/ period bc. Applies lhs = A*rhs.
