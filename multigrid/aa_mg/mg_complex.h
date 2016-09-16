@@ -1,13 +1,14 @@
 
+#ifndef MG_COMPLEX
+#define MG_COMPLEX
+
 #include <complex>
 using std::complex;
 
 #include "mg.h"
 #include "lattice.h"
 #include "verbosity.h"
-
-#ifndef MG_COMPLEX
-#define MG_COMPLEX
+#include "coarse_stencil.h"
 
 // For multilevel: smooth then down, or recursive Krylov?
 enum mg_multilevel_type
@@ -45,6 +46,10 @@ void level_down(mg_operator_struct_complex* mgstruct);
 
 // Pull the operator struct up a level, updating curr_* variables.
 void level_up(mg_operator_struct_complex* mgstruct);
+
+// Generate a coarse stencil from a fine stencil. This takes advantage of the prolong and restrict functions
+// explicitly, and also depends on the "sdir" variable the stencil object includes.
+void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct);
 
 // Dslash tracker
 struct dslash_tracker
@@ -93,6 +98,8 @@ struct mg_operator_struct_complex
     int Nc; // What's Nc on the top level? Square laplace only.
     
     Lattice** latt; // Array of pointers to lattice classes for each level.
+    
+    stencil_2d** stencils; // Array of pointers to stencils for each level.
     
     int n_vector; // Number of vectors. 
     complex<double>*** null_vectors; // Holds the null vectors. First index level, second n_vector, third size.

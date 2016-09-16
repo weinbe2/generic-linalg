@@ -3,9 +3,10 @@
 #ifndef MG_COARSE_STENCIL
 #define MG_COARSE_STENCIL
 
+#include <iostream>
 #include <complex>
-#include "mg_complex.h"
 #include "lattice.h"
+#include "generic_vector.h"
 
 using namespace std;
 
@@ -56,31 +57,72 @@ struct stencil_2d
     bool generated;
     
     // Base constructor.
-    stencil_2d()
+    stencil_2d(Lattice* in_lat, int in_stencil_size)
+        : lat(in_lat), stencil_size(in_stencil_size)
     {
         generated = false; 
-        lat = 0;
-        has_two = false;
+            
+        if (stencil_size == 2)
+        {
+            has_two = true;
+        }
+        else
+        {
+            has_two = false;
+        }
         
-        clover = 0;
-        hopping = 0;
-        two_link = 0; 
+        clover = new complex<double>[lat->get_volume()*lat->get_nc()*lat->get_nc()];
+        zero<double>(clover, lat->get_volume()*lat->get_nc()*lat->get_nc());
+        hopping = new complex<double>[lat->get_volume()*lat->get_nc()*lat->get_nc()*4]; // for the 4 directions.
+        zero<double>(hopping, lat->get_volume()*lat->get_nc()*lat->get_nc()*4);
+        if (has_two)
+        {
+            two_link = new complex<double>[lat->get_volume()*lat->get_nc()*lat->get_nc()*8]; // for 4 two-link + 4 corner.
+            zero<double>(two_link, lat->get_volume()*lat->get_nc()*lat->get_nc()*8);
+        }
+        else
+        {
+            two_link = 0;
+        }
         
         sdir = DIR_ALL; 
     }
     
+    // Copy constructor
+    stencil_2d(const stencil_2d &obj)
+    {
+        lat = obj.lat;
+        sdir = obj.sdir;
+        has_two = obj.has_two;
+        stencil_size = obj.stencil_size;
+        
+        clover = new complex<double>[lat->get_volume()*lat->get_nc()*lat->get_nc()];
+        copy<double>(clover, obj.clover, lat->get_volume()*lat->get_nc()*lat->get_nc());
+        hopping = new complex<double>[lat->get_volume()*lat->get_nc()*lat->get_nc()*4]; // for the 4 directions.
+        copy<double>(hopping, obj.hopping, lat->get_volume()*lat->get_nc()*lat->get_nc()*4);
+        if (has_two)
+        {
+            two_link = new complex<double>[lat->get_volume()*lat->get_nc()*lat->get_nc()*8]; // for 4 two-link + 4 corner.
+            copy<double>(two_link, obj.two_link, lat->get_volume()*lat->get_nc()*lat->get_nc()*8);
+        }
+        else
+        {
+            two_link = 0;
+        }
+        
+        generated = obj.generated;
+    }
+    
     ~stencil_2d()
     {
-        /*if (generated)
+        if (clover != 0) { delete[] clover; clover = 0; }
+        if (hopping != 0) { delete[] hopping; hopping = 0; }
+        if (has_two)
         {
-            if (clover != 0) { delete[] clover; clover = 0; }
-            if (hopping != 0) { delete[] hopping; hopping = 0; }
-            if (has_two)
-            {
-                if (two_link != 0) { delete[] two_link; two_link = 0; }
-            }
-            generated = false; 
-        }*/
+            if (two_link != 0) { delete[] two_link; two_link = 0; }
+        }
+        generated = false; 
+
     }
     
 };
@@ -90,10 +132,6 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
 
 // Generate a stencil operator given a function and a coarsening distance (max 2...)
 void generate_stencil_2d(stencil_2d* stenc, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_data);
-
-// Generate a coarse stencil from a fine stencil. This takes advantage of the prolong and restrict functions
-// explicitly, and also depends on the "sdir" variable the stencil object includes.
-void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct);
 
 
 #endif // MG_COARSE_STENCIL

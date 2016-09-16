@@ -431,9 +431,7 @@ void test_stencil_construct(mg_operator_struct_complex* mgstruct, int level, int
         return;
     }
     
-    stencil_2d stenc;
-    stenc.lat = mgstruct->latt[level];
-    stenc.stencil_size = stencil_size; 
+    stencil_2d stenc(mgstruct->latt[level], stencil_size);
     
     // Save mgstruct level state.
     int save_level = mgstruct->curr_level;
@@ -495,13 +493,6 @@ void test_stencil_construct(mg_operator_struct_complex* mgstruct, int level, int
     delete[] tmp_lhs;
     delete[] tmp_lhs2;
     
-    delete[] stenc.clover;
-    delete[] stenc.hopping;
-    if (stenc.two_link)
-    {
-        delete[] stenc.two_link;
-    }
-    
     // Restore level
     if (level > 0)
     {
@@ -539,9 +530,7 @@ void test_stencil_piece(mg_operator_struct_complex* mgstruct, int level, int ste
         return;
     }
     
-    stencil_2d stenc;
-    stenc.lat = mgstruct->latt[level];
-    stenc.stencil_size = stencil_size; 
+    stencil_2d stenc(mgstruct->latt[level], stencil_size);
     
     // Save mgstruct level state.
     int save_level = mgstruct->curr_level;
@@ -610,12 +599,6 @@ void test_stencil_piece(mg_operator_struct_complex* mgstruct, int level, int ste
     delete[] tmp_lhs2;
     delete[] tmp_save; 
     
-    delete[] stenc.clover;
-    delete[] stenc.hopping;
-    if (stenc.two_link)
-    {
-        delete[] stenc.two_link;
-    }
     
     // Restore level
     if (level > 0)
