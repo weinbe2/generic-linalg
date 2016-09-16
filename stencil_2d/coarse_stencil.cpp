@@ -5,7 +5,6 @@
     
 #include "generic_vector.h"
 #include "coarse_stencil.h"
-#include "mg_complex.h"
     
 using namespace std;
 

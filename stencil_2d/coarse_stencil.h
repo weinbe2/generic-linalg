@@ -1,7 +1,7 @@
 // Structures and routines for the coarse stencil.
 
-#ifndef MG_COARSE_STENCIL
-#define MG_COARSE_STENCIL
+#ifndef COARSE_STENCIL
+#define COARSE_STENCIL
 
 #include <iostream>
 #include <complex>
@@ -146,4 +146,4 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
 void generate_stencil_2d(stencil_2d* stenc, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_data);
 
 
-#endif // MG_COARSE_STENCIL
+#endif // COARSE_STENCIL
