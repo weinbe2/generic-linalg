@@ -63,6 +63,9 @@
 // summing over all pieces (+x, +y, etc) of the stencil.
 //#define STENCIL_PIECE_TEST
 
+// Efficient stencil test! Test building a coarse stencil from a fine stencil.
+//#define STENCIL_EFFICIENT_TEST
+
 // Do restrict/prolong test?
 //#define PDAGP_TEST
 
@@ -2542,6 +2545,76 @@ int main(int argc, char** argv)
     }
 
     return 0; 
+#endif
+    
+#ifdef STENCIL_EFFICIENT_TEST
+    // Do an inefficient build of a stencil for the fine operator.
+    stencil_2d stenc_fine;
+    stenc_fine.lat = mgstruct.latt[0];
+    
+    generate_stencil_2d(&stenc_fine, (opt == STAGGERED_NORMAL) ? 2 : 1, fine_square_staggered, (void*)&mgstruct);
+    
+    // Good! We've built the first level.
+    
+    // Next, build the coarse operator.
+    stencil_2d stenc_coarse;
+    stenc_coarse.lat = mgstruct.latt[1];
+    cout << "About to generate coarse stencil.\n" << flush;
+    generate_coarse_from_fine_stencil(&stenc_coarse, &stenc_fine, &mgstruct, (opt == STAGGERED_NORMAL) ? 2 : 1); 
+    cout << "Generated coarse stenci.\n" << flush; 
+    
+    for (i = 0; i < mgstruct.latt[1]->get_nc()*mgstruct.latt[1]->get_nc(); i++)
+    {
+        cout << stenc_coarse.hopping[3*mgstruct.latt[1]->get_lattice_size()*mgstruct.latt[1]->get_nc()+i] << " ";
+        if (i % mgstruct.latt[1]->get_nc() == mgstruct.latt[1]->get_nc()-1)
+        {
+            cout << "\n";
+        }
+    }
+    cout << "\n\n" << flush; 
+    
+    // Generate the coarse operator the old way.
+    stencil_2d stenc_coarse_old;
+    stenc_coarse_old.lat = mgstruct.latt[1];
+    generate_stencil_2d(&stenc_coarse_old, 1, coarse_square_staggered, (void*)&mgstruct);
+    
+    for (i = 0; i < mgstruct.latt[1]->get_nc()*mgstruct.latt[1]->get_nc(); i++)
+    {
+        cout << stenc_coarse_old.hopping[3*mgstruct.latt[1]->get_lattice_size()*mgstruct.latt[1]->get_nc()+i] << " ";
+        if (i % mgstruct.latt[1]->get_nc() == mgstruct.latt[1]->get_nc()-1)
+        {
+            cout << "\n";
+        }
+    }
+    cout << "\n" << flush; 
+    
+    // Let's run a comparison!
+    complex<double>* tmp_rhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_lhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    
+    gaussian<double>(tmp_rhs, mgstruct.latt[1]->get_lattice_size(), generator); 
+    apply_stencil_2d(tmp_lhs, tmp_rhs, (void*)&stenc_coarse);
+    cout << "Applied coarse stencil.\n" << flush; 
+    
+    
+    // apply just the mass for now...
+    complex<double>* tmp_lhs2 = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    apply_stencil_2d(tmp_lhs2, tmp_rhs, (void*)&stenc_coarse_old);
+    //coarse_square_staggered(tmp_lhs2, tmp_rhs, (void*)&mgstruct);
+    cout << "Applied old coarse stencil.\n" << flush; 
+    //for (i = 0; i < mgstruct.latt[1]->get_lattice_size(); i++)
+    //{
+    //    tmp_lhs2[i] = stagif.mass*tmp_rhs[i];
+    //}
+    
+    // Get squared difference.
+    cout << "[TEST]: Level " << 2 << " Squared difference: " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[1]->get_lattice_size()) << "\n" << flush; 
+    
+    return 0; 
+    
+    
+    
+    
 #endif
 
     

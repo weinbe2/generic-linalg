@@ -4,6 +4,7 @@
 #define MG_COARSE_STENCIL
 
 #include <complex>
+#include "mg_complex.h"
 #include "lattice.h"
 
 using namespace std;
@@ -86,5 +87,10 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
 
 // Generate a stencil operator given a function and a coarsening distance (max 2...)
 void generate_stencil_2d(stencil_2d* stenc, int stencil_distance, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_data);
+
+// Generate a coarse stencil from a fine stencil. This takes advantage of the prolong and restrict functions
+// explicitly, and also depends on the "sdir" variable the stencil object includes.
+void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct, int stencil_distance);
+
 
 #endif // MG_COARSE_STENCIL
