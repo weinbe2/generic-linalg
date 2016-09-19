@@ -223,6 +223,220 @@ int gaussian_elimination(complex<double>* x, complex<double>* b, complex<double>
   return 1;
 }
 
+// Perform gaussian elimination on a matrix to solve Ax=b, where there are multiple b.
+// If gaussian elimination fails, return 0, else return 1.
+int gaussian_elimination_multi_rhs(double** x, double** b, double** matrix, int n_rhs, int size)
+{
+  // Initialize variables.
+  int i,j,k;
+  double** grown_matrix;
+  double* pivot_space; // For pivot.
+  double max_val = 0.0;
+  int max_index = -1;
+  
+  // Declare size of matrix.
+  grown_matrix = new double*[size];
+  
+  for (i=0;i<size;i++)
+  {
+    grown_matrix[i] = new double[size+n_rhs];
+  }
+  
+  
+  // Copy things over.
+  for (i=0;i<size;i++)
+  {
+    for (j=0;j<size;j++)
+    {
+      grown_matrix[i][j] = matrix[i][j];
+    }
+    for (j=0;j<n_rhs;j++)
+    {
+      grown_matrix[i][size+j] = b[j][i];
+    }
+  }
+  
+  // Cool! Begin gaussian elimination.
+  // Iterate over all rows.
+  for (i=0;i<size;i++)
+  {
+    max_val = 0.0; max_index = -1;
+    // First, pivot over self and all lower rows.
+    for (j=i;j<size;j++)
+    {
+      if (abs(grown_matrix[j][i]) > max_val)
+      {
+        max_index = j;
+        max_val = abs(grown_matrix[j][i]);
+      }
+    }
+    
+    //printf("Max: %d %.8f\n", max_index, max_val); fflush(stdout);
+    if (max_index == -1) // everything's 0!
+    {
+      return 0; 
+    }
+    
+    // Put maximal row in pivot location.
+    // Switch i, max_index.
+    if (max_index != i)
+    {
+      pivot_space = grown_matrix[i];
+      grown_matrix[i] = grown_matrix[max_index];
+      grown_matrix[max_index] = pivot_space;
+      //printf("Pivoted.\n"); fflush(stdout);
+    }
+    
+    
+    // Good! We've safely pivoted. Now, normalize the top row.
+    for (j=i+1;j<size+n_rhs;j++)
+    {
+      grown_matrix[i][j] = grown_matrix[i][j]/grown_matrix[i][i];
+    }
+    grown_matrix[i][i] = 1.0;
+    
+    // Eliminate the top row from all other rows.
+    // This part can get parallelized!
+    for (j=0;j<size;j++)
+    {
+      if (j == i) continue;
+      for (k=i+1;k<size+n_rhs;k++)
+      {
+        grown_matrix[j][k] = grown_matrix[j][k] - grown_matrix[j][i]*grown_matrix[i][k];
+      }
+      grown_matrix[j][i] = 0.0;
+    }
+    
+  } // end loop over rows = i.
+  //printf("Exited reduction.\n"); fflush(stdout);
+  
+  // Copy result in!
+  for (k=0;k<n_rhs;k++)
+  {
+    for (i=0;i<size;i++)
+    {
+      x[k][i] = grown_matrix[i][size+k];
+    }
+  }
+  
+  //printf("Copied solution.\n"); fflush(stdout);
+  
+  // Free
+  for (i=0;i<size;i++)
+  {
+    delete[] grown_matrix[i];
+  }
+  delete[] grown_matrix;
+  
+  return 1;
+}
+
+int gaussian_elimination_multi_rhs(complex<double>** x, complex<double>** b, complex<double>** matrix, int n_rhs, int size)
+{
+  // Initialize variables.
+  int i,j,k;
+  complex<double>** grown_matrix;
+  complex<double>* pivot_space; // For pivot.
+  double max_val = 0.0;
+  int max_index = -1;
+  
+  // Declare size of matrix.
+  grown_matrix = new complex<double>*[size];
+  
+  for (i=0;i<size;i++)
+  {
+    grown_matrix[i] = new complex<double>[size+n_rhs];
+  }
+  
+  
+  // Copy things over.
+  for (i=0;i<size;i++)
+  {
+    for (j=0;j<size;j++)
+    {
+      grown_matrix[i][j] = matrix[i][j];
+    }
+    for (j=0;j<n_rhs;j++)
+    {
+      grown_matrix[i][size+j] = b[j][i];
+    }
+  }
+  
+  // Cool! Begin gaussian elimination.
+  // Iterate over all rows.
+  for (i=0;i<size;i++)
+  {
+    max_val = 0.0; max_index = -1;
+    // First, pivot over self and all lower rows.
+    for (j=i;j<size;j++)
+    {
+      if (abs(grown_matrix[j][i]) > max_val)
+      {
+        max_index = j;
+        max_val = abs(grown_matrix[j][i]);
+      }
+    }
+    
+    //printf("Max: %d %.8f\n", max_index, max_val); fflush(stdout);
+    if (max_index == -1) // everything's 0!
+    {
+      return 0; 
+    }
+    
+    // Put maximal row in pivot location.
+    // Switch i, max_index.
+    if (max_index != i)
+    {
+      pivot_space = grown_matrix[i];
+      grown_matrix[i] = grown_matrix[max_index];
+      grown_matrix[max_index] = pivot_space;
+      //printf("Pivoted.\n"); fflush(stdout);
+    }
+    
+    
+    // Good! We've safely pivoted. Now, normalize the top row.
+    for (j=i+1;j<size+n_rhs;j++)
+    {
+      grown_matrix[i][j] = grown_matrix[i][j]/grown_matrix[i][i];
+    }
+    grown_matrix[i][i] = 1.0;
+    
+    // Eliminate the top row from all other rows.
+    // This part can get parallelized!
+    for (j=0;j<size;j++)
+    {
+      if (j == i) continue;
+      for (k=i+1;k<size+n_rhs;k++)
+      {
+        grown_matrix[j][k] = grown_matrix[j][k] - grown_matrix[j][i]*grown_matrix[i][k];
+      }
+      grown_matrix[j][i] = 0.0;
+    }
+    
+  } // end loop over rows = i.
+  //printf("Exited reduction.\n"); fflush(stdout);
+  
+  // Copy result in!
+  for (k=0;k<n_rhs;k++)
+  {
+    for (i=0;i<size;i++)
+    {
+      x[k][i] = grown_matrix[i][size+k];
+    }
+  }
+  
+  //printf("Copied solution.\n"); fflush(stdout);
+  
+  // Free
+  for (i=0;i<size;i++)
+  {
+    delete[] grown_matrix[i];
+  }
+  delete[] grown_matrix;
+  
+  return 1;
+}
+
 
 // This code tests the gaussian elimination routine.
 /*

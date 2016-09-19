@@ -16,4 +16,8 @@ using std::complex;
 int gaussian_elimination(double* x, double* b, double** matrix, int size);
 int gaussian_elimination(complex<double>* x, complex<double>* b, complex<double>** matrix, int size);
 
+// Performs gaussian elimination against multirhs.
+int gaussian_elimination_multi_rhs(double** x, double** b, double** matrix, int n_rhs, int size);
+int gaussian_elimination_multi_rhs(complex<double>** x, complex<double>** b, complex<double>** matrix, int n_rhs, int size);
+
 #endif
