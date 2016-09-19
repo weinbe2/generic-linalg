@@ -19,9 +19,15 @@ struct inversion_info
   double* resSqmrhs; // squared residual. Only assigned for multirhs solves. 
   int n_rhs; 
   
-  // Constructor
-  inversion_info() : resSq(0.0), iter(0), success(false), name(""), ops_count(0), resSqmrhs(0), n_rhs(0)
+  // Default Constructor
+  inversion_info() : resSq(0.0), iter(0), success(false), name(""), ops_count(0), resSqmrhs(0), n_rhs(-1)
   { }
+  
+  // Multirhs constructor
+  inversion_info(int in_n_rhs) : resSq(0.0), iter(0), success(false), name(""), ops_count(0), resSqmrhs(0), n_rhs(in_n_rhs)
+  {
+    resSqmrhs = new double[n_rhs];
+  }
   
   // Destructor.
   ~inversion_info()
