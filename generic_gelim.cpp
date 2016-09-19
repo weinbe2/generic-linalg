@@ -288,6 +288,33 @@ int gaussian_elimination_multi_rhs(double** x, double** b, double** matrix, int 
     }
     
     
+    // Eliminate the top row from lower rows.
+    for (j=i+1;j<size;j++)
+    {
+      double factor = -grown_matrix[j][i]/grown_matrix[i][i];
+      for (k=i;k<size+n_rhs;k++)
+      {
+        grown_matrix[j][k] = grown_matrix[j][k] + grown_matrix[i][k]*factor;
+      }
+      //grown_matrix[j][i] = 0.0;
+    }
+    /*for (k=i+1;k<size+n_rhs;k++)
+    {
+      grown_matrix[i][k] /= grown_matrix[i][i];
+    }
+    grown_matrix[i][i] = 1.0;*/
+    
+    for (j=0;j<size;j++)
+    {
+      for (k=0;k<size+n_rhs;k++)
+      {
+        cout << grown_matrix[j][k] << " ";
+      }
+      cout << "\n";
+    }
+    cout << "\n";
+    
+    /*
     // Good! We've safely pivoted. Now, normalize the top row.
     for (j=i+1;j<size+n_rhs;j++)
     {
@@ -305,10 +332,39 @@ int gaussian_elimination_multi_rhs(double** x, double** b, double** matrix, int 
         grown_matrix[j][k] = grown_matrix[j][k] - grown_matrix[j][i]*grown_matrix[i][k];
       }
       grown_matrix[j][i] = 0.0;
-    }
+    }*/
     
   } // end loop over rows = i.
   //printf("Exited reduction.\n"); fflush(stdout);
+  
+  // Now we back substitute!
+  for (i=size-1;i>=0;i--)
+  {
+    for (j=i-1;j>=0;j--)
+    {
+      double factor = -grown_matrix[j][i]/grown_matrix[i][i];
+      for (k=i;k<size+n_rhs;k++)
+      {
+        grown_matrix[j][k] = grown_matrix[j][k]+grown_matrix[i][k]*factor;
+      }
+      //grown_matrix[j][i] = 0.0;
+    }
+    for (k=i+1;k<size+n_rhs;k++)
+    {
+      grown_matrix[i][k] /= grown_matrix[i][i];
+    }
+    grown_matrix[i][i] = 1.0;
+    
+    for (j=0;j<size;j++)
+    {
+      for (k=0;k<size+n_rhs;k++)
+      {
+        cout << grown_matrix[j][k] << " ";
+      }
+      cout << "\n";
+    }
+    cout << "\n";
+  }
   
   // Copy result in!
   for (k=0;k<n_rhs;k++)
@@ -394,6 +450,33 @@ int gaussian_elimination_multi_rhs(complex<double>** x, complex<double>** b, com
     }
     
     
+    // Eliminate the top row from lower rows.
+    for (j=i+1;j<size;j++)
+    {
+      double factor = -grown_matrix[j][i]/grown_matrix[i][i];
+      for (k=i;k<size+n_rhs;k++)
+      {
+        grown_matrix[j][k] = grown_matrix[j][k] + grown_matrix[i][k]*factor;
+      }
+      //grown_matrix[j][i] = 0.0;
+    }
+    /*for (k=i+1;k<size+n_rhs;k++)
+    {
+      grown_matrix[i][k] /= grown_matrix[i][i];
+    }
+    grown_matrix[i][i] = 1.0;*/
+    
+    for (j=0;j<size;j++)
+    {
+      for (k=0;k<size+n_rhs;k++)
+      {
+        cout << grown_matrix[j][k] << " ";
+      }
+      cout << "\n";
+    }
+    cout << "\n";
+    
+    /*
     // Good! We've safely pivoted. Now, normalize the top row.
     for (j=i+1;j<size+n_rhs;j++)
     {
@@ -411,10 +494,39 @@ int gaussian_elimination_multi_rhs(complex<double>** x, complex<double>** b, com
         grown_matrix[j][k] = grown_matrix[j][k] - grown_matrix[j][i]*grown_matrix[i][k];
       }
       grown_matrix[j][i] = 0.0;
-    }
+    }*/
     
   } // end loop over rows = i.
   //printf("Exited reduction.\n"); fflush(stdout);
+  
+  // Now we back substitute!
+  for (i=size-1;i>=0;i--)
+  {
+    for (j=i-1;j>=0;j--)
+    {
+      double factor = -grown_matrix[j][i]/grown_matrix[i][i];
+      for (k=i;k<size+n_rhs;k++)
+      {
+        grown_matrix[j][k] = grown_matrix[j][k]+grown_matrix[i][k]*factor;
+      }
+      //grown_matrix[j][i] = 0.0;
+    }
+    for (k=i+1;k<size+n_rhs;k++)
+    {
+      grown_matrix[i][k] /= grown_matrix[i][i];
+    }
+    grown_matrix[i][i] = 1.0;
+    
+    for (j=0;j<size;j++)
+    {
+      for (k=0;k<size+n_rhs;k++)
+      {
+        cout << grown_matrix[j][k] << " ";
+      }
+      cout << "\n";
+    }
+    cout << "\n";
+  }
   
   // Copy result in!
   for (k=0;k<n_rhs;k++)
@@ -435,6 +547,87 @@ int gaussian_elimination_multi_rhs(complex<double>** x, complex<double>** b, com
   delete[] grown_matrix;
   
   return 1;
+}
+
+// Compute a matrix inverse using gaussian elimination (uses multirhs under the hood). minv and matrix can be the same pointer.
+int gaussian_elimination_matrix_inverse(double** minv, double** matrix, int size)
+{
+  int i,j;
+  double tmp;
+  
+  // Allocate space for unit vectors.
+  double** identity_transpose = new double*[size]; // technically, 'x' and 'b' are stored as the transpose in the context of a matrix inversion.
+  for (i = 0; i < size; i++)
+  {
+    identity_transpose[i] = new double[size]; zero<double>(identity_transpose[i], size); identity_transpose[i][i] = 1.0;
+  }
+  
+  // minv = (matrix)^(-1) identity_transpose
+  int retval = gaussian_elimination_multi_rhs(minv, identity_transpose, matrix, size, size);
+  
+  // Need to transpose minv.
+  for (i = 0; i < size-1; i++)
+  {
+    for (j = i+1; j < size; j++)
+    {
+      tmp = minv[i][j];
+      minv[i][j] = minv[j][i];
+      minv[j][i] = tmp;
+    }
+  }
+  
+  for (j = 0; j < size; j++)
+    {
+      for (int k = 0; k < size; k++)
+      {
+        cout << minv[j][k] << " ";
+      }
+      cout << "\n";
+    }
+    cout << "\n";
+  
+  for (i = 0; i < size; i++)
+  {
+    delete[] identity_transpose[i];
+  }
+  delete[] identity_transpose;
+  
+  return retval;
+}
+
+int gaussian_elimination_matrix_inverse(complex<double>** minv, complex<double>** matrix, int size)
+{
+  int i,j;
+  complex<double> tmp;
+  
+  // Allocate space for unit vectors.
+  complex<double>** identity_transpose = new complex<double>*[size]; // technically, 'x' and 'b' are stored as the transpose in the context of a matrix inversion.
+  for (i = 0; i < size; i++)
+  {
+    identity_transpose[i] = new complex<double>[size]; zero<double>(identity_transpose[i], size); identity_transpose[i][i] = 1.0;
+  }
+  
+  // minv = (matrix)^(-1) identity_transpose
+  int retval = gaussian_elimination_multi_rhs(minv, identity_transpose, matrix, size, size);
+  
+  // Need to transpose minv.
+  for (i = 0; i < size-1; i++)
+  {
+    for (j = i+1; j < size; j++)
+    {
+      tmp = minv[i][j];
+      minv[i][j] = minv[j][i];
+      minv[j][i] = tmp;
+    }
+  }
+  
+  for (i = 0; i < size; i++)
+  {
+    delete[] identity_transpose[i];
+  }
+  delete[] identity_transpose;
+  
+  return retval;
 }
 
 

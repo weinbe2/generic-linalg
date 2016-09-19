@@ -3,8 +3,8 @@
 
 #============================================================
 
-C_SOURCES =  ../../generic_cg.cpp ../../generic_gelim.cpp ../../u1_utils/u1_utils.cpp ../../operator_utils/operators.cpp
-C_OBJS    = generic_cg.o generic_gelim.o u1_utils.o operators.o
+C_SOURCES =  ../../generic_cg.cpp ../../generic_block_cg_mrhs.cpp ../../generic_gelim.cpp ../../u1_utils/u1_utils.cpp ../../operator_utils/operators.cpp
+C_OBJS    = generic_cg.o generic_block_cg_mrhs.o generic_gelim.o u1_utils.o operators.o
 C_INCLUDES  = 
 C_LIBS    = -lm -lrt
 EXAMPLES = blockcg

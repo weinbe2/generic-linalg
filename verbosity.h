@@ -109,4 +109,5 @@ inline void print_verbosity_restart(inversion_verbose_struct* verb, std::string 
     }
 }
 
+
 #endif // VERBOSITY
