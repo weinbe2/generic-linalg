@@ -11,4 +11,7 @@
 // Given an allocated but otherwise empty stencil, appropriately fill it with the 2d staggered links.
 void get_square_staggered_u1_stencil(stencil_2d* stenc, staggered_u1_op* stagif);
 
+// Given an allocated but otherwise empty stencil, appropriately fill it with the 2d g5_staggered links.
+void get_square_staggered_gamma5_u1_stencil(stencil_2d* stenc, staggered_u1_op* stagif);
+
 #endif // U1_STENCIL

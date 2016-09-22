@@ -370,8 +370,6 @@ void generate_stencil_2d(stencil_2d* stenc, void (*matrix_vector)(complex<double
     int coord_tmp[2];
     int color;
     
-    int stencil_distance = stenc->stencil_size; 
-    
     int latt_size = latt->get_lattice_size();
     int nc = latt->get_nc();
     
