@@ -42,20 +42,6 @@
 #include "arpack_interface.h"
 #endif
 
-// Tests for constructing coarse operator.
-
-// Test for looking at antihermiticity.
-//#define COARSE_CONSTRUCT_1
-
-// Test for looking at free stencil.
-//#define COARSE_CONSTRUCT_2
-
-// "Construct" the fine operator via our stencil class!
-//#define COARSE_CONSTRUCT_3
-
-// Construct the coarse operator via the stencil class.
-//#define COARSE_CONSTRUCT_4
-
 // Stencil constructing golden test! Compare constructed to P^\dag A P.
 // Currently doesn't work for lattices that are too small (2x2 for D, 4x4 for D^\dag D)
 //#define STENCIL_CONSTRUCT_TEST
@@ -1211,9 +1197,24 @@ int main(int argc, char** argv)
         }
     }
     
-    // Fine level is handled specially. Eventually we'll have a special function to
-    // populate the fine staggered stencil without a bunch of matrix multiplies.
-    generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
+    // Fine level is handled specially. In some case, we have a special function to
+    // populate the fine staggered stencil without a bunch of matrix multiplies. We don't have it for all
+    // operators.
+    switch (opt_null)
+    {
+        case STAGGERED:
+            get_square_staggered_u1_stencil(mgstruct.stencils[0], &stagif);
+            break;
+        case G5_STAGGERED:
+            get_square_staggered_gamma5_u1_stencil(mgstruct.stencils[0], &stagif);
+            break;
+        case LAPLACE: // not implemented yet...
+        case LAPLACE_NC2:
+        case STAGGERED_NORMAL:
+        case STAGGERED_INDEX:
+            generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
+            break;
+    }
     cout << "[STENCIL_L1]: Built stencil.\n" << flush;
     
     cout << "[MG]: Creating " << mgstruct.n_vector << " null vectors.\n";
@@ -1632,556 +1633,6 @@ int main(int argc, char** argv)
     } // do_eigentest
 #endif // EIGEN_TEST
     
-#ifdef COARSE_CONSTRUCT_1
-    // Let's do a coarse test!
-    
-    ofstream myfile; 
-    myfile.open("clovers.dat");
-    
-    complex<double>* coarse_rhs = new complex<double>[mgstruct.curr_coarse_size];
-    complex<double>* coarse_lhs = new complex<double>[mgstruct.curr_coarse_size];
-    
-    zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
-    zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
-    
-    // Try constructing the (0,0) coarse clover.
-    complex<double>** clover_00 = new complex<double>*[mgstruct.curr_dof_coarse];
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        clover_00[i] = new complex<double>[mgstruct.curr_dof_coarse];
-    };
-    
-    
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
-        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
-        
-        coarse_rhs[i] = 1.0;
-        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            clover_00[j][i] = coarse_lhs[j];
-        }
-    }
-    
-    // Print the clover.
-    cout << "(0,0) Clover\n"; 
-    myfile << "(0,0) Clover\n";
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            cout << clover_00[i][j] << " ";
-            myfile << clover_00[i][j] << " ";
-        }
-        cout << "\n";
-        myfile << "\n";
-    }
-        
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        delete[] clover_00[i];
-    };
-    delete[] clover_00;
-    
-    cout << "\n\n";
-    myfile << "\n\n";
-    
-    // Try constructing (0,0) -> (1,0)
-    
-    complex<double>** clover_00_10 = new complex<double>*[mgstruct.curr_dof_coarse];
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        clover_00_10[i] = new complex<double>[mgstruct.curr_dof_coarse];
-    };
-    
-    
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
-        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
-        
-        // Set a point on (0,0)
-        coarse_rhs[i] = 1.0;
-        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            // Pick a point at (1,0)
-            clover_00_10[j][i] = coarse_lhs[j+mgstruct.curr_dof_coarse];
-        }
-    }
-    
-    // Print the clover.
-    cout << "(0,0) -> (1,0) Hopping term\n";
-    myfile << "(0,0) -> (1,0) Hopping term\n";
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            cout << clover_00_10[i][j] << " ";
-            myfile << clover_00_10[i][j] << " ";
-        }
-        cout << "\n";
-        myfile << "\n";
-    }
-        
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        delete[] clover_00_10[i];
-    };
-    delete[] clover_00_10;
-    
-    cout << "\n\n";
-    myfile << "\n\n";
-    
-    // Try constructing (1,0) -> (0,0)
-    
-    complex<double>** clover_10_00 = new complex<double>*[mgstruct.curr_dof_coarse];
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        clover_10_00[i] = new complex<double>[mgstruct.curr_dof_coarse];
-    };
-    
-    
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
-        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
-        
-        // Set a point on (1,0)
-        coarse_rhs[mgstruct.curr_dof_coarse+i] = 1.0;
-        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            // Pick a point at (0,0)
-            clover_10_00[j][i] = coarse_lhs[j];
-        }
-    }
-    
-    // Print the clover.
-    cout << "(1,0) -> (0,0) Hopping term\n";
-    myfile << "(1,0) -> (0,0) Hopping term\n";
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            cout << clover_10_00[i][j] << " ";
-            myfile << clover_10_00[i][j] << " ";
-        }
-        cout << "\n";
-        myfile << "\n";
-    }
-        
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        delete[] clover_10_00[i];
-    };
-    delete[] clover_10_00;
-    
-    cout << "\n\n";
-    myfile << "\n\n";
-    
-    // Try constructing the (0,0) coarse clover.
-    complex<double>** clover_10 = new complex<double>*[mgstruct.curr_dof_coarse];
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        clover_10[i] = new complex<double>[mgstruct.curr_dof_coarse];
-    };
-    
-    
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
-        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
-        
-        coarse_rhs[i+mgstruct.curr_dof_coarse] = 1.0;
-        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            clover_10[j][i] = coarse_lhs[j+mgstruct.curr_dof_coarse];
-        }
-    }
-    
-    // Print the clover.
-    cout << "(1,0) Clover\n"; 
-    myfile << "(1,0) Clover\n";
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            cout << clover_10[i][j] << " ";
-            myfile << clover_10[i][j] << " ";
-        }
-        cout << "\n";
-        myfile << "\n";
-    }
-        
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        delete[] clover_10[i];
-    };
-    delete[] clover_10;
-    
-    cout << "\n\n";
-    myfile << "\n\n";
-    
-    delete[] coarse_rhs;
-    delete[] coarse_lhs;
-    
-    myfile.close();
-    
-    return 0; 
-    
-#endif // COARSE_CONSTRUCT_1
-    
-    
-
-#ifdef COARSE_CONSTRUCT_2
-    // Let's do a coarse test!
-    
-    ofstream myfile; 
-    myfile.open("free_block.dat");
-    
-    complex<double>* coarse_rhs = new complex<double>[mgstruct.curr_coarse_size];
-    complex<double>* coarse_lhs = new complex<double>[mgstruct.curr_coarse_size];
-    
-    zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
-    zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
-    
-    // Try constructing the elements budding out from (1,1)
-    complex<double>** clover_x0_y0 = new complex<double>*[mgstruct.curr_dof_coarse];
-    complex<double>** clover_x1_y0 = new complex<double>*[mgstruct.curr_dof_coarse];
-    complex<double>** clover_xm1_y0 = new complex<double>*[mgstruct.curr_dof_coarse];
-    complex<double>** clover_x0_y1 = new complex<double>*[mgstruct.curr_dof_coarse];
-    complex<double>** clover_x0_ym1 = new complex<double>*[mgstruct.curr_dof_coarse];
-    
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        clover_x0_y0[i] = new complex<double>[mgstruct.curr_dof_coarse];
-        clover_x1_y0[i] = new complex<double>[mgstruct.curr_dof_coarse];
-        clover_xm1_y0[i] = new complex<double>[mgstruct.curr_dof_coarse];
-        clover_x0_y1[i] = new complex<double>[mgstruct.curr_dof_coarse];
-        clover_x0_ym1[i] = new complex<double>[mgstruct.curr_dof_coarse];
-    };
-    
-    
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        zero<double>(coarse_lhs, mgstruct.curr_coarse_size);
-        zero<double>(coarse_rhs, mgstruct.curr_coarse_size);
-        
-        coarse_rhs[i+1*mgstruct.curr_dof_coarse+1*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse] = 1.0;
-        coarse_square_staggered(coarse_lhs, coarse_rhs, (void*)&mgstruct);
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            // self
-            clover_x0_y0[j][i] = coarse_lhs[j+1*mgstruct.curr_dof_coarse+1*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse];
-            
-            // take what's from the right, pull it towards me.
-            clover_x1_y0[j][i] = coarse_lhs[j+0*mgstruct.curr_dof_coarse+1*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse]; 
-            
-            // take what's from the left, pull it towards me.
-            clover_xm1_y0[j][i] = coarse_lhs[j+2*mgstruct.curr_dof_coarse+1*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse];
-            
-            // take what's above me, pull it towards me.
-            clover_x0_y1[j][i] = coarse_lhs[j+1*mgstruct.curr_dof_coarse+0*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse];
-            
-            // take what's below me, pull it towards me. 
-            clover_x0_ym1[j][i] = coarse_lhs[j+1*mgstruct.curr_dof_coarse+2*mgstruct.curr_dof_coarse*mgstruct.curr_x_coarse];
-        }
-    }
-    
-    // Print the clover.
-    cout << "0 Clover\n"; 
-    myfile << "0 Clover\n";
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            cout << clover_x0_y0[i][j] << " ";
-            myfile << clover_x0_y0[i][j] << " ";
-        }
-        cout << "\n";
-        myfile << "\n";
-    }
-    
-    cout << "\n\n";
-    myfile << "\n\n";
-    
-    cout << "+xhat Clover\n"; 
-    myfile << "+xhat Clover\n";
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            cout << clover_x1_y0[i][j] << " ";
-            myfile << clover_x1_y0[i][j] << " ";
-        }
-        cout << "\n";
-        myfile << "\n";
-    }
-    
-    cout << "\n\n";
-    myfile << "\n\n";
-    
-    cout << "-xhat Clover\n"; 
-    myfile << "-xhat Clover\n";
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            cout << clover_xm1_y0[i][j] << " ";
-            myfile << clover_xm1_y0[i][j] << " ";
-        }
-        cout << "\n";
-        myfile << "\n";
-    }
-    
-    cout << "\n\n";
-    myfile << "\n\n";
-    
-    cout << "yhat Clover\n"; 
-    myfile << "yhat Clover\n";
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            cout << clover_x0_y1[i][j] << " ";
-            myfile << clover_x0_y1[i][j] << " ";
-        }
-        cout << "\n";
-        myfile << "\n";
-    }
-    
-    cout << "\n\n";
-    myfile << "\n\n";
-    
-    cout << "-yhat Clover\n"; 
-    myfile << "-yhat Clover\n";
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        for (j = 0; j < mgstruct.curr_dof_coarse; j++)
-        {
-            cout << clover_x0_ym1[i][j] << " ";
-            myfile << clover_x0_ym1[i][j] << " ";
-        }
-        cout << "\n";
-        myfile << "\n";
-    }
-    
-    cout << "\n\n";
-    myfile << "\n\n";
-        
-    for (i = 0; i < mgstruct.curr_dof_coarse; i++)
-    {
-        delete[] clover_x0_y0[i];
-        delete[] clover_x1_y0[i];
-        delete[] clover_xm1_y0[i];
-        delete[] clover_x0_y1[i];
-        delete[] clover_x0_ym1[i];
-    };
-    delete[] clover_x0_y0;
-    delete[] clover_x1_y0;
-    delete[] clover_xm1_y0;
-    delete[] clover_x0_y1;
-    delete[] clover_x0_ym1;
-    
-    delete[] coarse_rhs;
-    delete[] coarse_lhs;
-    
-    myfile.close();
-    
-    return 0; 
-    
-#endif // COARSE_CONSTRUCT_2
-    
-#ifdef COARSE_CONSTRUCT_3
-    
-    // Test "constructing" the fine stencil in our arbitrary stencil paradigm.
-    
-    stencil_2d stenc;
-    stenc.lat = &Lat;
-    stenc.clover = new complex<double>[Lat.get_lattice_size()*Lat.get_nc()];
-    stenc.hopping = new complex<double>[Lat.get_lattice_size()*Lat.get_nc()*4]; // 4 for the 4 directions.
-    if (opt == STAGGERED_NORMAL)
-    {
-        stenc.has_two = true;
-        stenc.two_link = new complex<double>[Lat.get_lattice_size()*Lat.get_nc()*8]; // 8 for the 8 two link jumps.
-    }
-    else
-    {
-        stenc.has_two = false;
-    }
-    
-    // Stencil first. Currently inefficient---we apply a Dslash for every site on the lattice. Bad!
-    for (i = 0; i < Lat.get_lattice_size(); i++)
-    {
-        int coord[2];
-        int coord_tmp[2];
-        int color;
-        Lat.index_to_coord(i, (int*)coord, color);
-        
-        // Place a site!
-        zero<double>(check, Lat.get_lattice_size());
-        check[i] = 1.0;
-        
-        zero<double>(tmp, Lat.get_lattice_size());
-        fine_square_staggered(tmp, check, (void*)&mgstruct);
-        
-        int lattice_size = Lat.get_lattice_size();
-        int nc = Lat.get_nc();
-        
-        
-        
-        for (int c = 0; c < Lat.get_nc(); c++)
-        {
-            // clover.
-            stenc.clover[color+nc*Lat.coord_to_index((int*)coord, c)] = tmp[Lat.coord_to_index((int*)coord, c)];
-            
-            // hopping.
-            
-            // +x 
-            coord_tmp[0] = (coord[0]-1+Lat.get_lattice_dimension(0))%Lat.get_lattice_dimension(0);
-            coord_tmp[1] = coord[1];
-            stenc.hopping[color+nc*(Lat.coord_to_index((int*)coord_tmp,c)+0*nc*nc*lattice_size)] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-            
-            // +y
-            coord_tmp[0] = coord[0];
-            coord_tmp[1] = (coord[1]-1+Lat.get_lattice_dimension(1))%Lat.get_lattice_dimension(1);
-            stenc.hopping[color+nc*(Lat.coord_to_index((int*)coord_tmp,c)+1*nc*nc*lattice_size)] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-            
-            // -x 
-            coord_tmp[0] = (coord[0]+1)%Lat.get_lattice_dimension(0);
-            coord_tmp[1] = coord[1];
-            stenc.hopping[color+nc*(Lat.coord_to_index((int*)coord_tmp,c)+2*nc*nc*lattice_size)] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-            
-            // -y
-            coord_tmp[0] = coord[0];
-            coord_tmp[1] = (coord[1]+1)%Lat.get_lattice_dimension(1);
-            stenc.hopping[color+nc*(Lat.coord_to_index((int*)coord_tmp,c)+3*nc*nc*lattice_size)] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-            
-            
-            // two link.
-            if (stenc.has_two)
-            {
-                // +2x 
-                coord_tmp[0] = (coord[0]-2+2*Lat.get_lattice_dimension(0))%Lat.get_lattice_dimension(0);
-                coord_tmp[1] = coord[1];
-                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(0+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-
-                // +x+y
-                coord_tmp[0] = (coord[0]-1+2*Lat.get_lattice_dimension(0))%Lat.get_lattice_dimension(0);
-                coord_tmp[1] = (coord[1]-1+2*Lat.get_lattice_dimension(1))%Lat.get_lattice_dimension(1);
-                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(1+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-
-                // +2y
-                coord_tmp[0] = coord[0];
-                coord_tmp[1] = (coord[1]-2+2*Lat.get_lattice_dimension(1))%Lat.get_lattice_dimension(1);
-                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(2+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-
-                // -x+y
-                coord_tmp[0] = (coord[0]+1)%Lat.get_lattice_dimension(0);
-                coord_tmp[1] = (coord[1]-1+2*Lat.get_lattice_dimension(1))%Lat.get_lattice_dimension(1);
-                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(3+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-                
-                // -2x 
-                coord_tmp[0] = (coord[0]+2)%Lat.get_lattice_dimension(0);
-                coord_tmp[1] = coord[1];
-                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(4+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-
-                // -x-y
-                coord_tmp[0] = (coord[0]+1)%Lat.get_lattice_dimension(0);
-                coord_tmp[1] = (coord[1]+1)%Lat.get_lattice_dimension(1);
-                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(5+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-
-                // -2y
-                coord_tmp[0] = coord[0];
-                coord_tmp[1] = (coord[1]+2)%Lat.get_lattice_dimension(1);
-                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(6+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-
-                // +x-y
-                coord_tmp[0] = (coord[0]-1+2*Lat.get_lattice_dimension(0))%Lat.get_lattice_dimension(0);
-                coord_tmp[1] = (coord[1]+1)%Lat.get_lattice_dimension(1);
-                stenc.two_link[color+Lat.get_nc()*(c+Lat.get_nc()*(7+8*Lat.coord_to_index((int*)coord_tmp,0)))] = tmp[Lat.coord_to_index((int*)coord_tmp, c)];
-            }
-        }
-    }
-    
-    // Whelp, it's something. Let's test it.
-    zero<double>(check, Lat.get_lattice_size());
-    check[0] = 1.0;
-    apply_stencil_2d(tmp, check, (void*)&stenc);
-    
-    // Compare
-    /*for (i = 0; i < Lat.get_lattice_size(); i++)
-    {
-        tmp2[i] = MASS*check[i]; // Since it's clover only for now.
-    }*/
-    fine_square_staggered(tmp2, check, (void*)&mgstruct);
-    
-    // Get squared difference.
-    cout << "Squared difference: " << diffnorm2sq<double>(tmp, tmp2, Lat.get_lattice_size()) << "\n";
-    
-    delete[] stenc.clover;
-    delete[] stenc.hopping;
-    if (stenc.has_two)
-    {
-        delete[] stenc.two_link;
-    }
-    
-    return 0; 
-    
-#endif // COARSE_CONSTRUCT_3
-
-#ifdef COARSE_CONSTRUCT_4
-    
-    // Test constructing the first coarse stencil in our arbitrary stencil paradigm.
-    
-    stencil_2d stenc;
-    stenc.lat = mgstruct.latt[1];
-    
-    if (opt == STAGGERED_NORMAL)
-    {
-        generate_stencil_2d(&stenc, 2, coarse_square_staggered, (void*)&mgstruct);
-    }
-    else // 1 step stencil
-    {
-        generate_stencil_2d(&stenc, 1, coarse_square_staggered, (void*)&mgstruct);
-    }
-    
-    cout << "Generated the stencil.\n" << flush;
-    
-    complex<double>* tmp_rhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
-    complex<double>* tmp_lhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
-    
-    // Whelp, it's something. Let's test it.
-    zero<double>(tmp_rhs, mgstruct.latt[1]->get_lattice_size());
-    tmp_rhs[0] = 1.0;
-    apply_stencil_2d(tmp_lhs, tmp_rhs, (void*)&stenc);
-    
-    complex<double>* tmp_lhs2 = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
-    coarse_square_staggered(tmp_lhs2, tmp_rhs, (void*)&mgstruct);
-    
-    // Get squared difference.
-    cout << "Squared difference: " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[1]->get_lattice_size()) << "\n";
-    
-    delete[] tmp_rhs; 
-    delete[] tmp_lhs;
-    delete[] tmp_lhs2;
-    
-    delete[] stenc.clover;
-    delete[] stenc.hopping;
-    if (stenc.two_link)
-    {
-        delete[] stenc.two_link;
-    }
-    
-    return 0; 
-    
-#endif // COARSE_CONSTRUCT_4
-
-    
 #ifdef STENCIL_CONSTRUCT_TEST
     for (i = 0; i <= mgstruct.n_refine; i++)
     {
@@ -2536,6 +1987,25 @@ int main(int argc, char** argv)
     zero<double>(pro_rhs_coarse, N*N);
     square_staggered_u1(pro_rhs_coarse, pro_lhs_coarse, (void*)&stagif);
     
+    // Compare PAP solution to real solution. 
+    cout << "\n[COARSE]: Compare solutions.\n";
+    double comparison = 0;
+    double resid_comparison = 0;
+    for (i = 0; i < Lat.get_lattice_size(); i++)
+    {
+        comparison += real(conj(pro_lhs_coarse[i]-lhs[i])*(pro_lhs_coarse[i]-lhs[i]));
+        resid_comparison += real(conj(pro_rhs_coarse[i]-rhs[i])*(pro_rhs_coarse[i]-rhs[i]));
+    }
+    comparison = sqrt(explicit_resid);
+    printf("[COARSE]: The solutions deviate by %15.20e.\n", comparison);
+    printf("[COARSE]: The projected residual has a rel res of %15.20e.\n", sqrt(resid_comparison)/bnorm);
+    
+    delete[] rhs_coarse; 
+    delete[] lhs_coarse;
+    delete[] A_lhs_coarse; 
+    delete[] pro_lhs_coarse; 
+    delete[] pro_rhs_coarse; 
+    
 #endif // COARSE_ONLY
     
     if (my_test == TOP_LEVEL_ONLY)
@@ -2606,27 +2076,6 @@ int main(int argc, char** argv)
         printf("[ORIG]: [check] should equal [rhs]. The relative residual is %15.20e.\n", explicit_resid);
 
     } // TOP_LEVEL_ONLY
-    
-#ifdef COARSE_ONLY
-    // Compare PAP solution to real solution. 
-    cout << "\n[COARSE]: Compare solutions.\n";
-    double comparison = 0;
-    double resid_comparison = 0;
-    for (i = 0; i < Lat.get_lattice_size(); i++)
-    {
-        comparison += real(conj(pro_lhs_coarse[i]-lhs[i])*(pro_lhs_coarse[i]-lhs[i]));
-        resid_comparison += real(conj(pro_rhs_coarse[i]-rhs[i])*(pro_rhs_coarse[i]-rhs[i]));
-    }
-    comparison = sqrt(explicit_resid);
-    printf("[COARSE]: The solutions deviate by %15.20e.\n", comparison);
-    printf("[COARSE]: The projected residual has a rel res of %15.20e.\n", sqrt(resid_comparison)/bnorm);
-    
-    delete[] rhs_coarse; 
-    delete[] lhs_coarse;
-    delete[] A_lhs_coarse; 
-    delete[] pro_lhs_coarse; 
-    delete[] pro_rhs_coarse; 
-#endif // COARSE_ONLY 
 
     if (my_test == SMOOTHER_ONLY || my_test == TWO_LEVEL || my_test == THREE_LEVEL)
     {
