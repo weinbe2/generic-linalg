@@ -1,0 +1,3 @@
+This is a simple test which compares applying the staggered
+operator defined in "operators.cpp" with the application
+of the staggered stencil built in "operators_stencil.h".
