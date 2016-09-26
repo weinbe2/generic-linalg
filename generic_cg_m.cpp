@@ -135,7 +135,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
     alpha = rsqNew / rsq;
     rsq = rsqNew; 
     
-    cout << "alpha = " << alpha << "\n";  
+    //cout << "alpha = " << alpha << "\n";  
     
     for (n = 0; n < n_shift; n++)
     {
