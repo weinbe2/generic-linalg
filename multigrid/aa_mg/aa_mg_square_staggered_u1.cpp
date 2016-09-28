@@ -53,6 +53,9 @@
 // Efficient stencil test! Test building a coarse stencil from a fine stencil.
 //#define STENCIL_EFFICIENT_TEST
 
+// Dagger stencil test! Make sure we correctly build the dagger of the stencil.
+//#define STENCIL_DAGGER_TEST
+
 // Do restrict/prolong test?
 //#define PDAGP_TEST
 
@@ -1847,11 +1850,21 @@ int main(int argc, char** argv)
     // Get squared difference.
     cout << "[TEST]: Level " << 2 << " Squared difference: " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[1]->get_lattice_size()) << "\n" << flush; 
     
-    return 0; 
+    return 0;  
+#endif
+    
+#ifdef STENCIL_DAGGER_TEST
+    if (!normal_eqn_smooth)
+    {
+        cout << "The dagger test can only be performed if '--smoother-type normal_eqn' is set (which builds the dagger stencil).\n" << flush;
+        
+        return 0;
+    }
+    
+    // Compare applying D^\dag D via the stencils with via explicit prolong/restrict.
     
     
-    
-    
+    return 0;
 #endif
 
     

@@ -519,12 +519,12 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     // Store inversion info.
     inversion_info invif;
     
-    // Create a tmp as needed.
-    complex<double>* tmp = new complex<double>[fine_size];
+    // Create a tmp for smoothing as needed.
+    complex<double>* tmp_smooth = new complex<double>[fine_size];
     
     // What operator are we smoothing with?
     void (*smooth_op)(complex<double>*,complex<double>*,void*);
-    if (mgprecond->normal_eqn_smooth) // Smooth on D^dag D x = D^dag b
+    if (mgprecond->normal_eqn_smooth) // Smooth on D^dag D x = D^dag b, CGNR. 
     {
         smooth_op = mgprecond->fine_matrix_vector_normal;
     }
@@ -535,8 +535,9 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     
     // GET EXCITED! First off, let's do some pre-smoothing. 
     // 1. z1 = smoothed rhs. 
+    // z1^0 = 0, rhs is... well, rhs. 
     complex<double>* z1 = new complex<double>[fine_size];
-    copy<double>(z1, rhs, fine_size); 
+    zero<double>(z1, fine_size);
     complex<double>* r1 = new complex<double>[fine_size];
     zero<double>(r1, fine_size);
     if (mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level] > 0 && mgprecond->in_smooth_type != NONE)
@@ -545,13 +546,13 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         if (mgprecond->normal_eqn_smooth) 
         {
             // We smooth via b = A^\dag rhs.
-            zero<double>(tmp, fine_size);
-            mgprecond->fine_matrix_vector_dagger(tmp, rhs, mgprecond->matrix_extra_data);
+            zero<double>(tmp_smooth, fine_size);
+            mgprecond->fine_matrix_vector_dagger(tmp_smooth, rhs, mgprecond->matrix_extra_data);
         }
         else
         {
             // smooth via b = rhs.
-            copy<double>(tmp, rhs, fine_size);
+            copy<double>(tmp_smooth, rhs, fine_size);
         }
             
         switch (mgprecond->in_smooth_type)
@@ -559,28 +560,28 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             case NONE: // can't reach here, anyway.
                 break;
             case CG:
-                invif = minv_vector_cg(z1, tmp, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_cg(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case MINRES:
-                invif = minv_vector_minres(z1, tmp, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_minres(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case GCR: 
-                invif = minv_vector_gcr(z1, tmp, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_gcr(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break; 
             case BICGSTAB:
-                invif = minv_vector_bicgstab(z1, tmp, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_bicgstab(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case CR:
-                invif = minv_vector_cr(z1, tmp, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_cr(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break; 
             case BICGSTAB_L:
-                invif = minv_vector_bicgstab_l(z1, tmp, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_bicgstab_l(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], smooth_op, mgprecond->matrix_extra_data); 
                 break;
         }
         printf("[L%d Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str()); fflush(stdout);
         mgprecond->mgstruct->dslash_count->presmooth[mgprecond->mgstruct->curr_level] += (mgprecond->normal_eqn_smooth? 2 : 1)*invif.ops_count; 
         
-        // Compute r1 = r - A z1
+        // Compute r1 = r - A z1.
         (*mgprecond->fine_matrix_vector)(r1, z1, mgprecond->matrix_extra_data); // Temporarily store Az1 in r1. 
         mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++;
         
@@ -592,21 +593,15 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     }
     else
     {
-        copy<double>(z1, rhs, fine_size);
-        // Compute r1 = r - A z1
-        (*mgprecond->fine_matrix_vector)(r1, z1, mgprecond->matrix_extra_data); // Temporarily store Az1 in r1. 
-        mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++;
-        for (int i = 0; i < fine_size; i++)
-        {
-            r1[i] = rhs[i] - r1[i];
-        }
-        
+        // z1 = 0, r1 = rhs.
+        copy<double>(r1, rhs, fine_size);
+        zero<double>(z1, fine_size);
     }
     
-    // Next, solve z2 = P(P^\dag A P)^(-1) r1, r2 = r1 - A z2
+    // Next, solve z2 = P(P^\dag A P)^(-1) r1. Current lhs is z1 + z2. 
     complex<double>* z2 = new complex<double>[fine_size]; zero<double>(z2, fine_size);
     complex<double>* r2 = new complex<double>[fine_size]; zero<double>(r2, fine_size); 
-    //if (mgprecond->in_solve_type != NONE)
+    if (mgprecond->in_solve_type != NONE)
     {
         
         // z2 = P ( P^\dag A P )^(-1) P^\dag r1 
@@ -712,15 +707,6 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             lhs[i] = z1[i] + z2[i]; 
         }
         
-        // Compute an updated residual from z2. 
-        (*mgprecond->fine_matrix_vector)(r2, z2, mgprecond->matrix_extra_data); // Temporarily store Az2 in r2. 
-        mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++; 
-        
-        for (int i = 0; i < fine_size; i++)
-        {
-            r2[i] = r1[i] - r2[i];
-        }
-        
         // And we're done!
         
         // Clean up!
@@ -728,32 +714,38 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         delete[] lhs_coarse;
         
     }
-    /*else // no inner solver, set lhs to z1, copy r1 into r2 (since z2 is trivially 0).
+    else // no inner solver, set lhs to z1, set z2 to 0.
     {
-        for (i = 0; i < fine_size; i++)
-        {
-            lhs[i] = z1[i];
-            r2[i] = r1[i];
-        }
-        
-    }*/
+        copy<double>(lhs, z1, fine_size);
+        zero<double>(z2, fine_size);   
+    }
     
     complex<double>* z3 = new complex<double>[fine_size]; zero<double>(z3, fine_size); 
     // Almost done! Do some post-smoothing. on z3 = A^(-1) r2
     // 7. Post smooth.
     if (mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level] > 0 && mgprecond->in_smooth_type != NONE)
     {
+        // Form the residual equation.
+        // Compute r2 = rhs - A lhs.
+        (*mgprecond->fine_matrix_vector)(r2, lhs, mgprecond->matrix_extra_data); // Temporarily store A*lhs in r2.
+        mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++;
+        
+        for (int i = 0; i < fine_size; i++)
+        {
+            r2[i] = rhs[i] - r2[i];
+        }
+        
         // Are we smoothing via the normal equation?
         if (mgprecond->normal_eqn_smooth) 
         {
             // We smooth via b = A^\dag r2.
-            zero<double>(tmp, fine_size);
-            mgprecond->fine_matrix_vector_dagger(tmp, r2, mgprecond->matrix_extra_data);
+            zero<double>(tmp_smooth, fine_size);
+            mgprecond->fine_matrix_vector_dagger(tmp_smooth, r2, mgprecond->matrix_extra_data); // CGNR
         }
         else
         {
             // smooth via b = rhs.
-            copy<double>(tmp, r2, fine_size);
+            copy<double>(tmp_smooth, r2, fine_size);
         }
         
         switch (mgprecond->in_smooth_type)
@@ -761,29 +753,27 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             case NONE: // Can't reach here, anyway.
                 break;
             case CG:
-                invif = minv_vector_cg(z3, tmp, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_cg(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case MINRES:
-                invif = minv_vector_minres(z3, tmp, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_minres(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case GCR:
-                invif = minv_vector_gcr(z3, tmp, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_gcr(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case BICGSTAB:
-                invif = minv_vector_bicgstab(z3, tmp, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_bicgstab(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case CR:
-                invif = minv_vector_gcr(z3, tmp, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_gcr(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case BICGSTAB_L:
-                invif = minv_vector_bicgstab_l(z3, tmp, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], smooth_op, mgprecond->matrix_extra_data); 
+                invif = minv_vector_bicgstab_l(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], smooth_op, mgprecond->matrix_extra_data); 
                 break;
         }
         printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());
         mgprecond->mgstruct->dslash_count->postsmooth[mgprecond->mgstruct->curr_level] += (mgprecond->normal_eqn_smooth? 2 : 1)*invif.ops_count; 
     }
-    
-    // else z3 = 0 is fine.
     
     // Update lhs with z3. 
     for (i = 0; i < fine_size; i++)
@@ -797,7 +787,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     delete[] z3; 
     delete[] r1;
     delete[] r2; 
-    delete[] tmp; 
+    delete[] tmp_smooth; 
     
     cout << "[MG]: Exited mg_preconditioner.\n";
     
