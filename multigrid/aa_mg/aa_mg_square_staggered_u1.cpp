@@ -1161,6 +1161,8 @@ int main(int argc, char** argv)
         mgprecond.normal_eqn_smooth = true;
         mgprecond.coarse_matrix_vector_dagger = coarse_square_staggered_dagger; // function which applies coarse dagger.
         mgprecond.fine_matrix_vector_dagger = fine_square_staggered_dagger; // function which applies fine dagger.
+        mgprecond.coarse_matrix_vector_normal = coarse_square_staggered_normal; // function which applies normal of coarse op
+        mgprecond.fine_matrix_vector_normal = fine_square_staggered_normal; // function which applies normal of fine op.
     }
     else
     {

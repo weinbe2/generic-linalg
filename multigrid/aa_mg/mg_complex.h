@@ -182,6 +182,13 @@ struct mg_precond_struct_complex
     // This is the coarse function. 
     void (*coarse_matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
     
+    // If we need the normal operator, what is it?
+    void (*fine_matrix_vector_normal)(complex<double>*, complex<double>*, void*);
+    
+    // This is the coarse function. 
+    void (*coarse_matrix_vector_normal)(complex<double>*, complex<double>*, void*);
+    
+    
     void* matrix_extra_data; 
 };
 
