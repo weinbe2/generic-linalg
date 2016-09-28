@@ -27,46 +27,7 @@ using namespace std;
 #include "mg.h"
 #include "mg_complex.h"
 #include "lattice.h"
-
-// General multigrid projector function!
-void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data)
-{   
-    // Grab the mg_precond_struct.
-    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
-    
-    // lhs and rhs are of size coarse_size. mgstruct.matrix_vector expects
-    // fine_size. 
-    int x_fine = mgstruct->x_fine;
-    int y_fine = mgstruct->y_fine;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x[0]; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y[0]; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
-    int coarse_length = coarse_size*mgstruct->n_vector;
-    
-    // Okay... how the hell are we going to do this. 
-    complex<double>* Px; // Holds prolonged current solution.
-    complex<double>* APx; // Holds A times prolonged current solution.
-    
-    Px = new complex<double>[fine_size];
-    APx = new complex<double>[fine_size];
-    
-    zero<double>(Px, fine_size); zero<double>(APx, fine_size); 
-    
-    // Prolong. 
-    prolong(Px, rhs, mgstruct);
-    
-    // Apply the original matrix.
-    (*mgstruct->matrix_vector)(APx, Px, mgstruct->matrix_extra_data);
-    
-    // Restrict. 
-    zero<double>(lhs, coarse_length);
-    restrict(lhs, APx, mgstruct); 
-    
-    delete[] Px;
-    delete[] APx; 
-    
-}
+#include "operators.h"
 
 // General multigrid projector function!
 // Apply the current coarse operator.
@@ -99,66 +60,6 @@ void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* e
         delete[] Prhs;
         delete[] APrhs;
     }
-    
-    /*
-    // We need to prolong all the way up to the top.
-    int curr_level = mgstruct->curr_level+1;
-    
-    // Prepare space for everything.
-    complex<double>** Px; // holds prolonged current solutions.
-    Px = new complex<double>*[curr_level+1];
-    
-    // Copy over.
-    Px[curr_level] = new complex<double>[mgstruct->curr_coarse_size];
-    copy<double>(Px[curr_level], rhs, mgstruct->curr_coarse_size);
-    
-    for (int i = curr_level-1; i >=0; i--)
-    {
-        Px[i] = new complex<double>[mgstruct->curr_fine_size];
-        zero<double>(Px[i], mgstruct->curr_fine_size);
-        
-        // Prolong.
-        prolong(Px[i], Px[i+1], mgstruct);
-        
-        // Level up! 
-        if (i != 0)
-        {
-            level_up(mgstruct); 
-        }
-    }
-    
-    // Apply A.
-    complex<double>** APx; // holds restricted current solutions.
-    APx = new complex<double>*[curr_level+1];
-    APx[0] = new complex<double>[mgstruct->curr_fine_size];
-    
-    zero<double>(APx[0], mgstruct->curr_fine_size);
-    (*mgstruct->matrix_vector)(APx[0], Px[0], mgstruct->matrix_extra_data);
-    
-    // Bring it down.
-    for (int i = 1; i <= curr_level; i++)
-    {
-        APx[i] = new complex<double>[mgstruct->curr_coarse_size];
-        zero<double>(APx[i], mgstruct->curr_coarse_size);
-        
-        // Restrict.
-        restrict(APx[i], APx[i-1], mgstruct);
-        
-        // Level down!
-        if (i != curr_level)
-        {
-            level_down(mgstruct);
-        }
-    }
-    
-    copy<double>(lhs, APx[curr_level], mgstruct->curr_coarse_size); 
-    for (int i = 0; i < curr_level+1; i++)
-    {
-        delete[] APx[i];
-        delete[] Px[i];
-    }*/
-    
-    
 }
 
 // General multigrid projector function!
@@ -179,10 +80,102 @@ void fine_square_staggered(complex<double>* lhs, complex<double>* rhs, void* ext
         coarse_square_staggered(lhs, rhs, extra_data);
         level_down(mgstruct);
     }
-    
-    
 }
 
+// General multigrid projector function!
+// Apply the current coarse operator dagger.
+void coarse_square_staggered_dagger(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Grab the mg_precond_struct.
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
+    
+    // Check if we have a stencil!
+    if (mgstruct->dagger_stencils[mgstruct->curr_level+1] != 0 && mgstruct->dagger_stencils[mgstruct->curr_level+1]->generated == true)
+    {
+        // Just apply the stencil! Life is so good!
+        apply_stencil_2d(lhs, rhs, (void*)mgstruct->dagger_stencils[mgstruct->curr_level+1]);
+    }
+    else // We don't have a stencil, do it the old fashioned way!
+    {
+        // prolong, apply fine stencil, restrict.
+        complex<double>* Prhs = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
+        complex<double>* APrhs = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
+        
+        zero<double>(Prhs, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+        zero<double>(APrhs, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+        
+        prolong(Prhs, rhs, mgstruct);
+        
+        fine_square_staggered_dagger(APrhs, Prhs, extra_data);
+        
+        restrict(lhs, APrhs, mgstruct);
+        
+        delete[] Prhs;
+        delete[] APrhs;
+    }
+}
+
+// General multigrid projector function!
+// Apply the current fine operator dagger.
+void fine_square_staggered_dagger(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Grab the mg_precond_struct.
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
+    
+    if (mgstruct->curr_level == 0)
+    {
+        zero<double>(lhs, mgstruct->curr_fine_size);
+        (*mgstruct->matrix_vector_dagger)(lhs, rhs, mgstruct->matrix_extra_data);
+    }
+    else
+    {
+        level_up(mgstruct);
+        coarse_square_staggered_dagger(lhs, rhs, extra_data);
+        level_down(mgstruct);
+    }
+}
+
+// General multigrid projector function!
+// Apply the current coarse normal op.
+void coarse_square_staggered_normal(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Grab the mg_precond_struct.
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
+    
+    complex<double> *tmp = new complex<double>[mgstruct->latt[mgstruct->curr_level+1]->get_lattice_size()];
+    zero<double>(tmp, mgstruct->latt[mgstruct->curr_level+1]->get_lattice_size());
+    zero<double>(lhs, mgstruct->latt[mgstruct->curr_level+1]->get_lattice_size());
+    
+    // Apply D
+    coarse_square_staggered(tmp, rhs, extra_data);
+    
+    // Apply D dagger.
+    coarse_square_staggered_dagger(lhs, tmp, extra_data);
+    
+    // Clean up.
+    delete[] tmp; 
+}
+
+// General multigrid projector function!
+// Apply the current fine normal op.
+void fine_square_staggered_normal(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Grab the mg_precond_struct.
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
+    
+    complex<double> *tmp = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
+    zero<double>(tmp, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+    zero<double>(lhs, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+    
+    // Apply D
+    fine_square_staggered(tmp, rhs, extra_data);
+    
+    // Apply D dagger.
+    fine_square_staggered_dagger(lhs, tmp, extra_data);
+    
+    // Clean up.
+    delete[] tmp; 
+}
 
 // Properly normalize the P vectors.
 void block_normalize(mg_operator_struct_complex* mgstruct)

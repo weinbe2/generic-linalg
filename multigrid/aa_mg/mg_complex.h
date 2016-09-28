@@ -9,6 +9,7 @@ using std::complex;
 #include "lattice.h"
 #include "verbosity.h"
 #include "coarse_stencil.h"
+#include "operators.h" // needed for 'dagger' functions, since different ops have different daggered versions. 
 
 // For multilevel: smooth then down, or recursive Krylov?
 enum mg_multilevel_type
@@ -17,14 +18,24 @@ enum mg_multilevel_type
     MLEVEL_RECURSIVE = 1
 };
 
-// General multigrid projector function!
-void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
 
 // Apply the current coarse operator. 
 void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
 
 // Apply the current fine operator.
 void fine_square_staggered(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
+
+// Apply the hermitian conjugate of the current coarse operator. 
+void coarse_square_staggered_dagger(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
+
+// Apply the hermitian conjugate of the current fine operator.
+void fine_square_staggered_dagger(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
+
+// Apply the normal coarse equation (uses the two above defined coarse opts).
+void coarse_square_staggered_normal(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
+
+// Apply the normal fine equation (uses the two above defined fine opts).
+void fine_square_staggered_normal(complex<double>* lhs, complex<double>* rhs, void* extra_data); 
 
 // Useful mg functions.
 struct mg_operator_struct_complex;
@@ -100,9 +111,14 @@ struct mg_operator_struct_complex
     
     stencil_2d** stencils; // Array of pointers to stencils for each level.
     
+    bool have_dagger_stencil; // Do we have dagger stencils?
+    stencil_2d** dagger_stencils; // Array of pointers to stencils of daggered operator for each level.
+                                  // Only created if needed (eg, for normal smoother).
+    
     int n_vector; // Number of vectors. 
     complex<double>*** null_vectors; // Holds the null vectors. First index level, second n_vector, third size.
     void (*matrix_vector)(complex<double>*, complex<double>*, void*);
+    void (*matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
     void* matrix_extra_data; 
     
     // Track current state.
@@ -137,6 +153,9 @@ struct mg_precond_struct_complex
     // How many post-smooth steps?
     int* n_post_smooth;
     
+    // Are we smoothing with the normal equations?
+    bool normal_eqn_smooth; 
+    
     // How do we do recursive MG?
     mg_multilevel_type mlevel_type; // SMOOTH, RECURSIVE
     
@@ -155,6 +174,14 @@ struct mg_precond_struct_complex
     
     // This is the coarse function. 
     void (*coarse_matrix_vector)(complex<double>*, complex<double>*, void*);
+    
+    // If we need the dagger (thus far only for 'normal_eqn_smooth'), what are the dagger functions?
+    // This is the fine function.
+    void (*fine_matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
+    
+    // This is the coarse function. 
+    void (*coarse_matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
+    
     void* matrix_extra_data; 
 };
 

@@ -55,6 +55,9 @@ void gamma_5(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 // Square \gamma_5 staggered 2d operator w/ u1 function.
 void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
+// Square staggered dagger 2d operator w/ u1 function.
+void square_staggered_dagger_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
 // Staggered normal equations.
 void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
