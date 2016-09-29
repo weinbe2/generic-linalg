@@ -714,10 +714,50 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         delete[] lhs_coarse;
         
     }
-    else // no inner solver, set lhs to z1, set z2 to 0.
+    else // if we're in a V cycle and not at the coarsest level, recurse down.
     {
-        copy<double>(lhs, z1, fine_size);
-        zero<double>(z2, fine_size);   
+        if (mgprecond->mgstruct->curr_level+1 != mgprecond->mgstruct->n_refine) // We're not on the coarsest level.
+        {
+            // Restrict z_smooth. This forms P^\dag r1. 
+            complex<double>* rhs_coarse = new complex<double>[coarse_length];
+            zero<double>(rhs_coarse, coarse_length); 
+            restrict(rhs_coarse, r1, mgprecond->mgstruct);
+
+            // Apply (P^\dag A P)^(-1). This forms  (P^\dag A P)^(-1) P^\dag r1. 
+            // This gets modified if we're going to do multi-level MG, see commented out material below.
+            complex<double>* lhs_coarse = new complex<double>[coarse_length];
+            zero<double>(lhs_coarse, coarse_length);
+            
+            // Level down.
+            printf("[L%d]: About to enter coarser solve.\n", mgprecond->mgstruct->curr_level+1); fflush(stdout);
+            level_down(mgprecond->mgstruct);
+            
+            // Recurse.
+            mg_preconditioner(lhs_coarse, rhs_coarse, coarse_length, extra_data, verb);
+            
+            // Level up.
+            level_up(mgprecond->mgstruct);
+            printf("[L%d]: Exited coarse solve.\n", mgprecond->mgstruct->curr_level+1); fflush(stdout);
+            
+            // Prolong.
+            prolong(z2, lhs_coarse, mgprecond->mgstruct); 
+            
+            // While we're at it, add the solution from the first part (if we presmoothed). 
+            for (i = 0; i < fine_size; i++)
+            {
+                lhs[i] = z1[i] + z2[i]; 
+            }
+            
+            // Clean up!
+            delete[] rhs_coarse;
+            delete[] lhs_coarse; 
+        }
+        else
+        {
+            // no inner solver, set lhs to z1, set z2 to 0.
+            copy<double>(lhs, z1, fine_size);
+            zero<double>(z2, fine_size);   
+        }
     }
     
     complex<double>* z3 = new complex<double>[fine_size]; zero<double>(z3, fine_size); 
