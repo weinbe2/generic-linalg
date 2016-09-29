@@ -34,6 +34,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
                 // this is because some vectors may converge before others. 
   double* tmp_ptr; // temporary pointer for swaps.
   double tmp_dbl; // temporary double for swaps. 
+  int tmp_int; // temporary int for swaps. 
   
   // Prepare an inversion_info for multiple residuals.
   inversion_info invif(n_shift); 
@@ -149,15 +150,16 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
           // Permute it out.
           n_shift_rem--;
           
-          cout << "Vector " << n << " has converged.\n" << flush;
+          cout << "Vector " << mapping[n] << " has converged.\n" << flush;
           
           if (n_shift_rem != n) // Reorder in the case of out-of-order convergence. 
           {
             // Update mapping.
-            mapping[n] = n_shift_rem;
-            mapping[n_shift_rem] = n;
+            tmp_int = mapping[n_shift_rem];
+            mapping[n_shift_rem] = mapping[n];
+            mapping[n] = tmp_int;
 
-            // Permute phi, p_s, alpha_s, beta_s, zeta_s, zeta_s_prev.
+            // Permute phi, p_s, alpha_s, beta_s, zeta_s, zeta_s_prev, shifts. 
             tmp_ptr = phi[n_shift_rem];
             phi[n_shift_rem] = phi[n];
             phi[n] = tmp_ptr;
@@ -181,6 +183,10 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
             tmp_dbl = zeta_s_prev[n_shift_rem];
             zeta_s_prev[n_shift_rem] = zeta_s_prev[n];
             zeta_s_prev[n] = tmp_dbl;
+            
+            tmp_dbl = shifts[n_shift_rem];
+            shifts[n_shift_rem] = shifts[n];
+            shifts[n] = tmp_dbl;
             
             // We swapped with the end, so we need to recheck the end.
             n--;
@@ -233,7 +239,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   k++;
   
   // Undo the permutation damage.
-  // Only need to permute phi.
+  // Only need to permute phi, shifts. 
   for (n = 0; n < n_shift; n++)
   {
     // Find the true n'th vector.
@@ -246,6 +252,10 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
           tmp_ptr = phi[m];
           phi[m] = phi[n];
           phi[n] = tmp_ptr;
+          
+          tmp_dbl = shifts[m];
+          shifts[m] = shifts[n];
+          shifts[n] = tmp_dbl;
           
           mapping[m] = mapping[n];
           mapping[n] = n;

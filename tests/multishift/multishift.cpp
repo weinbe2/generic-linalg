@@ -68,6 +68,7 @@ int main(int argc, char** argv)
     
     // Timing.
     timespec time1, time2, timediff;
+    double seq_time, shift_time; 
 
     // Set parameters. 
     
@@ -285,8 +286,8 @@ int main(int argc, char** argv)
     shifts[0] = 0.001;
     //shifts[1] = 0.005;
     //shifts[2] = 0.01;
-    shifts[1] = 0.06;
-    shifts[2] = 5.0;
+    shifts[1] = 0.01;
+    shifts[2] = 0.005;
     shifts[3] = 0.05;
     shifts[4] = 0.1;
     shifts[5] = 0.5;
@@ -309,6 +310,7 @@ int main(int argc, char** argv)
     
     // Heavy -> lightest.
     zero<double>(lhs_real[0], fine_size);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
     for (n = n_shift - 1; n >= 0; n--)
     {
         stagif.mass = shifts[n];
@@ -316,7 +318,8 @@ int main(int argc, char** argv)
         invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
         seq_inversion += invif.ops_count;
     }
-    
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    seq_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
     
     
     // Now do multishift. Get ready!
@@ -326,11 +329,15 @@ int main(int argc, char** argv)
     {
         shifts[n] -= shifts[0];
     }
+    zero<double>(lhs_real[0], fine_size);
+    
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
     invif = minv_vector_cg_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace, (void*)&stagif, &verb);
     int multi_inversion = invif.ops_count; 
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
     
-    
-    cout << "Multirhs took " << multi_inversion << " inversions, sequential inversions took " << seq_inversion << " inversions.\n";
+    cout << "Multirhs took " << multi_inversion << " inversions and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " inversions and " << seq_time << " seconds.\n";
     
     
     for (n = 0; n < n_shift; n++)
