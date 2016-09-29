@@ -27,46 +27,7 @@ using namespace std;
 #include "mg.h"
 #include "mg_complex.h"
 #include "lattice.h"
-
-// General multigrid projector function!
-void coarse_square_laplace(complex<double>* lhs, complex<double>* rhs, void* extra_data)
-{   
-    // Grab the mg_precond_struct.
-    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
-    
-    // lhs and rhs are of size coarse_size. mgstruct.matrix_vector expects
-    // fine_size. 
-    int x_fine = mgstruct->x_fine;
-    int y_fine = mgstruct->y_fine;
-    int fine_size = x_fine*y_fine;
-    int x_coarse = x_fine/mgstruct->blocksize_x[0]; // how many coarse sites are there in the x dir?
-    int y_coarse = y_fine/mgstruct->blocksize_y[0]; // how many coarse sites are there in the y dir?
-    int coarse_size = x_coarse*y_coarse; 
-    int coarse_length = coarse_size*mgstruct->n_vector;
-    
-    // Okay... how the hell are we going to do this. 
-    complex<double>* Px; // Holds prolonged current solution.
-    complex<double>* APx; // Holds A times prolonged current solution.
-    
-    Px = new complex<double>[fine_size];
-    APx = new complex<double>[fine_size];
-    
-    zero<double>(Px, fine_size); zero<double>(APx, fine_size); 
-    
-    // Prolong. 
-    prolong(Px, rhs, mgstruct);
-    
-    // Apply the original matrix.
-    (*mgstruct->matrix_vector)(APx, Px, mgstruct->matrix_extra_data);
-    
-    // Restrict. 
-    zero<double>(lhs, coarse_length);
-    restrict(lhs, APx, mgstruct); 
-    
-    delete[] Px;
-    delete[] APx; 
-    
-}
+#include "operators.h"
 
 // General multigrid projector function!
 // Apply the current coarse operator.
@@ -99,66 +60,6 @@ void coarse_square_staggered(complex<double>* lhs, complex<double>* rhs, void* e
         delete[] Prhs;
         delete[] APrhs;
     }
-    
-    /*
-    // We need to prolong all the way up to the top.
-    int curr_level = mgstruct->curr_level+1;
-    
-    // Prepare space for everything.
-    complex<double>** Px; // holds prolonged current solutions.
-    Px = new complex<double>*[curr_level+1];
-    
-    // Copy over.
-    Px[curr_level] = new complex<double>[mgstruct->curr_coarse_size];
-    copy<double>(Px[curr_level], rhs, mgstruct->curr_coarse_size);
-    
-    for (int i = curr_level-1; i >=0; i--)
-    {
-        Px[i] = new complex<double>[mgstruct->curr_fine_size];
-        zero<double>(Px[i], mgstruct->curr_fine_size);
-        
-        // Prolong.
-        prolong(Px[i], Px[i+1], mgstruct);
-        
-        // Level up! 
-        if (i != 0)
-        {
-            level_up(mgstruct); 
-        }
-    }
-    
-    // Apply A.
-    complex<double>** APx; // holds restricted current solutions.
-    APx = new complex<double>*[curr_level+1];
-    APx[0] = new complex<double>[mgstruct->curr_fine_size];
-    
-    zero<double>(APx[0], mgstruct->curr_fine_size);
-    (*mgstruct->matrix_vector)(APx[0], Px[0], mgstruct->matrix_extra_data);
-    
-    // Bring it down.
-    for (int i = 1; i <= curr_level; i++)
-    {
-        APx[i] = new complex<double>[mgstruct->curr_coarse_size];
-        zero<double>(APx[i], mgstruct->curr_coarse_size);
-        
-        // Restrict.
-        restrict(APx[i], APx[i-1], mgstruct);
-        
-        // Level down!
-        if (i != curr_level)
-        {
-            level_down(mgstruct);
-        }
-    }
-    
-    copy<double>(lhs, APx[curr_level], mgstruct->curr_coarse_size); 
-    for (int i = 0; i < curr_level+1; i++)
-    {
-        delete[] APx[i];
-        delete[] Px[i];
-    }*/
-    
-    
 }
 
 // General multigrid projector function!
@@ -179,10 +80,102 @@ void fine_square_staggered(complex<double>* lhs, complex<double>* rhs, void* ext
         coarse_square_staggered(lhs, rhs, extra_data);
         level_down(mgstruct);
     }
-    
-    
 }
 
+// General multigrid projector function!
+// Apply the current coarse operator dagger.
+void coarse_square_staggered_dagger(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Grab the mg_precond_struct.
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
+    
+    // Check if we have a stencil!
+    if (mgstruct->dagger_stencils[mgstruct->curr_level+1] != 0 && mgstruct->dagger_stencils[mgstruct->curr_level+1]->generated == true)
+    {
+        // Just apply the stencil! Life is so good!
+        apply_stencil_2d(lhs, rhs, (void*)mgstruct->dagger_stencils[mgstruct->curr_level+1]);
+    }
+    else // We don't have a stencil, do it the old fashioned way!
+    {
+        // prolong, apply fine stencil, restrict.
+        complex<double>* Prhs = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
+        complex<double>* APrhs = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
+        
+        zero<double>(Prhs, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+        zero<double>(APrhs, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+        
+        prolong(Prhs, rhs, mgstruct);
+        
+        fine_square_staggered_dagger(APrhs, Prhs, extra_data);
+        
+        restrict(lhs, APrhs, mgstruct);
+        
+        delete[] Prhs;
+        delete[] APrhs;
+    }
+}
+
+// General multigrid projector function!
+// Apply the current fine operator dagger.
+void fine_square_staggered_dagger(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Grab the mg_precond_struct.
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
+    
+    if (mgstruct->curr_level == 0)
+    {
+        zero<double>(lhs, mgstruct->curr_fine_size);
+        (*mgstruct->matrix_vector_dagger)(lhs, rhs, mgstruct->matrix_extra_data);
+    }
+    else
+    {
+        level_up(mgstruct);
+        coarse_square_staggered_dagger(lhs, rhs, extra_data);
+        level_down(mgstruct);
+    }
+}
+
+// General multigrid projector function!
+// Apply the current coarse normal op.
+void coarse_square_staggered_normal(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Grab the mg_precond_struct.
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
+    
+    complex<double> *tmp = new complex<double>[mgstruct->latt[mgstruct->curr_level+1]->get_lattice_size()];
+    zero<double>(tmp, mgstruct->latt[mgstruct->curr_level+1]->get_lattice_size());
+    zero<double>(lhs, mgstruct->latt[mgstruct->curr_level+1]->get_lattice_size());
+    
+    // Apply D
+    coarse_square_staggered(tmp, rhs, extra_data);
+    
+    // Apply D dagger.
+    coarse_square_staggered_dagger(lhs, tmp, extra_data);
+    
+    // Clean up.
+    delete[] tmp; 
+}
+
+// General multigrid projector function!
+// Apply the current fine normal op.
+void fine_square_staggered_normal(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Grab the mg_precond_struct.
+    mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
+    
+    complex<double> *tmp = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
+    zero<double>(tmp, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+    zero<double>(lhs, mgstruct->latt[mgstruct->curr_level]->get_lattice_size());
+    
+    // Apply D
+    fine_square_staggered(tmp, rhs, extra_data);
+    
+    // Apply D dagger.
+    fine_square_staggered_dagger(lhs, tmp, extra_data);
+    
+    // Clean up.
+    delete[] tmp; 
+}
 
 // Properly normalize the P vectors.
 void block_normalize(mg_operator_struct_complex* mgstruct)
@@ -526,41 +519,69 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     // Store inversion info.
     inversion_info invif;
     
+    // Create a tmp for smoothing as needed.
+    complex<double>* tmp_smooth = new complex<double>[fine_size];
+    
+    // What operator are we smoothing with?
+    void (*smooth_op)(complex<double>*,complex<double>*,void*);
+    if (mgprecond->normal_eqn_smooth) // Smooth on D^dag D x = D^dag b, CGNR. 
+    {
+        smooth_op = mgprecond->fine_matrix_vector_normal;
+    }
+    else // Smooth on D x = b
+    {
+        smooth_op = mgprecond->fine_matrix_vector;
+    }
+    
     // GET EXCITED! First off, let's do some pre-smoothing. 
     // 1. z1 = smoothed rhs. 
+    // z1^0 = 0, rhs is... well, rhs. 
     complex<double>* z1 = new complex<double>[fine_size];
-    copy<double>(z1, rhs, fine_size); 
+    zero<double>(z1, fine_size);
     complex<double>* r1 = new complex<double>[fine_size];
     zero<double>(r1, fine_size);
     if (mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level] > 0 && mgprecond->in_smooth_type != NONE)
     {
+        // Are we smoothing via the normal equation?
+        if (mgprecond->normal_eqn_smooth) 
+        {
+            // We smooth via b = A^\dag rhs.
+            zero<double>(tmp_smooth, fine_size);
+            mgprecond->fine_matrix_vector_dagger(tmp_smooth, rhs, mgprecond->matrix_extra_data);
+        }
+        else
+        {
+            // smooth via b = rhs.
+            copy<double>(tmp_smooth, rhs, fine_size);
+        }
+            
         switch (mgprecond->in_smooth_type)
         {
             case NONE: // can't reach here, anyway.
                 break;
             case CG:
-                invif = minv_vector_cg(z1, rhs, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_cg(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case MINRES:
-                invif = minv_vector_minres(z1, rhs, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_minres(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case GCR: 
-                invif = minv_vector_gcr(z1, rhs, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_gcr(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break; 
             case BICGSTAB:
-                invif = minv_vector_bicgstab(z1, rhs, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_bicgstab(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case CR:
-                invif = minv_vector_cr(z1, rhs, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_cr(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break; 
             case BICGSTAB_L:
-                invif = minv_vector_bicgstab_l(z1, rhs, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_bicgstab_l(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], smooth_op, mgprecond->matrix_extra_data); 
                 break;
         }
         printf("[L%d Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str()); fflush(stdout);
-        mgprecond->mgstruct->dslash_count->presmooth[mgprecond->mgstruct->curr_level] += invif.ops_count; 
+        mgprecond->mgstruct->dslash_count->presmooth[mgprecond->mgstruct->curr_level] += (mgprecond->normal_eqn_smooth? 2 : 1)*invif.ops_count; 
         
-        // Compute r1 = r - A z1
+        // Compute r1 = r - A z1.
         (*mgprecond->fine_matrix_vector)(r1, z1, mgprecond->matrix_extra_data); // Temporarily store Az1 in r1. 
         mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++;
         
@@ -572,21 +593,15 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     }
     else
     {
-        copy<double>(z1, rhs, fine_size);
-        // Compute r1 = r - A z1
-        (*mgprecond->fine_matrix_vector)(r1, z1, mgprecond->matrix_extra_data); // Temporarily store Az1 in r1. 
-        mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++;
-        for (int i = 0; i < fine_size; i++)
-        {
-            r1[i] = rhs[i] - r1[i];
-        }
-        
+        // z1 = 0, r1 = rhs.
+        copy<double>(r1, rhs, fine_size);
+        zero<double>(z1, fine_size);
     }
     
-    // Next, solve z2 = P(P^\dag A P)^(-1) r1, r2 = r1 - A z2
+    // Next, solve z2 = P(P^\dag A P)^(-1) r1. Current lhs is z1 + z2. 
     complex<double>* z2 = new complex<double>[fine_size]; zero<double>(z2, fine_size);
     complex<double>* r2 = new complex<double>[fine_size]; zero<double>(r2, fine_size); 
-    //if (mgprecond->in_solve_type != NONE)
+    if (mgprecond->in_solve_type != NONE)
     {
         
         // z2 = P ( P^\dag A P )^(-1) P^\dag r1 
@@ -692,15 +707,6 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             lhs[i] = z1[i] + z2[i]; 
         }
         
-        // Compute an updated residual from z2. 
-        (*mgprecond->fine_matrix_vector)(r2, z2, mgprecond->matrix_extra_data); // Temporarily store Az2 in r2. 
-        mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++; 
-        
-        for (int i = 0; i < fine_size; i++)
-        {
-            r2[i] = r1[i] - r2[i];
-        }
-        
         // And we're done!
         
         // Clean up!
@@ -708,49 +714,66 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         delete[] lhs_coarse;
         
     }
-    /*else // no inner solver, set lhs to z1, copy r1 into r2 (since z2 is trivially 0).
+    else // no inner solver, set lhs to z1, set z2 to 0.
     {
-        for (i = 0; i < fine_size; i++)
-        {
-            lhs[i] = z1[i];
-            r2[i] = r1[i];
-        }
-        
-    }*/
+        copy<double>(lhs, z1, fine_size);
+        zero<double>(z2, fine_size);   
+    }
     
     complex<double>* z3 = new complex<double>[fine_size]; zero<double>(z3, fine_size); 
     // Almost done! Do some post-smoothing. on z3 = A^(-1) r2
     // 7. Post smooth.
     if (mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level] > 0 && mgprecond->in_smooth_type != NONE)
     {
+        // Form the residual equation.
+        // Compute r2 = rhs - A lhs.
+        (*mgprecond->fine_matrix_vector)(r2, lhs, mgprecond->matrix_extra_data); // Temporarily store A*lhs in r2.
+        mgprecond->mgstruct->dslash_count->residual[mgprecond->mgstruct->curr_level]++;
+        
+        for (int i = 0; i < fine_size; i++)
+        {
+            r2[i] = rhs[i] - r2[i];
+        }
+        
+        // Are we smoothing via the normal equation?
+        if (mgprecond->normal_eqn_smooth) 
+        {
+            // We smooth via b = A^\dag r2.
+            zero<double>(tmp_smooth, fine_size);
+            mgprecond->fine_matrix_vector_dagger(tmp_smooth, r2, mgprecond->matrix_extra_data); // CGNR
+        }
+        else
+        {
+            // smooth via b = rhs.
+            copy<double>(tmp_smooth, r2, fine_size);
+        }
+        
         switch (mgprecond->in_smooth_type)
         {
             case NONE: // Can't reach here, anyway.
                 break;
             case CG:
-                invif = minv_vector_cg(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_cg(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case MINRES:
-                invif = minv_vector_minres(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_minres(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case GCR:
-                invif = minv_vector_gcr(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_gcr(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case BICGSTAB:
-                invif = minv_vector_bicgstab(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_bicgstab(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case CR:
-                invif = minv_vector_gcr(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_gcr(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
                 break;
             case BICGSTAB_L:
-                invif = minv_vector_bicgstab_l(z3, r2, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data); 
+                invif = minv_vector_bicgstab_l(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], smooth_op, mgprecond->matrix_extra_data); 
                 break;
         }
         printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());
-        mgprecond->mgstruct->dslash_count->postsmooth[mgprecond->mgstruct->curr_level] += invif.ops_count; 
+        mgprecond->mgstruct->dslash_count->postsmooth[mgprecond->mgstruct->curr_level] += (mgprecond->normal_eqn_smooth? 2 : 1)*invif.ops_count; 
     }
-    
-    // else z3 = 0 is fine.
     
     // Update lhs with z3. 
     for (i = 0; i < fine_size; i++)
@@ -764,6 +787,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     delete[] z3; 
     delete[] r1;
     delete[] r2; 
+    delete[] tmp_smooth; 
     
     cout << "[MG]: Exited mg_preconditioner.\n";
     

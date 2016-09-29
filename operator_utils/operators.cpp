@@ -271,6 +271,23 @@ void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void
     
 }
 
+// staggered dagger operator.
+void square_staggered_dagger_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
+    
+    gamma_5(tmp, rhs, extra_data);
+    square_staggered_u1(lhs, tmp, extra_data);
+    gamma_5(tmp, lhs, extra_data);
+    for (int i = 0; i < stagif->x_fine*stagif->y_fine; i++)
+    {
+        lhs[i] = tmp[i];
+    }
+    
+    delete[] tmp;
+}
+
 // Staggered normal equations.
 void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {

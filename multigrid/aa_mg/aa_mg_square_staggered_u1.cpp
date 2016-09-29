@@ -53,6 +53,9 @@
 // Efficient stencil test! Test building a coarse stencil from a fine stencil.
 //#define STENCIL_EFFICIENT_TEST
 
+// Dagger stencil test! Make sure we correctly build the dagger of the stencil.
+//#define STENCIL_DAGGER_TEST
+
 // Do restrict/prolong test?
 //#define PDAGP_TEST
 
@@ -149,6 +152,7 @@ void display_usage()
     cout << "--cycle-type [v, k]                               (default v)\n";
     cout << "--smoother-solver [gcr, bicgstab, cg, minres,\n";
     cout << "         cr, bicgstab-l, none]                    (default gcr)\n"; 
+    cout << "--smoother-type [self, normal_eqn]                (default self)\n";
     cout << "--npre-smooth [presmooth steps] {#, #, ...}       (default 6, same for all levels)\n";
     cout << "--npost-smooth [postsmooth steps] {#, #, ...}     (default 6, same for all levels)\n";
     cout << "--coarse-solver [gcr, bicgstab, cg, minres,\n";
@@ -283,6 +287,7 @@ int main(int argc, char** argv)
     double omega_smooth = 0.67; // for MINRES only. 
     vector<int> pre_smooths; pre_smooths.push_back(6);
     vector<int> post_smooths; post_smooths.push_back(6);
+    bool normal_eqn_smooth = false; // do we smooth with the normal equations?
     
     // Gauge field information.
     double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
@@ -707,6 +712,18 @@ int main(int argc, char** argv)
                 }
                 i++;
             }
+            else if (strcmp(argv[i], "--smoother-type") == 0)
+            {
+                if (strcmp(argv[i+1], "self") == 0)
+                {
+                    normal_eqn_smooth = false;
+                }
+                else if (strcmp(argv[i+1], "normal_eqn") == 0)
+                {
+                    normal_eqn_smooth = true;
+                }
+                i++;
+            }
             else if (strcmp(argv[i], "--npre-smooth") == 0)
             {
                 pre_smooths[0] = atoi(argv[i+1]);
@@ -795,31 +812,33 @@ int main(int argc, char** argv)
     
     string op_name;
     void (*op)(complex<double>*, complex<double>*, void*);
+    void (*op_dagger)(complex<double>*, complex<double>*, void*);
     switch (opt)
     {
         case STAGGERED:
             op = square_staggered_u1;
+            op_dagger = square_staggered_dagger_u1;
             op_name = "Staggered U(1)";
             break;
         case LAPLACE:
             op_name = "Free Laplace";
-            op = square_laplace;
+            op = op_dagger = square_laplace;
             break;
         case LAPLACE_NC2:
             op_name = "Free Laplace Nc = 2";
-            op = square_laplace;
+            op = op_dagger = square_laplace;
             break;
         case G5_STAGGERED:
             op_name = "Gamma_5 Staggered U(1)";
-            op = square_staggered_gamma5_u1;
+            op = op_dagger = square_staggered_gamma5_u1;
             break;
         case STAGGERED_NORMAL:
             op_name = "Staggered U(1) Normal";
-            op = square_staggered_normal_u1;
+            op = op_dagger = square_staggered_normal_u1;
             break;
         case STAGGERED_INDEX:
             op_name = "Staggered U(1) Index Operator";
-            op = staggered_index_operator;
+            op = op_dagger = staggered_index_operator;
             break;
     }
     cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
@@ -1025,6 +1044,7 @@ int main(int argc, char** argv)
     }
     
     mgstruct.matrix_vector = op; //square_staggered_u1;
+    mgstruct.matrix_vector_dagger = op_dagger; 
     mgstruct.matrix_extra_data = (void*)&stagif; 
     
     
@@ -1139,6 +1159,19 @@ int main(int argc, char** argv)
     else // there are unique post smooth counts for each level.
     { for (i = 0; i < n_refine; i++) { mgprecond.n_post_smooth[i] = post_smooths[i]; } }
     
+    if (normal_eqn_smooth)
+    {
+        mgprecond.normal_eqn_smooth = true;
+        mgprecond.coarse_matrix_vector_dagger = coarse_square_staggered_dagger; // function which applies coarse dagger.
+        mgprecond.fine_matrix_vector_dagger = fine_square_staggered_dagger; // function which applies fine dagger.
+        mgprecond.coarse_matrix_vector_normal = coarse_square_staggered_normal; // function which applies normal of coarse op
+        mgprecond.fine_matrix_vector_normal = fine_square_staggered_normal; // function which applies normal of fine op.
+    }
+    else
+    {
+        mgprecond.normal_eqn_smooth = false;
+    }
+    
     // End set up MG preconditioners
 
     // Set right hand side.
@@ -1197,25 +1230,34 @@ int main(int argc, char** argv)
         }
     }
     
-    // Fine level is handled specially. In some case, we have a special function to
-    // populate the fine staggered stencil without a bunch of matrix multiplies. We don't have it for all
-    // operators.
-    switch (opt_null)
+    // Allocate stencils for daggered operator, if needed.
+    if (normal_eqn_smooth)
     {
-        case STAGGERED:
-            get_square_staggered_u1_stencil(mgstruct.stencils[0], &stagif);
-            break;
-        case G5_STAGGERED:
-            get_square_staggered_gamma5_u1_stencil(mgstruct.stencils[0], &stagif);
-            break;
-        case LAPLACE: // not implemented yet...
-        case LAPLACE_NC2:
-        case STAGGERED_NORMAL:
-        case STAGGERED_INDEX:
-            generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
-            break;
+        mgstruct.have_dagger_stencil = true;
+        
+        mgstruct.dagger_stencils = new stencil_2d*[n_refine+1];
+        for (i = 0; i <= mgstruct.n_refine; i++)
+        {
+            // We can't allocate a stencil if the lattice gets too small.
+            if (get_stencil_size(opt) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
+            {
+                mgstruct.dagger_stencils[i] = 0; // We can't generate a stencil. It's small enough that we just explicitly project.
+            }
+            else if (mgstruct.latt[i]->get_lattice_dimension(0) < 2 || mgstruct.latt[i]->get_lattice_dimension(1) < 2) // it's a stencil size 1 or a big enough stencil size 2.
+            {
+                mgstruct.dagger_stencils[i] = 0;
+            }
+            else // We can build a stencil.
+            {
+                mgstruct.dagger_stencils[i] = new stencil_2d(mgstruct.latt[i], get_stencil_size(opt));
+            }
+        }
     }
-    cout << "[STENCIL_L1]: Built stencil.\n" << flush;
+    else
+    {
+        mgstruct.have_dagger_stencil = false;
+        mgstruct.dagger_stencils = 0;
+    }
     
     cout << "[MG]: Creating " << mgstruct.n_vector << " null vectors.\n";
     // Skip this depending on our test!
@@ -1232,6 +1274,48 @@ int main(int argc, char** argv)
         
         // Back up verbosity string.
         std::string verb_string = verb.verb_prefix;
+        
+        // Back up stencils.
+        stencil_2d** save_stencil = mgstruct.stencils;
+        
+        // Allocate stencils for null vector generation. 
+        mgstruct.stencils = new stencil_2d*[n_refine+1];
+        for (i = 0; i <= mgstruct.n_refine; i++)
+        {
+            // We can't allocate a stencil if the lattice gets too small.
+            if (get_stencil_size(opt_null) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
+            {
+                mgstruct.stencils[i] = 0; // We can't generate a stencil. It's small enough that we just explicitly project.
+            }
+            else if (mgstruct.latt[i]->get_lattice_dimension(0) < 2 || mgstruct.latt[i]->get_lattice_dimension(1) < 2) // it's a stencil size 1 or a big enough stencil size 2.
+            {
+                mgstruct.stencils[i] = 0;
+            }
+            else // We can build a stencil.
+            {
+                mgstruct.stencils[i] = new stencil_2d(mgstruct.latt[i], get_stencil_size(opt_null));
+            }
+        }
+        
+        // Fine level is handled specially. In some case, we have a special function to
+        // populate the fine staggered stencil without a bunch of matrix multiplies. We don't have it for all
+        // operators.
+        switch (opt_null)
+        {
+            case STAGGERED:
+                get_square_staggered_u1_stencil(mgstruct.stencils[0], &stagif);
+                break;
+            case G5_STAGGERED:
+                get_square_staggered_gamma5_u1_stencil(mgstruct.stencils[0], &stagif);
+                break;
+            case LAPLACE: // not implemented yet...
+            case LAPLACE_NC2:
+            case STAGGERED_NORMAL:
+            case STAGGERED_INDEX:
+                generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
+                break;
+        }
+        cout << "[STENCIL_L1]: Built stencil.\n" << flush;
         
         for (int n = 0; n < mgstruct.n_refine; n++)
         {   
@@ -1522,6 +1606,7 @@ int main(int argc, char** argv)
             cout << "[MG]: Performing block orthonormalize of null vectors...\n";
             block_orthonormalize(&mgstruct); 
             
+            // Only need to build stencil for null op.
             if (n != mgstruct.n_refine-1)
             {
                 
@@ -1557,9 +1642,18 @@ int main(int argc, char** argv)
         
         // Reset the tricks we've done. 
         
+        // Clear out temporary null vector stencils.
+        for (i = 1; i <= mgstruct.n_refine; i++)
+        {
+            if (mgstruct.stencils[i] != 0) { delete mgstruct.stencils[i]; }
+        }
+        delete mgstruct.stencils[0];
+        delete[] mgstruct.stencils; 
+        
         mgstruct.matrix_vector = op; // Reset op to solved op.
         stagif.mass = MASS; 
         verb.verb_prefix = verb_string; 
+        mgstruct.stencils = save_stencil;
         
         // Un-pop to the finest level.
         for (int n = 1; n < mgstruct.n_refine; n++)
@@ -1570,6 +1664,43 @@ int main(int argc, char** argv)
         // We built the previous stencils with the generation mass! Rebuild with the correct mass.
         
         // Clear and rebuild.
+        
+        // First, build the top level.
+        mgstruct.stencils[0]->clear_stencils();
+        switch (opt)
+        {
+            case STAGGERED:
+                get_square_staggered_u1_stencil(mgstruct.stencils[0], &stagif);
+                if (mgstruct.have_dagger_stencil)
+                {
+                    get_square_staggered_dagger_u1_stencil(mgstruct.dagger_stencils[0], &stagif);
+                }
+                cout << "[STENCIL_L1]: Final efficient stencil build.\n" << flush;
+                break;
+            case G5_STAGGERED:
+                get_square_staggered_gamma5_u1_stencil(mgstruct.stencils[0], &stagif);
+                if (mgstruct.have_dagger_stencil)
+                {
+                    // G5_STAGGERED is hermitian indefinite.
+                    get_square_staggered_gamma5_u1_stencil(mgstruct.dagger_stencils[0], &stagif);
+                }
+                cout << "[STENCIL_L1]: Final efficient stencil build.\n" << flush;
+                break;
+            case LAPLACE: // not implemented yet...
+            case LAPLACE_NC2:
+            case STAGGERED_NORMAL:
+            case STAGGERED_INDEX:
+                generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
+                if (mgstruct.have_dagger_stencil)
+                {
+                    // These operators are all hermitian (pos def or indef)
+                    generate_stencil_2d(mgstruct.dagger_stencils[0], fine_square_staggered, (void*)&mgstruct);
+                }
+                cout << "[STENCIL_L1]: Final inefficient stencil build.\n" << flush;
+                break;
+        }
+        
+        
         for (int n = 0; n < mgstruct.n_refine; n++)
         {
             if (mgstruct.stencils[n+1] != 0)
@@ -1579,12 +1710,20 @@ int main(int argc, char** argv)
                 {
                     // Generate the old, inefficient way.
                     generate_stencil_2d(mgstruct.stencils[n+1], coarse_square_staggered, (void*)&mgstruct);
+                    if (mgstruct.have_dagger_stencil)
+                    {
+                        generate_stencil_2d(mgstruct.dagger_stencils[n+1], coarse_square_staggered_dagger, (void*)&mgstruct);
+                    }
                     cout << "[STENCIL_L" << n+2 << "]: Final inefficient stencil build.\n" << flush;
                 }
                 else
                 {
                     // Generate the new, shiny way!
                     generate_coarse_from_fine_stencil(mgstruct.stencils[n+1], mgstruct.stencils[n], &mgstruct); 
+                    if (mgstruct.have_dagger_stencil)
+                    {
+                        generate_coarse_from_fine_stencil(mgstruct.dagger_stencils[n+1], mgstruct.dagger_stencils[n], &mgstruct); 
+                    }
                     cout << "[STENCIL_L" << n+2 << "]: Final efficient stencil build.\n" << flush;
                 }
             }
@@ -1711,11 +1850,62 @@ int main(int argc, char** argv)
     // Get squared difference.
     cout << "[TEST]: Level " << 2 << " Squared difference: " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[1]->get_lattice_size()) << "\n" << flush; 
     
-    return 0; 
+    return 0;  
+#endif
     
+#ifdef STENCIL_DAGGER_TEST
+    if (!normal_eqn_smooth)
+    {
+        cout << "The dagger test can only be performed if '--smoother-type normal_eqn' is set (which builds the dagger stencil).\n" << flush;
+        
+        return 0;
+    }
     
+    // Compare applying D^\dag D via the stencils with via explicit prolong/restrict.
+    complex<double>* tmp_rhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_lhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_lhs2 = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_tmp = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
     
+    complex<double>* tmp_rhs_fine = new complex<double>[mgstruct.latt[0]->get_lattice_size()];
+    complex<double>* tmp_lhs_fine = new complex<double>[mgstruct.latt[0]->get_lattice_size()];
     
+    // Randomize the rhs.
+    gaussian<double>(tmp_rhs, mgstruct.latt[1]->get_lattice_size(), generator);
+    
+    // Test stencils.
+    zero<double>(tmp_tmp, mgstruct.latt[1]->get_lattice_size());
+    apply_stencil_2d(tmp_tmp, tmp_rhs, mgstruct.stencils[1]);
+    zero<double>(tmp_lhs, mgstruct.latt[1]->get_lattice_size());
+    apply_stencil_2d(tmp_lhs, tmp_tmp, mgstruct.dagger_stencils[1]);
+    
+    // Test prolong.
+    zero<double>(tmp_rhs_fine, mgstruct.latt[0]->get_lattice_size());
+    prolong(tmp_rhs_fine, tmp_rhs, &mgstruct);
+    zero<double>(tmp_lhs_fine, mgstruct.latt[0]->get_lattice_size());
+    op(tmp_lhs_fine, tmp_rhs_fine, (void*)&stagif);
+    zero<double>(tmp_tmp, mgstruct.latt[1]->get_lattice_size());
+    restrict(tmp_tmp, tmp_lhs_fine, &mgstruct);
+    
+    zero<double>(tmp_rhs_fine, mgstruct.latt[0]->get_lattice_size());
+    prolong(tmp_rhs_fine, tmp_tmp, &mgstruct);
+    zero<double>(tmp_lhs_fine, mgstruct.latt[0]->get_lattice_size());
+    op_dagger(tmp_lhs_fine, tmp_rhs_fine, (void*)&stagif);
+    zero<double>(tmp_lhs2, mgstruct.latt[1]->get_lattice_size());
+    restrict(tmp_lhs2, tmp_lhs_fine, &mgstruct);
+    
+    // Get squared difference.
+    cout << "[TEST]: Level " << 2 << " Squared difference: " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[1]->get_lattice_size()) << "\n" << flush; 
+    
+    // Clean up.
+    delete[] tmp_rhs;
+    delete[] tmp_lhs;
+    delete[] tmp_lhs2;
+    delete[] tmp_tmp;
+    delete[] tmp_rhs_fine;
+    delete[] tmp_lhs_fine; 
+    
+    return 0;
 #endif
 
     
@@ -2220,11 +2410,17 @@ int main(int argc, char** argv)
         {
             delete mgstruct.latt[i];
             if (mgstruct.stencils[i] != 0) { delete mgstruct.stencils[i]; }
+            if (mgstruct.have_dagger_stencil && mgstruct.dagger_stencils[i] != 0) { delete mgstruct.dagger_stencils[i]; }
         }
     }
     delete[] mgstruct.latt;
     delete mgstruct.stencils[0];
     delete[] mgstruct.stencils; 
+    if (mgstruct.have_dagger_stencil)
+    {
+        delete mgstruct.dagger_stencils[0];
+        delete mgstruct.dagger_stencils;
+    }
     
     delete[] mgprecond.n_pre_smooth;
     delete[] mgprecond.n_post_smooth; 
