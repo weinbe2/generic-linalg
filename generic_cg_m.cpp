@@ -18,8 +18,9 @@
 using namespace std;
 
 // Solves lhs = A^(-1) rhs using multishift CG as defined in http://arxiv.org/pdf/hep-lat/9612014.pdf
-// Assumes there are n_shift values in "shifts", and that the first one is the smallest. 
-inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int size, int max_iter, double eps, double* shifts, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
+// Assumes there are n_shift values in "shifts", and that they are sorted.
+// resid_freq_check is how often to check the residual of other solutions. This lets us stop iterating on converged systems. 
+inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
   
   // Initialize vectors.
@@ -28,6 +29,11 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   double alpha, beta, beta_prev, rsq, rsqNew, bsqrt, truersq, tmp; 
   double *alpha_s, *beta_s, *zeta_s, *zeta_s_prev;
   int k,i,n;
+  int n_shift_rem = n_shift; // number of systems to still iterate on. 
+  int* mapping; // holds the mapping between vectors and the original vector ordering.
+                // this is because some vectors may converge before others. 
+  double* tmp_ptr; // temporary pointer for swaps.
+  double tmp_dbl; // temporary double for swaps. 
   
   // Prepare an inversion_info for multiple residuals.
   inversion_info invif(n_shift); 
@@ -47,6 +53,13 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   r = new double[size];
   p = new double[size];
   Ap = new double[size];
+  
+  // Initialize mapping.
+  mapping = new int[n_shift];
+  for (n = 0; n < n_shift; n++)
+  {
+    mapping[n] = n; // All vectors are currently in order.
+  }
 
   // Initialize values.
   rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
@@ -93,7 +106,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
     beta = -rsq/dot<double>(p, Ap, size);
     //cout << "beta = " << beta << "\n";
     
-    for (n = 0; n < n_shift; n++)
+    for (n = 0; n < n_shift_rem; n++)
     {
       // 3. Calculate beta_i^sigma, zeta_i+1^sigma according to 2.42 to 2.44.
       // zeta_{i+1}^sigma = complicated...
@@ -125,11 +138,63 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
     rsqNew = norm2sq<double>(r, size);
     
     print_verbosity_resid(verb, "CG-M", k+1, invif.ops_count, sqrt(rsqNew)/bsqrt); 
+    
+    // The residual of the shifted systems is zeta_s[n]*sqrt(rsqNew). Stop iterating on converged systems.
+    if (k % resid_freq_check == 0)
+    {
+      for (n = 0; n < n_shift_rem; n++)
+      {
+        if (zeta_s[n]*sqrt(rsqNew) < eps*bsqrt) // if the residual of vector 'n' is sufficiently small...
+        {
+          // Permute it out.
+          n_shift_rem--;
+          
+          cout << "Vector " << n << " has converged.\n" << flush;
+          
+          if (n_shift_rem != n) // Reorder in the case of out-of-order convergence. 
+          {
+            // Update mapping.
+            mapping[n] = n_shift_rem;
+            mapping[n_shift_rem] = n;
 
-    if (sqrt(rsqNew) < eps*bsqrt || k == max_iter-1) {
+            // Permute phi, p_s, alpha_s, beta_s, zeta_s, zeta_s_prev.
+            tmp_ptr = phi[n_shift_rem];
+            phi[n_shift_rem] = phi[n];
+            phi[n] = tmp_ptr;
+            
+            tmp_ptr = p_s[n_shift_rem];
+            p_s[n_shift_rem] = p_s[n];
+            p_s[n] = tmp_ptr;
+            
+            tmp_dbl = alpha_s[n_shift_rem];
+            alpha_s[n_shift_rem] = alpha_s[n];
+            alpha_s[n] = tmp_dbl;
+            
+            tmp_dbl = beta_s[n_shift_rem];
+            beta_s[n_shift_rem] = beta_s[n];
+            beta_s[n] = tmp_dbl;
+            
+            tmp_dbl = zeta_s[n_shift_rem];
+            zeta_s[n_shift_rem] = zeta_s[n];
+            zeta_s[n] = tmp_dbl;
+            
+            tmp_dbl = zeta_s_prev[n_shift_rem];
+            zeta_s_prev[n_shift_rem] = zeta_s_prev[n];
+            zeta_s_prev[n] = tmp_dbl;
+            
+            // We swapped with the end, so we need to recheck the end.
+            n--;
+          }
+        }
+      }
+    }
+
+    if (sqrt(rsqNew) < eps*bsqrt || n_shift_rem == 0 || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
+    
+    
   
     // 6. alpha = rsqNew / rsq.
     alpha = rsqNew / rsq;
@@ -137,7 +202,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
     
     //cout << "alpha = " << alpha << "\n";  
     
-    for (n = 0; n < n_shift; n++)
+    for (n = 0; n < n_shift_rem; n++)
     {
       // 7. alpha_s = alpha * zeta_s * beta_s / (zeta_s_prev * beta)
       alpha_s[n] = alpha*zeta_s[n]*beta_s[n]/(zeta_s_prev[n] * beta);
@@ -167,6 +232,31 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   }
   k++;
   
+  // Undo the permutation damage.
+  // Only need to permute phi.
+  for (n = 0; n < n_shift; n++)
+  {
+    // Find the true n'th vector.
+    if (mapping[n] != n)
+    {
+      for (int m = n+1; m < n_shift; m++)
+      {
+        if (mapping[m] == n) // Match, swap.
+        {
+          tmp_ptr = phi[m];
+          phi[m] = phi[n];
+          phi[n] = tmp_ptr;
+          
+          mapping[m] = mapping[n];
+          mapping[n] = n;
+          
+          n--;
+          break;
+        }
+      }
+    }
+  }
+  
   // Calculate explicit rsqs.
   for (n = 0; n < n_shift; n++)
   {
@@ -195,6 +285,8 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   delete[] beta_s;
   delete[] zeta_s;
   delete[] zeta_s_prev;
+  
+  delete[] mapping; 
 
   // Need to update verbosity type things.
   //print_verbosity_summary(verb, "CG", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);

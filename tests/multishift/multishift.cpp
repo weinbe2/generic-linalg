@@ -83,6 +83,9 @@ int main(int argc, char** argv)
     // Restart iterations.
     int outer_restart = 64;
     
+    // Residual check frequency in CG-M.
+    int resid_check_freq = 10;
+    
     // What operator should we use?
     op_type opt = STAGGERED; // STAGGERED, LAPLACE, G5_STAGGERED, STAGGERED_NORMAL
     
@@ -108,6 +111,7 @@ int main(int argc, char** argv)
             cout << "       normal_staggered, index]        (default staggered)\n";
             cout << "--lattice-size [32, 64, 128]           (default 64)\n";
             cout << "--mass [#]                             (default 1e-2)\n";
+            cout << "--resid-check-freq [#]                 (default 10)\n";
             cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
             return 0;
         }
@@ -152,6 +156,11 @@ int main(int argc, char** argv)
                 mass = atof(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--resid-check-freq") == 0)
+            {
+                resid_check_freq = atoi(argv[i+1]);
+                i++;
+            }
             else if (strcmp(argv[i], "--load-cfg") == 0)
             {
                 load_cfg = argv[i+1];
@@ -165,6 +174,7 @@ int main(int argc, char** argv)
                 cout << "       normal_staggered, index]        (default staggered)\n";
                 cout << "--lattice-size [32, 64, 128]           (default 32)\n";
                 cout << "--mass [#]                             (default 1e-2)\n";
+                cout << "--resid-check-freq [#]                 (default 10)\n";
                 cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
                 return 0;
             }
@@ -272,13 +282,15 @@ int main(int argc, char** argv)
     int n_shift = 7;
     stagif.mass = 0.001;
     double* shifts = new double[n_shift];
-    shifts[0] = 0.001-stagif.mass;
-    shifts[1] = 0.005-stagif.mass;
-    shifts[2] = 0.01-stagif.mass;
-    shifts[3] = 0.05-stagif.mass;
-    shifts[4] = 0.1-stagif.mass;
-    shifts[5] = 0.5-stagif.mass;
-    shifts[6] = 1.0-stagif.mass;
+    shifts[0] = 0.001;
+    //shifts[1] = 0.005;
+    //shifts[2] = 0.01;
+    shifts[1] = 0.06;
+    shifts[2] = 5.0;
+    shifts[3] = 0.05;
+    shifts[4] = 0.1;
+    shifts[5] = 0.5;
+    shifts[6] = 1.0;
     
     double** lhs_real = new double*[n_shift];
     for (n = 0; n < n_shift; n++)
@@ -292,51 +304,31 @@ int main(int argc, char** argv)
     double* rhs_real = new double[fine_size];
     gaussian<double>(rhs_real, fine_size, generator); 
     
-    // Do some inversions!
-    invif = minv_vector_cg_m(lhs_real, rhs_real, n_shift, fine_size, 10000, outer_precision, shifts, square_laplace, (void*)&stagif, &verb);
-    int multi_inversion = invif.ops_count; 
-    
     // Compare against sequential inversions.
     int seq_inversion = 0;
     
-    // Hard code each one.
-    
     // Heavy -> lightest.
     zero<double>(lhs_real[0], fine_size);
-    stagif.mass = 1.0;
-    sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
-    invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
-    seq_inversion += invif.ops_count;
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        stagif.mass = shifts[n];
+        sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
+        seq_inversion += invif.ops_count;
+    }
     
-    stagif.mass = 0.5;
-    sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
-    invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
-    seq_inversion += invif.ops_count;
     
-    stagif.mass = 0.1;
-    sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
-    invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
-    seq_inversion += invif.ops_count;
     
-    stagif.mass = 0.05;
-    sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
-    invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
-    seq_inversion += invif.ops_count;
+    // Now do multishift. Get ready!
+    verb.verb_prefix = "[CG-M]: ";
+    stagif.mass = shifts[0];
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        shifts[n] -= shifts[0];
+    }
+    invif = minv_vector_cg_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace, (void*)&stagif, &verb);
+    int multi_inversion = invif.ops_count; 
     
-    stagif.mass = 0.01;
-    sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
-    invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
-    seq_inversion += invif.ops_count;
-    
-    stagif.mass = 0.005;
-    sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
-    invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
-    seq_inversion += invif.ops_count;
-    
-    stagif.mass = 0.001;
-    sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
-    invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
-    seq_inversion += invif.ops_count;
     
     cout << "Multirhs took " << multi_inversion << " inversions, sequential inversions took " << seq_inversion << " inversions.\n";
     
