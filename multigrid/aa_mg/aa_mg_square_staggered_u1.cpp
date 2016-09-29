@@ -1862,7 +1862,48 @@ int main(int argc, char** argv)
     }
     
     // Compare applying D^\dag D via the stencils with via explicit prolong/restrict.
+    complex<double>* tmp_rhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_lhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_lhs2 = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_tmp = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
     
+    complex<double>* tmp_rhs_fine = new complex<double>[mgstruct.latt[0]->get_lattice_size()];
+    complex<double>* tmp_lhs_fine = new complex<double>[mgstruct.latt[0]->get_lattice_size()];
+    
+    // Randomize the rhs.
+    gaussian<double>(tmp_rhs, mgstruct.latt[1]->get_lattice_size(), generator);
+    
+    // Test stencils.
+    zero<double>(tmp_tmp, mgstruct.latt[1]->get_lattice_size());
+    apply_stencil_2d(tmp_tmp, tmp_rhs, mgstruct.stencils[1]);
+    zero<double>(tmp_lhs, mgstruct.latt[1]->get_lattice_size());
+    apply_stencil_2d(tmp_lhs, tmp_tmp, mgstruct.dagger_stencils[1]);
+    
+    // Test prolong.
+    zero<double>(tmp_rhs_fine, mgstruct.latt[0]->get_lattice_size());
+    prolong(tmp_rhs_fine, tmp_rhs, &mgstruct);
+    zero<double>(tmp_lhs_fine, mgstruct.latt[0]->get_lattice_size());
+    op(tmp_lhs_fine, tmp_rhs_fine, (void*)&stagif);
+    zero<double>(tmp_tmp, mgstruct.latt[1]->get_lattice_size());
+    restrict(tmp_tmp, tmp_lhs_fine, &mgstruct);
+    
+    zero<double>(tmp_rhs_fine, mgstruct.latt[0]->get_lattice_size());
+    prolong(tmp_rhs_fine, tmp_tmp, &mgstruct);
+    zero<double>(tmp_lhs_fine, mgstruct.latt[0]->get_lattice_size());
+    op_dagger(tmp_lhs_fine, tmp_rhs_fine, (void*)&stagif);
+    zero<double>(tmp_lhs2, mgstruct.latt[1]->get_lattice_size());
+    restrict(tmp_lhs2, tmp_lhs_fine, &mgstruct);
+    
+    // Get squared difference.
+    cout << "[TEST]: Level " << 2 << " Squared difference: " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[1]->get_lattice_size()) << "\n" << flush; 
+    
+    // Clean up.
+    delete[] tmp_rhs;
+    delete[] tmp_lhs;
+    delete[] tmp_lhs2;
+    delete[] tmp_tmp;
+    delete[] tmp_rhs_fine;
+    delete[] tmp_lhs_fine; 
     
     return 0;
 #endif

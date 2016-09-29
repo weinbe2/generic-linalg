@@ -277,9 +277,9 @@ void square_staggered_dagger_u1(complex<double>* lhs, complex<double>* rhs, void
     staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
     complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
     
-    square_staggered_u1(tmp, rhs, extra_data);
-    gamma_5(lhs, tmp, extra_data);
-    square_staggered_u1(tmp, lhs, extra_data);
+    gamma_5(tmp, rhs, extra_data);
+    square_staggered_u1(lhs, tmp, extra_data);
+    gamma_5(tmp, lhs, extra_data);
     for (int i = 0; i < stagif->x_fine*stagif->y_fine; i++)
     {
         lhs[i] = tmp[i];
