@@ -55,11 +55,9 @@ int main(int argc, char** argv)
 {  
     // Declare some variables.
     cout << setiosflags(ios::scientific) << setprecision(6);
-    int i,j,x,y,n;
+    int i,n;
     complex<double> *lattice; // Holds the gauge field.
-    complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     complex<double> tmp; 
-    complex<double>* tmp2; 
     std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
     inversion_info invif;
     staggered_u1_op stagif;
@@ -231,16 +229,8 @@ int main(int argc, char** argv)
     // Do some allocation.
     // Initialize the lattice. Indexing: index = y*N + x.
     lattice = new complex<double>[2*fine_size];
-    lhs = new complex<double>[fine_size];
-    rhs = new complex<double>[fine_size];   
-    check = new complex<double>[fine_size];   
-    tmp2 = new complex<double>[fine_size];
     // Zero it out.
     zero<double>(lattice, 2*fine_size);
-    zero<double>(rhs, fine_size);
-    zero<double>(lhs, fine_size);
-    zero<double>(check, fine_size);
-    zero<double>(tmp2, fine_size);
     //
     
     // Fill stagif.
@@ -252,9 +242,9 @@ int main(int argc, char** argv)
     
     // Create the verbosity structure.
     inversion_verbose_struct verb;
-    verb.verbosity = VERB_DETAIL;
+    verb.verbosity = VERB_SUMMARY;
     verb.verb_prefix = "[CG-M]: ";
-    verb.precond_verbosity = VERB_DETAIL;
+    verb.precond_verbosity = VERB_SUMMARY;
     verb.precond_verb_prefix = "Prec ";
     
     // Describe the gauge field. 
@@ -276,13 +266,15 @@ int main(int argc, char** argv)
     cout << "[GAUGE]: The topological charge is " << get_topo_u1(lattice, x_fine, y_fine) << ".\n";
     
     
-    // Perform a real test of CG-M.
-    cout << "[TEST]: Test CG-M on the free laplace for masses 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.\n";
     
     // Make some sources.
     int n_shift = 7;
     stagif.mass = 0.001;
     double* shifts = new double[n_shift];
+    
+    // Perform a real test of CG-M.
+    cout << "\n[TEST]: Test CG-M on the free laplace for masses 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.\n";
+    
     shifts[0] = 0.001;
     //shifts[1] = 0.005;
     //shifts[2] = 0.01;
@@ -337,7 +329,7 @@ int main(int argc, char** argv)
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
     shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
     
-    cout << "Multirhs took " << multi_inversion << " inversions and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " inversions and " << seq_time << " seconds.\n";
+    cout << "Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
     
     
     for (n = 0; n < n_shift; n++)
@@ -346,9 +338,83 @@ int main(int argc, char** argv)
     }
     delete[] lhs_real;
     delete[] rhs_real; 
+    stagif.mass = mass;  
+    
+    
+    // Perform a complex test of CG-M.
+    cout << "\n[TEST]: Test CG-M on the beta=6.0 gauge laplace for masses 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.\n";
+    
+    
+    shifts[0] = 0.001;
+    //shifts[1] = 0.005;
+    //shifts[2] = 0.01;
+    shifts[1] = 0.01;
+    shifts[2] = 0.005;
+    shifts[3] = 0.05;
+    shifts[4] = 0.1;
+    shifts[5] = 0.5;
+    shifts[6] = 1.0;
+    
+    complex<double>** lhs_cplx = new complex<double>*[n_shift];
+    for (n = 0; n < n_shift; n++)
+    {
+        lhs_cplx[n] = new complex<double>[fine_size];
+        zero<double>(lhs_cplx[n], fine_size);
+    }
+    
+    
+    // Set a random source. Should be the same every time b/c we hard code the seed above.
+    complex<double>* rhs_cplx = new complex<double>[fine_size];
+    gaussian<double>(rhs_cplx, fine_size, generator); 
+    
+    // Compare against sequential inversions.
+    seq_inversion = 0;
+    
+    // Heavy -> lightest.
+    zero<double>(lhs_cplx[0], fine_size);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        stagif.mass = shifts[n];
+        sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        invif = minv_vector_cg(lhs_cplx[0], rhs_cplx, fine_size, 10000, outer_precision, square_laplace_u1, (void*)&stagif, &verb);
+        seq_inversion += invif.ops_count;
+    }
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    seq_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    
+    // Now do multishift. Get ready!
+    verb.verb_prefix = "[CG-M]: ";
+    stagif.mass = shifts[0];
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        shifts[n] -= shifts[0];
+    }
+    zero<double>(lhs_cplx[0], fine_size);
+    
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    invif = minv_vector_cg_m(lhs_cplx, rhs_cplx, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace_u1, (void*)&stagif, &verb);
+    multi_inversion = invif.ops_count; 
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    cout << "Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
+    
+    
+    for (n = 0; n < n_shift; n++)
+    {
+        delete[] lhs_cplx[n];
+    }
+    delete[] lhs_cplx;
+    delete[] rhs_cplx; 
+    stagif.mass = mass;  
+    
     delete[] shifts;
     
-    stagif.mass = mass;  
+    
+    
+    
     
     // Other tests!
     /*
@@ -423,12 +489,6 @@ int main(int argc, char** argv)
     }*/
     
     // Free the lattice.
-    delete[] lattice;
-    delete[] lhs;
-    delete[] rhs;
-    delete[] check;
-    delete[] tmp2; 
-    
     
     return 0; 
 }
