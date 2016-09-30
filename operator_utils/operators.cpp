@@ -258,6 +258,19 @@ void gamma_5(complex<double>* lhs, complex<double>* rhs, void* extra_data)
     }
 }
 
+// Square \gamma_5 staggered 2d operator w/out u1 function.
+void square_staggered_gamma5(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
+    
+    square_staggered(tmp, rhs, extra_data);
+    gamma_5(lhs, tmp, extra_data);
+    
+    delete[] tmp;
+    
+}
+
 // Square \gamma_5 staggered 2d operator w/ u1 function.
 void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {

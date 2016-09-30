@@ -52,6 +52,9 @@ void square_staggered_u1(complex<double>* lhs, complex<double>* rhs, void* extra
 // \gamma_5
 void gamma_5(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
+// Square \gamma_5 staggered 2d operator w/out u1 function.
+void square_staggered_gamma5(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
 // Square \gamma_5 staggered 2d operator w/ u1 function.
 void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 

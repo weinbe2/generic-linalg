@@ -23,12 +23,14 @@ using namespace std;
 
 // Solves lhs = A^(-1) rhs using CR.
 // Taken from section 6.8 of Saad, 2nd Edition.
+// Should implement the modified version:
+// The Modified Conjugate Residual Method for Partial Differential Equations, R Chandra, 1977. 
 inversion_info minv_vector_cr(double  *phi, double  *phi0, int size, int max_iter, double eps, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
 {
 
   // Initialize vectors.
   double *x, *r, *Ar, *p, *Ap;
-  double alpha, beta, rsq, bsqrt, truersq;
+  double alpha, beta, rsq, bsqrt, truersq, Apsq;
   int k,i;
   inversion_info invif;
 
@@ -66,14 +68,14 @@ inversion_info minv_vector_cr(double  *phi, double  *phi0, int size, int max_ite
   (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   
   copy<double>(Ar, Ap, size);
-  beta = dot<double>(Ar, r, size);
+  Apsq = norm2sq<double>(Ap, size); 
   
 
   // iterate until convergence
   for(k = 0; k< max_iter; k++) {
     
     // 4. alpha = <Ap_k, r>/<Ap_k, Ap_k>
-    alpha = dot<double>(Ar, r, size)/norm2sq<double>(Ap, size);
+    alpha = dot<double>(Ap, r, size)/Apsq; 
 
     // 5. x = x + alpha p_k
     // 6. r = r - alpha Ap_k
@@ -98,8 +100,8 @@ inversion_info minv_vector_cr(double  *phi, double  *phi0, int size, int max_ite
     zero<double>(Ar, size);
     (*matrix_vector)(Ar, r, extra_info); invif.ops_count++;
     
-    // 8. b_j = <Ar_{j+1}, Ar_{j+1}>/<Ar_j, r_j> (Update beta)
-    beta = dot<double>(Ar, r, size)/beta; // Might be unstable, there's a way to correct this.
+    // 8. b_j = <Ap_{j}, Ar_{j+1}>/<Ap_j, Ap_j> (Update beta)
+    beta = -dot<double>(Ap, Ar, size)/Apsq;
     
     // 9. p_{j+1} = r_{j+1} + b_j p_j
     // 10. Ap_{j+1} = Ar_{j+1} + b_j Ap_j
@@ -108,6 +110,8 @@ inversion_info minv_vector_cr(double  *phi, double  *phi0, int size, int max_ite
       p[i] = r[i] + beta*p[i];
       Ap[i] = Ar[i] + beta*Ap[i]; 
     }
+    
+    Apsq = norm2sq<double>(Ap, size); 
   } 
     
   if(k == max_iter-1) {
@@ -196,7 +200,7 @@ inversion_info minv_vector_cr(complex<double>  *phi, complex<double>  *phi0, int
 
   // Initialize vectors.
   complex<double> *x, *r, *Ar, *p, *Ap;
-  double rsq, bsqrt, truersq;
+  double rsq, bsqrt, truersq, Apsq; 
   complex<double> alpha, beta;
   int k,i;
   inversion_info invif;
@@ -235,15 +239,15 @@ inversion_info minv_vector_cr(complex<double>  *phi, complex<double>  *phi0, int
   (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   
   copy<double>(Ar, Ap, size);
-  beta = dot<double>(Ar, r, size);
+  Apsq = norm2sq<double>(Ap, size); 
   
 
   // iterate until convergence
   for(k = 0; k< max_iter; k++) {
     
     // 4. alpha = <Ap_k, r>/<Ap_k, Ap_k>
-    alpha = dot<double>(Ar, r, size)/norm2sq<double>(Ap, size);
-
+    alpha = dot<double>(Ap, r, size)/Apsq; 
+      
     // 5. x = x + alpha p_k
     // 6. r = r - alpha Ap_k
     for (i = 0; i < size; i++)
@@ -267,8 +271,8 @@ inversion_info minv_vector_cr(complex<double>  *phi, complex<double>  *phi0, int
     zero<double>(Ar, size);
     (*matrix_vector)(Ar, r, extra_info); invif.ops_count++;
     
-    // 8. b_j = <Ar_{j+1}, Ar_{j+1}>/<Ar_j, r_j> (Update beta)
-    beta = dot<double>(Ar, r, size)/beta; // Might be unstable, there's a way to correct this.
+    // 8. b_j = -<Ap_{j}, Ar_{j+1}>/<Ap_j, Ap_j> (Update beta)
+    beta = -dot<double>(Ap, Ar, size)/Apsq; // Might be unstable, there's a way to correct this.
     
     // 9. p_{j+1} = r_{j+1} + b_j p_j
     // 10. Ap_{j+1} = Ar_{j+1} + b_j Ap_j
@@ -277,6 +281,8 @@ inversion_info minv_vector_cr(complex<double>  *phi, complex<double>  *phi0, int
       p[i] = r[i] + beta*p[i];
       Ap[i] = Ar[i] + beta*Ap[i]; 
     }
+    
+    Apsq = norm2sq<double>(Ap, size); 
   } 
     
   if(k == max_iter) {

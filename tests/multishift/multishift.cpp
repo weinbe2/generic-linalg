@@ -15,8 +15,10 @@
 #include <time.h>
 
 #include "generic_cg_m.h"
+#include "generic_cr_m.h"
 #include "generic_bicgstab.h"
 #include "generic_cg.h"
+#include "generic_cr.h"
 #include "generic_vector.h"
 #include "verbosity.h"
 #include "u1_utils.h"
@@ -33,6 +35,15 @@ void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, do
 
 // Real free laplace.
 void square_laplace(double* lhs, double* rhs, void* extra_data);
+
+// Real free staggered.
+void square_staggered(double* lhs, double* rhs, void* extra_data);
+
+// Gamma 5
+void gamma_5(double* lhs, double* rhs, void* extra_data);
+
+// Real free g5 staggered.
+void square_staggered_gamma5(double* lhs, double* rhs, void* extra_data);
 
 // Timing routine.
 timespec diff(timespec start, timespec end)
@@ -63,6 +74,7 @@ int main(int argc, char** argv)
     staggered_u1_op stagif;
     double bnorm; 
     stringstream sstream; 
+    int seq_inversion, multi_inversion; // keep track of inversions. 
     
     // Timing.
     timespec time1, time2, timediff;
@@ -297,8 +309,10 @@ int main(int argc, char** argv)
     double* rhs_real = new double[fine_size];
     gaussian<double>(rhs_real, fine_size, generator); 
     
+    // CG!
+    
     // Compare against sequential inversions.
-    int seq_inversion = 0;
+    seq_inversion = 0;
     
     // Heavy -> lightest.
     zero<double>(lhs_real[0], fine_size);
@@ -306,7 +320,7 @@ int main(int argc, char** argv)
     for (n = n_shift - 1; n >= 0; n--)
     {
         stagif.mass = shifts[n];
-        sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        sstream.str(string()); sstream << "[CG-REAL_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
         invif = minv_vector_cg(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
         seq_inversion += invif.ops_count;
     }
@@ -315,7 +329,7 @@ int main(int argc, char** argv)
     
     
     // Now do multishift. Get ready!
-    verb.verb_prefix = "[CG-M]: ";
+    verb.verb_prefix = "[CG-M-REAL]: ";
     stagif.mass = shifts[0];
     for (n = n_shift - 1; n >= 0; n--)
     {
@@ -325,11 +339,60 @@ int main(int argc, char** argv)
     
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
     invif = minv_vector_cg_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace, (void*)&stagif, &verb);
-    int multi_inversion = invif.ops_count; 
+    multi_inversion = invif.ops_count; 
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
     shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
     
-    cout << "Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
+    cout << "\n[TEST]: CG-REAL Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
+    
+    
+    // CR!
+    
+    // Compare against sequential inversions.
+    seq_inversion = 0;
+    
+    // Reset masses. 
+    shifts[0] = 0.001;
+    //shifts[1] = 0.005;
+    //shifts[2] = 0.01;
+    shifts[1] = 0.01;
+    shifts[2] = 0.005;
+    shifts[3] = 0.05;
+    shifts[4] = 0.1;
+    shifts[5] = 0.5;
+    shifts[6] = 1.0;
+    
+    // Heavy -> lightest.
+    zero<double>(lhs_real[0], fine_size);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        stagif.mass = shifts[n];
+        sstream.str(string()); sstream << "[CR-REAL_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        invif = minv_vector_cr(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_staggered_gamma5, (void*)&stagif, &verb);
+        seq_inversion += invif.ops_count;
+    }
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    seq_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    
+    // Now do multishift. Get ready!
+    verb.verb_prefix = "[CR-M-REAL]: ";
+    stagif.mass = shifts[0];
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        shifts[n] -= shifts[0];
+    }
+    zero<double>(lhs_real[0], fine_size);
+    
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    invif = minv_vector_cr_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered_gamma5, (void*)&stagif, &verb);
+    multi_inversion = invif.ops_count; 
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    cout << "[TEST]: CR-REAL Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
+    
     
     
     for (n = 0; n < n_shift; n++)
@@ -376,7 +439,7 @@ int main(int argc, char** argv)
     for (n = n_shift - 1; n >= 0; n--)
     {
         stagif.mass = shifts[n];
-        sstream.str(string()); sstream << "[CG_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        sstream.str(string()); sstream << "[CG-CPLX_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
         invif = minv_vector_cg(lhs_cplx[0], rhs_cplx, fine_size, 10000, outer_precision, square_laplace_u1, (void*)&stagif, &verb);
         seq_inversion += invif.ops_count;
     }
@@ -385,7 +448,7 @@ int main(int argc, char** argv)
     
     
     // Now do multishift. Get ready!
-    verb.verb_prefix = "[CG-M]: ";
+    verb.verb_prefix = "[CG-CPLX-M]: ";
     stagif.mass = shifts[0];
     for (n = n_shift - 1; n >= 0; n--)
     {
@@ -399,7 +462,57 @@ int main(int argc, char** argv)
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
     shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
     
-    cout << "Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
+    cout << "CG-CPLX Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
+    
+    
+    // CR-CPLX
+    
+    // Compare against sequential inversions.
+    seq_inversion = 0;
+    
+    // Reset masses. 
+    shifts[0] = 0.001;
+    //shifts[1] = 0.005;
+    //shifts[2] = 0.01;
+    shifts[1] = 0.01;
+    shifts[2] = 0.005;
+    shifts[3] = 0.05;
+    shifts[4] = 0.1;
+    shifts[5] = 0.5;
+    shifts[6] = 1.0;
+    
+    // Heavy -> lightest.
+    zero<double>(lhs_cplx[0], fine_size);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        stagif.mass = shifts[n];
+        sstream.str(string()); sstream << "[CR-CPLX_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        invif = minv_vector_cr(lhs_cplx[0], rhs_cplx, fine_size, 10000, outer_precision, square_staggered_gamma5_u1, (void*)&stagif, &verb);
+        seq_inversion += invif.ops_count;
+    }
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    seq_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    
+    // Now do multishift. Get ready!
+    verb.verb_prefix = "[CR-M-CPLX]: ";
+    stagif.mass = shifts[0];
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        shifts[n] -= shifts[0];
+    }
+    zero<double>(lhs_cplx[0], fine_size);
+    
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    invif = minv_vector_cr_m(lhs_cplx, rhs_cplx, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered_gamma5_u1, (void*)&stagif, &verb);
+    multi_inversion = invif.ops_count; 
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    cout << "[TEST]: CR-CPLX Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
+    
+    
     
     
     for (n = 0; n < n_shift; n++)
@@ -535,6 +648,93 @@ void square_laplace(double* lhs, double* rhs, void* extra_data)
         lhs[i] = lhs[i]+ (4+mass)*rhs[i];
     }
 
+}
+
+// Square lattice.
+// Kinetic term for a 2D staggered w/ period bc. Applies lhs = A*rhs.
+// The unit vectors are e_1 = xhat, e_2 = yhat.
+void square_staggered(double* lhs, double* rhs, void* extra_data)
+{
+    // Declare variables.
+    int i;
+    int x,y;
+    double eta1;
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    double mass = stagif->mass; 
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+
+    // For a 2D square lattice, the stencil is:
+    //   1 |  0 -eta1  0 |
+    //   - | +1    0  -1 |  , where eta1 = (-1)^x
+    //   2 |  0 +eta1  0 |
+    //
+    // e2 = yhat
+    // ^
+    // | 
+    // |-> e1 = xhat
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        eta1 = 1 - 2*(x%2);
+
+        // + e1.
+        lhs[i] = lhs[i]-rhs[y*x_fine+((x+1)%x_fine)];
+
+        // - e1.
+        lhs[i] = lhs[i]+ rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+        // + e2.
+        lhs[i] = lhs[i]- eta1*rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]+ eta1*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+        // 0
+        // Added mass term here.
+        lhs[i] = lhs[i]+ mass*rhs[i];
+    }
+
+}
+
+// \gamma_5
+void gamma_5(double* lhs, double* rhs, void* extra_data)
+{
+    // Declare variables.
+    int i;
+    int x,y;
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        
+        lhs[i] = ((double)(1 - 2*((x+y)%2)))*rhs[i];
+    }
+}
+
+// Square \gamma_5 staggered 2d operator w/out u1 function.
+void square_staggered_gamma5(double* lhs, double* rhs, void* extra_data)
+{
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    double* tmp = new double[stagif->x_fine*stagif->y_fine];
+    
+    square_staggered(tmp, rhs, extra_data);
+    gamma_5(lhs, tmp, extra_data);
+    
+    delete[] tmp;
+    
 }
 
 
