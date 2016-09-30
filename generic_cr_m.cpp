@@ -433,7 +433,7 @@ inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, in
       zeta_s[n] = (zeta_s[n]*zeta_s_prev[n]*beta_prev)/(beta*alpha*(zeta_s_prev[n]-zeta_s[n]) + zeta_s_prev[n]*beta_prev*(1.0-shifts[n]*beta));
       zeta_s_prev[n] = tmp; 
       
-      cout << "Zeta[" << mapping[n] << "] = " << zeta_s[n] << "\n" << flush; 
+      //cout << "Zeta[" << mapping[n] << "] = " << zeta_s[n] << "\n" << flush; 
       
       //cout << "zeta_n = " << zeta_s[n] << ", zeta_{n-1} = " << zeta_s_prev[n];
       
