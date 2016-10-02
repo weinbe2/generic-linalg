@@ -21,7 +21,7 @@ using namespace std;
 // with some corrections from the wikipedia article. 
 // Assumes there are n_shift values in "shifts", and that they are sorted.
 // resid_freq_check is how often to check the residual of other solutions. This lets us stop iterating on converged systems. 
-inversion_info minv_vector_cr_m(double **phi, double *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
+inversion_info minv_vector_cr_m(double **phi, double *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(double*,double*,void*), void* extra_info, bool worst_first, inversion_verbose_struct* verb)
 {
   
   // Initialize vectors.
@@ -199,7 +199,7 @@ inversion_info minv_vector_cr_m(double **phi, double *phi0, int n_shift, int siz
       }
     }
 
-    if (/*sqrt(rsq) < eps*bsqrt || */n_shift_rem == 0 || k == max_iter-1) {
+    if (/*sqrt(rsq) < eps*bsqrt || */(worst_first && abs(zeta_s[0])*sqrt(rsq) < eps*bsqrt) || n_shift_rem == 0 || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsq);
       break;
     }
@@ -325,14 +325,14 @@ inversion_info minv_vector_cr_m(double **phi, double *phi0, int n_shift, int siz
   
   invif.resSq = truersq;
   invif.iter = k;
-  invif.name = "CG-M";
+  invif.name = "CR-M";
   return invif; // Convergence 
 } 
 
 // Solves lhs = A^(-1) rhs using multishift CR as defined in http://arxiv.org/pdf/hep-lat/9612014.pdf
 // Assumes there are n_shift values in "shifts", and that they are sorted.
 // resid_freq_check is how often to check the residual of other solutions. This lets us stop iterating on converged systems. 
-inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
+inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, bool worst_first, inversion_verbose_struct* verb)
 {
   
   // Initialize vectors.
@@ -515,7 +515,7 @@ inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, in
       }
     }
 
-    if (/*sqrt(rsq) < eps*bsqrt || */n_shift_rem == 0 || k == max_iter-1) {
+    if (/*sqrt(rsq) < eps*bsqrt || */(worst_first && abs(zeta_s[0])*sqrt(rsq) < eps*bsqrt) || n_shift_rem == 0 || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsq);
       break;
     }
@@ -641,6 +641,6 @@ inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, in
   
   invif.resSq = truersq;
   invif.iter = k;
-  invif.name = "CG-M";
+  invif.name = "CR-M";
   return invif; // Convergence 
 } 

@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <time.h>
 
+#include "generic_bicgstab_m.h"
 #include "generic_cg_m.h"
 #include "generic_cr_m.h"
 #include "generic_bicgstab.h"
@@ -70,7 +71,7 @@ int main(int argc, char** argv)
     complex<double> *lattice; // Holds the gauge field.
     complex<double> tmp; 
     std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
-    inversion_info invif;
+    inversion_info invif, invif2; 
     staggered_u1_op stagif;
     double bnorm; 
     stringstream sstream; 
@@ -308,6 +309,7 @@ int main(int argc, char** argv)
     // Set a random source. Should be the same every time b/c we hard code the seed above.
     double* rhs_real = new double[fine_size];
     gaussian<double>(rhs_real, fine_size, generator); 
+    bnorm = sqrt(norm2sq<double>(rhs_real, fine_size));
     
     // CG!
     
@@ -338,15 +340,28 @@ int main(int argc, char** argv)
     zero<double>(lhs_real[0], fine_size);
     
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-    invif = minv_vector_cg_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace, (void*)&stagif, &verb);
+    invif = minv_vector_cg_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace, (void*)&stagif, true, &verb);
     multi_inversion = invif.ops_count; 
+    // Check for failures, fix.
+    for (n = 0; n < n_shift; n++)
+    {
+        if (sqrt(invif.resSqmrhs[n]) > outer_precision*bnorm)
+        {
+            stagif.mass += shifts[n];
+            verb.verb_prefix = "[CG-M-REAL-FIX]: ";
+            invif2 = minv_vector_cg(lhs_real[n], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
+            multi_inversion += invif2.ops_count; 
+            stagif.mass -= shifts[n];
+        }
+    }
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
     shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
     
-    cout << "\n[TEST]: CG-REAL Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
+    cout << "[TEST]: CG-REAL Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
     
     
     // CR!
+    cout << "\n[TEST]: Test CG-R on the free g5 staggered for masses 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.\n";
     
     // Compare against sequential inversions.
     seq_inversion = 0;
@@ -386,14 +401,82 @@ int main(int argc, char** argv)
     zero<double>(lhs_real[0], fine_size);
     
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-    invif = minv_vector_cr_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered_gamma5, (void*)&stagif, &verb);
+    invif = minv_vector_cr_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered_gamma5, (void*)&stagif, true, &verb);
     multi_inversion = invif.ops_count; 
+    // Check for failures, fix.
+    for (n = 0; n < n_shift; n++)
+    {
+        if (sqrt(invif.resSqmrhs[n]) > outer_precision*bnorm)
+        {
+            stagif.mass += shifts[n];
+            verb.verb_prefix = "[CR-M-REAL-FIX]: ";
+            invif2 = minv_vector_cr(lhs_real[n], rhs_real, fine_size, 10000, outer_precision, square_staggered_gamma5, (void*)&stagif, &verb);
+            multi_inversion += invif2.ops_count; 
+            stagif.mass -= shifts[n];
+        }
+    }
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
     shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
     
     cout << "[TEST]: CR-REAL Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
     
+    // BICGSTAB!
+    cout << "\n[TEST]: Test BICGSTAB-M on the free staggered for masses 0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.0\n";
     
+    // Compare against sequential inversions.
+    seq_inversion = 0;
+    
+    // Reset masses. 
+    shifts[0] = 0.1;
+    shifts[1] = 0.2;
+    shifts[2] = 0.3;
+    shifts[3] = 0.4;
+    shifts[4] = 0.5;
+    shifts[5] = 0.8;
+    shifts[6] = 1.0;
+    
+    // Heavy -> lightest.
+    zero<double>(lhs_real[0], fine_size);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        stagif.mass = shifts[n];
+        sstream.str(string()); sstream << "[BICGSTAB-REAL_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        invif = minv_vector_bicgstab(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_staggered, (void*)&stagif, &verb);
+        seq_inversion += invif.ops_count;
+    }
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    seq_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    
+    // Now do multishift. Get ready!
+    verb.verb_prefix = "[BICGSTAB-M-REAL]: ";
+    stagif.mass = shifts[0];
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        shifts[n] -= shifts[0];
+    }
+    zero<double>(lhs_real[0], fine_size);
+    
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    invif = minv_vector_bicgstab_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered, (void*)&stagif, true, &verb);
+    multi_inversion = invif.ops_count; 
+    // Check for failures, fix.
+    for (n = 0; n < n_shift; n++)
+    {
+        if (sqrt(invif.resSqmrhs[n]) > outer_precision*bnorm)
+        {
+            stagif.mass += shifts[n];
+            verb.verb_prefix = "[BICGSTAB-M-REAL-FIX]: ";
+            invif2 = minv_vector_bicgstab(lhs_real[n], rhs_real, fine_size, 10000, outer_precision, square_staggered, (void*)&stagif, &verb);
+            multi_inversion += invif2.ops_count; 
+            stagif.mass -= shifts[n];
+        }
+    }
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    cout << "[TEST]: BICGSTAB-REAL Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
     
     for (n = 0; n < n_shift; n++)
     {
@@ -429,6 +512,7 @@ int main(int argc, char** argv)
     // Set a random source. Should be the same every time b/c we hard code the seed above.
     complex<double>* rhs_cplx = new complex<double>[fine_size];
     gaussian<double>(rhs_cplx, fine_size, generator); 
+    bnorm = sqrt(norm2sq<double>(rhs_cplx, fine_size));
     
     // Compare against sequential inversions.
     seq_inversion = 0;
@@ -457,15 +541,28 @@ int main(int argc, char** argv)
     zero<double>(lhs_cplx[0], fine_size);
     
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-    invif = minv_vector_cg_m(lhs_cplx, rhs_cplx, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace_u1, (void*)&stagif, &verb);
+    invif = minv_vector_cg_m(lhs_cplx, rhs_cplx, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace_u1, (void*)&stagif, true, &verb);
     multi_inversion = invif.ops_count; 
+    // Check for failures, fix.
+    for (n = 0; n < n_shift; n++)
+    {
+        if (sqrt(invif.resSqmrhs[n]) > outer_precision*bnorm)
+        {
+            stagif.mass += shifts[n];
+            verb.verb_prefix = "[CG-M-CPLX-FIX]: ";
+            invif2 = minv_vector_cg(lhs_cplx[n], rhs_cplx, fine_size, 10000, outer_precision, square_laplace_u1, (void*)&stagif, &verb);
+            multi_inversion += invif2.ops_count; 
+            stagif.mass -= shifts[n];
+        }
+    }
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
     shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
     
-    cout << "CG-CPLX Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
+    cout << "[TEST]: CG-CPLX Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
     
     
     // CR-CPLX
+    cout << "\n[TEST]: Test CR-M on the beta=6.0 g5 staggered for masses 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.\n";
     
     // Compare against sequential inversions.
     seq_inversion = 0;
@@ -505,14 +602,82 @@ int main(int argc, char** argv)
     zero<double>(lhs_cplx[0], fine_size);
     
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-    invif = minv_vector_cr_m(lhs_cplx, rhs_cplx, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered_gamma5_u1, (void*)&stagif, &verb);
+    invif = minv_vector_cr_m(lhs_cplx, rhs_cplx, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered_gamma5_u1, (void*)&stagif, true, &verb);
     multi_inversion = invif.ops_count; 
+    // Check for failures, fix.
+    for (n = 0; n < n_shift; n++)
+    {
+        if (sqrt(invif.resSqmrhs[n]) > outer_precision*bnorm)
+        {
+            stagif.mass += shifts[n];
+            verb.verb_prefix = "[CR-M-CPLX-FIX]: ";
+            invif2 = minv_vector_cr(lhs_cplx[n], rhs_cplx, fine_size, 10000, outer_precision, square_staggered_gamma5_u1, (void*)&stagif, &verb);
+            multi_inversion += invif2.ops_count; 
+            stagif.mass -= shifts[n];
+        }
+    }
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
     shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
     
     cout << "[TEST]: CR-CPLX Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
     
+    // BICGSTAB!
+    cout << "\n[TEST]: Test BICGSTAB-M on the free staggered for masses 0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.0\n";
     
+    // Compare against sequential inversions.
+    seq_inversion = 0;
+    
+    // Reset masses. 
+    shifts[0] = 0.1;
+    shifts[1] = 0.2;
+    shifts[2] = 0.3;
+    shifts[3] = 0.4;
+    shifts[4] = 0.5;
+    shifts[5] = 0.8;
+    shifts[6] = 1.0;
+    
+    // Heavy -> lightest.
+    zero<double>(lhs_cplx[0], fine_size);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        stagif.mass = shifts[n];
+        sstream.str(string()); sstream << "[BICGSTAB-CPLX_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
+        invif = minv_vector_bicgstab(lhs_cplx[0], rhs_cplx, fine_size, 10000, outer_precision, square_staggered_u1, (void*)&stagif, &verb);
+        seq_inversion += invif.ops_count;
+    }
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    seq_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    
+    // Now do multishift. Get ready!
+    verb.verb_prefix = "[BICGSTAB-M-CPLX]: ";
+    stagif.mass = shifts[0];
+    for (n = n_shift - 1; n >= 0; n--)
+    {
+        shifts[n] -= shifts[0];
+    }
+    zero<double>(lhs_cplx[0], fine_size);
+    
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
+    invif = minv_vector_bicgstab_m(lhs_cplx, rhs_cplx, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered, (void*)&stagif, true, &verb);
+    multi_inversion = invif.ops_count; 
+    // Check for failures, fix.
+    for (n = 0; n < n_shift; n++)
+    {
+        if (sqrt(invif.resSqmrhs[n]) > outer_precision*bnorm)
+        {
+            stagif.mass += shifts[n];
+            verb.verb_prefix = "[BICGSTAB-M-CPLX-FIX]: ";
+            invif2 = minv_vector_bicgstab(lhs_cplx[n], rhs_cplx, fine_size, 10000, outer_precision, square_staggered_u1, (void*)&stagif, &verb);
+            multi_inversion += invif2.ops_count; 
+            stagif.mass -= shifts[n];
+        }
+    }
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
+    shift_time = ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9;
+    
+    cout << "[TEST]: BICGSTAB-CPLX Multirhs took " << multi_inversion << " matrix ops and " << shift_time << " seconds, sequential inversions took " << seq_inversion << " matrix ops and " << seq_time << " seconds.\n";
     
     
     for (n = 0; n < n_shift; n++)

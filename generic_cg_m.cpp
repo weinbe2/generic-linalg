@@ -20,7 +20,7 @@ using namespace std;
 // Solves lhs = A^(-1) rhs using multishift CG as defined in http://arxiv.org/pdf/hep-lat/9612014.pdf
 // Assumes there are n_shift values in "shifts", and that they are sorted.
 // resid_freq_check is how often to check the residual of other solutions. This lets us stop iterating on converged systems. 
-inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verb)
+inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(double*,double*,void*), void* extra_info, bool worst_first, inversion_verbose_struct* verb)
 {
   
   // Initialize vectors.
@@ -195,7 +195,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
       }
     }
 
-    if (sqrt(rsqNew) < eps*bsqrt || n_shift_rem == 0 || k == max_iter-1) {
+    if (/*sqrt(rsqNew) < eps*bsqrt || */(worst_first && abs(zeta_s[0])*sqrt(rsqNew) < eps*bsqrt) || n_shift_rem == 0 || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
@@ -321,7 +321,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   return invif; // Convergence 
 } 
 
-inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
+inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, bool worst_first, inversion_verbose_struct* verb)
 {
   // Initialize vectors.
   complex<double> *r, *p, *Ap;
@@ -497,7 +497,7 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
       }
     }
 
-    if (sqrt(rsqNew) < eps*bsqrt || n_shift_rem == 0 || k == max_iter-1) {
+    if (/*sqrt(rsqNew) < eps*bsqrt || */(worst_first && abs(zeta_s[0])*sqrt(rsqNew) < eps*bsqrt) || n_shift_rem == 0 || k == max_iter-1) {
       //        printf("Final rsq = %g\n", rsqNew);
       break;
     }
