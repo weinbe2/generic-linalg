@@ -97,6 +97,25 @@ inline void print_verbosity_summary(inversion_verbose_struct* verb, std::string 
     return; 
 }
 
+// Properly prints multishift/rhs summary at end of inversion.
+inline void print_verbosity_summary_multi(inversion_verbose_struct* verb, std::string alg, bool success, int iter, int ops_count, double* relres, int n_res)
+{
+    if (verb != 0)
+    {
+        if (verb->verbosity == VERB_SUMMARY || verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
+        {
+            std::cout << verb->verb_prefix << "CG-M " << " Success " << (success? "Y" : "N") << " Iter " << iter << " Ops " << ops_count << " RelRes ";
+            for (int n = 0; n < n_res; n++)
+            {
+                std::cout << relres[n] << " ";
+            }
+
+            std::cout << "\n";
+        }
+    }
+    return; 
+}
+
 // Properly prints summary at restart.
 inline void print_verbosity_restart(inversion_verbose_struct* verb, std::string alg, int iter, int ops_count, double relres)
 {

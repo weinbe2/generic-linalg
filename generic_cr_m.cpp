@@ -1,6 +1,6 @@
 // Fri Apr 29 11:54:22 EDT 2016
 // Evan S Weinberg
-// C++ file for CG-M inverter.
+// C++ file for CR-M inverter.
 
 // To do:
 // 1. Template to support float, double. 
@@ -13,20 +13,21 @@
 
 #include "generic_vector.h"
 
-#include "generic_cg_m.h"
+#include "generic_cr_m.h"
 
 using namespace std;
 
-// Solves lhs = A^(-1) rhs using multishift CG as defined in http://arxiv.org/pdf/hep-lat/9612014.pdf
+// Solves lhs = A^(-1) rhs using multishift CR as defined in http://arxiv.org/pdf/hep-lat/9612014.pdf,
+// with some corrections from the wikipedia article. 
 // Assumes there are n_shift values in "shifts", and that they are sorted.
 // resid_freq_check is how often to check the residual of other solutions. This lets us stop iterating on converged systems. 
-inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(double*,double*,void*), void* extra_info, bool worst_first, inversion_verbose_struct* verb)
+inversion_info minv_vector_cr_m(double **phi, double *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(double*,double*,void*), void* extra_info, bool worst_first, inversion_verbose_struct* verb)
 {
   
   // Initialize vectors.
-  double *r, *p, *Ap;
+  double *r, *Ar, *p, *Ap;
   double **p_s;
-  double alpha, beta, beta_prev, rsq, rsqNew, bsqrt, truersq, tmp; 
+  double alpha, beta, beta_prev, rsq, bsqrt, truersq, tmp, Apsq;
   double *alpha_s, *beta_s, *zeta_s, *zeta_s_prev;
   int k,i,n;
   int n_shift_rem = n_shift; // number of systems to still iterate on. 
@@ -52,6 +53,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   }
   
   r = new double[size];
+  Ar = new double[size];
   p = new double[size];
   Ap = new double[size];
   
@@ -63,7 +65,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   }
 
   // Initialize values.
-  rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
+  rsq = 0.0; rsq = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
   for (n = 0; n < n_shift; n++)
   {
     // beta_0, zeta_0, zeta_-1
@@ -96,15 +98,18 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   zero<double>(Ap, size);
   (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
   
+  copy<double>(Ar, Ap, size);
+  Apsq = norm2sq<double>(Ap, size); 
+  
   // Compute rsq.
   rsq = norm2sq<double>(r, size);
 
   // iterate till convergence
   for(k = 0; k< max_iter; k++) {
     
-    // 2. beta_i = - rsq / pAp. Which is a weird switch from the normal notation, but whatever.
+    // 2. beta_i = - rAp / |Ap|^2. Which is a weird switch from the normal notation, but whatever.
     beta_prev = beta; 
-    beta = -rsq/dot<double>(p, Ap, size);
+    beta = -dot<double>(Ap, r, size)/Apsq;
     //cout << "beta = " << beta << "\n";
     
     for (n = 0; n < n_shift_rem; n++)
@@ -136,21 +141,20 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
     }
     
     // Exit if new residual is small enough
-    rsqNew = norm2sq<double>(r, size);
+    rsq = norm2sq<double>(r, size);
     
-    print_verbosity_resid(verb, "CG-M", k+1, invif.ops_count, sqrt(rsqNew)/bsqrt); 
+    print_verbosity_resid(verb, "CR-M", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
-    // The residual of the shifted systems is zeta_s[n]*sqrt(rsqNew). Stop iterating on converged systems.
+    // The residual of the shifted systems is zeta_s[n]*sqrt(rsq). Stop iterating on converged systems.
     if (k % resid_freq_check == 0)
     {
       for (n = 0; n < n_shift_rem; n++)
       {
-        if (zeta_s[n]*sqrt(rsqNew) < eps*bsqrt) // if the residual of vector 'n' is sufficiently small...
+        //cout << "Vector " << mapping[n] << " Zeta_s " << zeta_s[mapping[n]] << "\n" << flush; 
+        if (abs(zeta_s[n])*sqrt(rsq) < eps*bsqrt) // if the residual of vector 'n' is sufficiently small...
         {
           // Permute it out.
           n_shift_rem--;
-          
-          //cout << "Vector " << mapping[n] << " has converged.\n" << flush;
           
           if (n_shift_rem != n) // Reorder in the case of out-of-order convergence. 
           {
@@ -195,16 +199,17 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
       }
     }
 
-    if (/*sqrt(rsqNew) < eps*bsqrt || */(worst_first && abs(zeta_s[0])*sqrt(rsqNew) < eps*bsqrt) || n_shift_rem == 0 || k == max_iter-1) {
-      //        printf("Final rsq = %g\n", rsqNew);
+    if (/*sqrt(rsq) < eps*bsqrt || */(worst_first && abs(zeta_s[0])*sqrt(rsq) < eps*bsqrt) || n_shift_rem == 0 || k == max_iter-1) {
+      //        printf("Final rsq = %g\n", rsq);
       break;
     }
     
-    
+    // Compute Ar.
+    zero<double>(Ar, size);
+    (*matrix_vector)(Ar, r, extra_info); invif.ops_count++;
   
-    // 6. alpha = rsqNew / rsq.
-    alpha = rsqNew / rsq;
-    rsq = rsqNew; 
+    // 6. alpha = rsq / rsq.
+    alpha = -dot<double>(Ap, Ar, size)/Apsq; // Need to check sign.
     
     //cout << "alpha = " << alpha << "\n";  
     
@@ -225,8 +230,10 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
     for (i = 0; i < size; i++)
     {
       p[i] = r[i] + alpha*p[i];
+      Ap[i] = Ar[i] + alpha*Ap[i];
     }
-    (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
+    
+    Apsq = norm2sq<double>(Ap, size);
   } 
     
   if(k == max_iter-1) {
@@ -284,6 +291,7 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   
   // Free all the things!
   delete[] r;
+  delete[] Ar; 
   delete[] p;
   delete[] Ap;
   
@@ -300,29 +308,33 @@ inversion_info minv_vector_cg_m(double **phi, double *phi0, int n_shift, int siz
   
   delete[] mapping; 
 
-  print_verbosity_summary_multi(verb, "CG-M", invif.success, k, invif.ops_count, relres, n_shift);
+  print_verbosity_summary_multi(verb, "CR-M", invif.success, k, invif.ops_count, relres, n_shift);
   delete[] relres; 
   
   invif.resSq = truersq;
   invif.iter = k;
-  invif.name = "CG-M";
+  invif.name = "CR-M";
   return invif; // Convergence 
 } 
 
-inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, bool worst_first, inversion_verbose_struct* verb)
+// Solves lhs = A^(-1) rhs using multishift CR as defined in http://arxiv.org/pdf/hep-lat/9612014.pdf
+// Assumes there are n_shift values in "shifts", and that they are sorted.
+// resid_freq_check is how often to check the residual of other solutions. This lets us stop iterating on converged systems. 
+inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, int n_shift, int size, int resid_freq_check, int max_iter, double eps, double* shifts, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, bool worst_first, inversion_verbose_struct* verb)
 {
+  
   // Initialize vectors.
-  complex<double> *r, *p, *Ap;
+  complex<double> *r, *Ar, *p, *Ap;
   complex<double> **p_s;
-  complex<double> alpha, beta, beta_prev, tmp; 
-  double rsq, rsqNew, bsqrt, truersq;
+  complex<double> alpha, beta, beta_prev, tmp;
+  double rsq, bsqrt, truersq, Apsq; 
   complex<double> *alpha_s, *beta_s, *zeta_s, *zeta_s_prev;
   int k,i,n;
   int n_shift_rem = n_shift; // number of systems to still iterate on. 
   int* mapping; // holds the mapping between vectors and the original vector ordering.
                 // this is because some vectors may converge before others. 
   complex<double>* tmp_ptr; // temporary pointer for swaps.
-  double tmp_dbl_real; // temporary pointer for swaps.
+  double tmp_dbl_real; // another one. 
   complex<double> tmp_dbl; // temporary double for swaps. 
   int tmp_int; // temporary int for swaps. 
   
@@ -342,6 +354,7 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
   }
   
   r = new complex<double>[size];
+  Ar = new complex<double>[size];
   p = new complex<double>[size];
   Ap = new complex<double>[size];
   
@@ -353,7 +366,7 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
   }
 
   // Initialize values.
-  rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
+  rsq = 0.0; rsq = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
   for (n = 0; n < n_shift; n++)
   {
     // beta_0, zeta_0, zeta_-1
@@ -383,18 +396,21 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
   copy<double>(r, phi0, size);
   
   // Compute Ap.
-  zero<double>(Ap, size);  
+  zero<double>(Ap, size);
   (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
-
+  
+  copy<double>(Ar, Ap, size);
+  Apsq = norm2sq<double>(Ap, size); 
+  
   // Compute rsq.
   rsq = norm2sq<double>(r, size);
-  
+
   // iterate till convergence
   for(k = 0; k< max_iter; k++) {
     
-    // 2. beta_i = - rsq / pAp. Which is a weird switch from the normal notation, but whatever.
+    // 2. beta_i = - rAp / |Ap|^2. Which is a weird switch from the normal notation, but whatever.
     beta_prev = beta; 
-    beta = -rsq/dot<double>(p, Ap, size);
+    beta = -dot<double>(Ap, r, size)/Apsq;
     //cout << "beta = " << beta << "\n";
     
     for (n = 0; n < n_shift_rem; n++)
@@ -404,6 +420,8 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
       tmp = zeta_s[n]; // Save zeta_i to pop into the prev zeta.
       zeta_s[n] = (zeta_s[n]*zeta_s_prev[n]*beta_prev)/(beta*alpha*(zeta_s_prev[n]-zeta_s[n]) + zeta_s_prev[n]*beta_prev*(1.0-shifts[n]*beta));
       zeta_s_prev[n] = tmp; 
+      
+      //cout << "Zeta[" << mapping[n] << "] = " << zeta_s[n] << "\n" << flush; 
       
       //cout << "zeta_n = " << zeta_s[n] << ", zeta_{n-1} = " << zeta_s_prev[n];
       
@@ -426,16 +444,16 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
     }
     
     // Exit if new residual is small enough
-    rsqNew = norm2sq<double>(r, size);
+    rsq = norm2sq<double>(r, size);
     
-    print_verbosity_resid(verb, "CG-M", k+1, invif.ops_count, sqrt(rsqNew)/bsqrt); 
+    print_verbosity_resid(verb, "CR-M", k+1, invif.ops_count, sqrt(rsq)/bsqrt); 
     
-    // The residual of the shifted systems is zeta_s[n]*sqrt(rsqNew). Stop iterating on converged systems.
+    // The residual of the shifted systems is zeta_s[n]*sqrt(rsq). Stop iterating on converged systems.
     if (k % resid_freq_check == 0)
     {
       for (n = 0; n < n_shift_rem; n++)
       {
-        if (abs(zeta_s[n])*sqrt(rsqNew) < eps*bsqrt) // if the residual of vector 'n' is sufficiently small...
+        if (abs(zeta_s[n])*sqrt(rsq) < eps*bsqrt) // if the residual of vector 'n' is sufficiently small...
         {
           // Permute it out.
           n_shift_rem--;
@@ -485,16 +503,17 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
       }
     }
 
-    if (/*sqrt(rsqNew) < eps*bsqrt || */(worst_first && abs(zeta_s[0])*sqrt(rsqNew) < eps*bsqrt) || n_shift_rem == 0 || k == max_iter-1) {
-      //        printf("Final rsq = %g\n", rsqNew);
+    if (/*sqrt(rsq) < eps*bsqrt || */(worst_first && abs(zeta_s[0])*sqrt(rsq) < eps*bsqrt) || n_shift_rem == 0 || k == max_iter-1) {
+      //        printf("Final rsq = %g\n", rsq);
       break;
     }
     
-    
+    // Compute Ar.
+    zero<double>(Ar, size);
+    (*matrix_vector)(Ar, r, extra_info); invif.ops_count++;
   
-    // 6. alpha = rsqNew / rsq.
-    alpha = rsqNew / rsq;
-    rsq = rsqNew; 
+    // 6. alpha = rsq / rsq.
+    alpha = -dot<double>(Ap, Ar, size)/Apsq; // Need to check sign.
     
     //cout << "alpha = " << alpha << "\n";  
     
@@ -515,8 +534,10 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
     for (i = 0; i < size; i++)
     {
       p[i] = r[i] + alpha*p[i];
+      Ap[i] = Ar[i] + alpha*Ap[i];
     }
-    (*matrix_vector)(Ap, p, extra_info); invif.ops_count++;
+    
+    Apsq = norm2sq<double>(Ap, size); 
   } 
     
   if(k == max_iter-1) {
@@ -545,7 +566,7 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
           
           tmp_dbl_real = shifts[m];
           shifts[m] = shifts[n];
-          shifts[n] = tmp_dbl_real;
+          shifts[n] = tmp_dbl_real; 
           
           mapping[m] = mapping[n];
           mapping[n] = n;
@@ -574,6 +595,7 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
   
   // Free all the things!
   delete[] r;
+  delete[] Ar; 
   delete[] p;
   delete[] Ap;
   
@@ -590,11 +612,11 @@ inversion_info minv_vector_cg_m(complex<double>  **phi, complex<double>  *phi0, 
   
   delete[] mapping; 
 
-  print_verbosity_summary_multi(verb, "CG-M", invif.success, k, invif.ops_count, relres, n_shift);
+  print_verbosity_summary_multi(verb, "CR-M", invif.success, k, invif.ops_count, relres, n_shift);
   delete[] relres; 
   
   invif.resSq = truersq;
   invif.iter = k;
-  invif.name = "CG-M";
+  invif.name = "CR-M";
   return invif; // Convergence 
-}
+} 
