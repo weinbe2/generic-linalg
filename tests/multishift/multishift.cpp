@@ -361,7 +361,7 @@ int main(int argc, char** argv)
     
     
     // CR!
-    cout << "\n[TEST]: Test CG-R on the free g5 staggered for masses 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.\n";
+    cout << "\n[TEST]: Test CG-R on the free square laplace for masses 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.\n";
     
     // Compare against sequential inversions.
     seq_inversion = 0;
@@ -384,7 +384,7 @@ int main(int argc, char** argv)
     {
         stagif.mass = shifts[n];
         sstream.str(string()); sstream << "[CR-REAL_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
-        invif = minv_vector_cr(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_staggered_gamma5, (void*)&stagif, &verb);
+        invif = minv_vector_cr(lhs_real[0], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
         seq_inversion += invif.ops_count;
     }
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
@@ -401,7 +401,7 @@ int main(int argc, char** argv)
     zero<double>(lhs_real[0], fine_size);
     
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-    invif = minv_vector_cr_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered_gamma5, (void*)&stagif, true, &verb);
+    invif = minv_vector_cr_m(lhs_real, rhs_real, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace, (void*)&stagif, true, &verb);
     multi_inversion = invif.ops_count; 
     // Check for failures, fix.
     for (n = 0; n < n_shift; n++)
@@ -410,7 +410,7 @@ int main(int argc, char** argv)
         {
             stagif.mass += shifts[n];
             verb.verb_prefix = "[CR-M-REAL-FIX]: ";
-            invif2 = minv_vector_cr(lhs_real[n], rhs_real, fine_size, 10000, outer_precision, square_staggered_gamma5, (void*)&stagif, &verb);
+            invif2 = minv_vector_cr(lhs_real[n], rhs_real, fine_size, 10000, outer_precision, square_laplace, (void*)&stagif, &verb);
             multi_inversion += invif2.ops_count; 
             stagif.mass -= shifts[n];
         }
@@ -562,7 +562,7 @@ int main(int argc, char** argv)
     
     
     // CR-CPLX
-    cout << "\n[TEST]: Test CR-M on the beta=6.0 g5 staggered for masses 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.\n";
+    cout << "\n[TEST]: Test CR-M on the beta=6.0 square laplace for masses 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.\n";
     
     // Compare against sequential inversions.
     seq_inversion = 0;
@@ -585,7 +585,7 @@ int main(int argc, char** argv)
     {
         stagif.mass = shifts[n];
         sstream.str(string()); sstream << "[CR-CPLX_mass=" << stagif.mass << "]: "; verb.verb_prefix = sstream.str(); // Update the verbosity string.
-        invif = minv_vector_cr(lhs_cplx[0], rhs_cplx, fine_size, 10000, outer_precision, square_staggered_gamma5_u1, (void*)&stagif, &verb);
+        invif = minv_vector_cr(lhs_cplx[0], rhs_cplx, fine_size, 10000, outer_precision, square_laplace_u1, (void*)&stagif, &verb);
         seq_inversion += invif.ops_count;
     }
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2);
@@ -602,7 +602,7 @@ int main(int argc, char** argv)
     zero<double>(lhs_cplx[0], fine_size);
     
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-    invif = minv_vector_cr_m(lhs_cplx, rhs_cplx, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_staggered_gamma5_u1, (void*)&stagif, true, &verb);
+    invif = minv_vector_cr_m(lhs_cplx, rhs_cplx, n_shift, fine_size, resid_check_freq, 10000, outer_precision, shifts, square_laplace_u1, (void*)&stagif, true, &verb);
     multi_inversion = invif.ops_count; 
     // Check for failures, fix.
     for (n = 0; n < n_shift; n++)
@@ -611,7 +611,7 @@ int main(int argc, char** argv)
         {
             stagif.mass += shifts[n];
             verb.verb_prefix = "[CR-M-CPLX-FIX]: ";
-            invif2 = minv_vector_cr(lhs_cplx[n], rhs_cplx, fine_size, 10000, outer_precision, square_staggered_gamma5_u1, (void*)&stagif, &verb);
+            invif2 = minv_vector_cr(lhs_cplx[n], rhs_cplx, fine_size, 10000, outer_precision, square_laplace_u1, (void*)&stagif, &verb);
             multi_inversion += invif2.ops_count; 
             stagif.mass -= shifts[n];
         }

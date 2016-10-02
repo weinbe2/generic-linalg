@@ -313,7 +313,7 @@ inversion_info minv_vector_cr_m(double **phi, double *phi0, int n_shift, int siz
   {
     if (verb->verbosity == VERB_SUMMARY || verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
     {
-      std::cout << verb->verb_prefix << "CG-M " << " Success " << (invif.success ? "Y" : "N") << " Iter " << k+1 << " Ops " << invif.ops_count << " RelRes ";
+      std::cout << verb->verb_prefix << "CR-M " << " Success " << (invif.success ? "Y" : "N") << " Iter " << k+1 << " Ops " << invif.ops_count << " RelRes ";
       for (n = 0; n < n_shift; n++)
       {
         std::cout << sqrt(invif.resSqmrhs[n])/bsqrt << " ";
@@ -629,7 +629,7 @@ inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, in
   {
     if (verb->verbosity == VERB_SUMMARY || verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
     {
-      std::cout << verb->verb_prefix << "CG-M " << " Success " << (invif.success ? "Y" : "N") << " Iter " << k+1 << " Ops " << invif.ops_count << " RelRes ";
+      std::cout << verb->verb_prefix << "CR-M " << " Success " << (invif.success ? "Y" : "N") << " Iter " << k+1 << " Ops " << invif.ops_count << " RelRes ";
       for (n = 0; n < n_shift; n++)
       {
         std::cout << sqrt(invif.resSqmrhs[n])/bsqrt << " ";
