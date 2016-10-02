@@ -275,6 +275,7 @@ inversion_info minv_vector_cr_m(double **phi, double *phi0, int n_shift, int siz
   }
   
   // Calculate explicit rsqs.
+  double* relres = new double[n_shift];
   for (n = 0; n < n_shift; n++)
   {
     zero<double>(Ap, size);
@@ -284,6 +285,7 @@ inversion_info minv_vector_cr_m(double **phi, double *phi0, int n_shift, int siz
       Ap[i] = Ap[i] + (shifts[n]*phi[n][i]);
     }
     invif.resSqmrhs[n] = diffnorm2sq<double>(Ap, phi0, size);
+    relres[n] = sqrt(invif.resSqmrhs[n])/bsqrt;
   }
   
   
@@ -306,22 +308,8 @@ inversion_info minv_vector_cr_m(double **phi, double *phi0, int n_shift, int siz
   
   delete[] mapping; 
 
-  // Need to update verbosity type things.
-  //print_verbosity_summary(verb, "CG", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
-  
-  if (verb != 0)
-  {
-    if (verb->verbosity == VERB_SUMMARY || verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
-    {
-      std::cout << verb->verb_prefix << "CR-M " << " Success " << (invif.success ? "Y" : "N") << " Iter " << k+1 << " Ops " << invif.ops_count << " RelRes ";
-      for (n = 0; n < n_shift; n++)
-      {
-        std::cout << sqrt(invif.resSqmrhs[n])/bsqrt << " ";
-      }
-
-      std::cout << "\n";
-    }
-  }
+  print_verbosity_summary_multi(verb, "CR-M", invif.success, k, invif.ops_count, relres, n_shift);
+  delete[] relres; 
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -591,6 +579,7 @@ inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, in
   }
   
   // Calculate explicit rsqs.
+  double* relres = new double[n_shift];
   for (n = 0; n < n_shift; n++)
   {
     zero<double>(Ap, size);
@@ -600,6 +589,7 @@ inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, in
       Ap[i] = Ap[i] + (shifts[n]*phi[n][i]);
     }
     invif.resSqmrhs[n] = diffnorm2sq<double>(Ap, phi0, size);
+    relres[n] = sqrt(invif.resSqmrhs[n])/bsqrt;
   }
   
   
@@ -622,22 +612,8 @@ inversion_info minv_vector_cr_m(complex<double> **phi, complex<double> *phi0, in
   
   delete[] mapping; 
 
-  // Need to update verbosity type things.
-  //print_verbosity_summary(verb, "CG", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
-  
-  if (verb != 0)
-  {
-    if (verb->verbosity == VERB_SUMMARY || verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
-    {
-      std::cout << verb->verb_prefix << "CR-M " << " Success " << (invif.success ? "Y" : "N") << " Iter " << k+1 << " Ops " << invif.ops_count << " RelRes ";
-      for (n = 0; n < n_shift; n++)
-      {
-        std::cout << sqrt(invif.resSqmrhs[n])/bsqrt << " ";
-      }
-
-      std::cout << "\n";
-    }
-  }
+  print_verbosity_summary_multi(verb, "CR-M", invif.success, k, invif.ops_count, relres, n_shift);
+  delete[] relres; 
   
   invif.resSq = truersq;
   invif.iter = k;

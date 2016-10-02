@@ -92,14 +92,8 @@ int main(int argc, char** argv)
     // Solver precision.
     double outer_precision = 1e-10; 
     
-    // Restart iterations.
-    int outer_restart = 64;
-    
     // Residual check frequency in CG-M.
     int resid_check_freq = 10;
-    
-    // What operator should we use?
-    op_type opt = STAGGERED; // STAGGERED, LAPLACE, G5_STAGGERED, STAGGERED_NORMAL
     
     
     // Gauge field information.
@@ -119,10 +113,7 @@ int main(int argc, char** argv)
         if (strcmp(argv[i], "--help") == 0)
         {
             cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
-            cout << "--operator [laplace, staggered, g5_staggered, \n";
-            cout << "       normal_staggered, index]        (default staggered)\n";
             cout << "--lattice-size [32, 64, 128]           (default 64)\n";
-            cout << "--mass [#]                             (default 1e-2)\n";
             cout << "--resid-check-freq [#]                 (default 10)\n";
             cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
             return 0;
@@ -134,38 +125,9 @@ int main(int argc, char** argv)
                 BETA = atof(argv[i+1]);
                 i++;
             }
-            else if (strcmp(argv[i], "--operator") == 0)
-            {
-                if (strcmp(argv[i+1], "laplace") == 0)
-                {
-                    opt = LAPLACE; 
-                }
-                else if (strcmp(argv[i+1], "staggered") == 0)
-                {
-                    opt = STAGGERED; 
-                }
-                else if (strcmp(argv[i+1], "g5_staggered") == 0)
-                {
-                    opt = G5_STAGGERED; 
-                }
-                else if (strcmp(argv[i+1], "normal_staggered") == 0)
-                {
-                    opt = STAGGERED_NORMAL;
-                }
-                else if (strcmp(argv[i+1], "index") == 0)
-                {
-                    opt = STAGGERED_INDEX;
-                }
-                i++;
-            }
             else if (strcmp(argv[i], "--lattice-size") == 0)
             {
                 square_size = atoi(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--mass") == 0)
-            {
-                mass = atof(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--resid-check-freq") == 0)
@@ -182,10 +144,7 @@ int main(int argc, char** argv)
             else
             {
                 cout << "--beta [3.0, 6.0, 10.0, 10000.0]       (default 6.0)\n";
-                cout << "--operator [laplace, staggered, g5_staggered, \n";
-                cout << "       normal_staggered, index]        (default staggered)\n";
                 cout << "--lattice-size [32, 64, 128]           (default 32)\n";
-                cout << "--mass [#]                             (default 1e-2)\n";
                 cout << "--resid-check-freq [#]                 (default 10)\n";
                 cout << "--load-cfg [path]                      (default do not load, overrides beta)\n";
                 return 0;
@@ -200,33 +159,7 @@ int main(int argc, char** argv)
     // End of human-readable parameters! //
     ///////////////////////////////////////
     
-    
-    string op_name;
-    void (*op)(complex<double>*, complex<double>*, void*);
-    switch (opt)
-    {
-        case STAGGERED:
-            op = square_staggered_u1;
-            op_name = "Staggered U(1)";
-            break;
-        case LAPLACE:
-            op_name = "Laplace U(1)";
-            op = square_laplace_u1;
-            break;
-        case G5_STAGGERED:
-            op_name = "Gamma_5 Staggered U(1)";
-            op = square_staggered_gamma5_u1;
-            break;
-        case STAGGERED_NORMAL:
-            op_name = "Staggered U(1) Normal";
-            op = square_staggered_normal_u1;
-            break; 
-        case STAGGERED_INDEX:
-            op_name = "Staggered U(1) Index Operator";
-            op = staggered_index_operator;
-            break; 
-    }
-    cout << "[OP]: Operator " << op_name << " Mass " << mass << "\n";
+    cout << "[OP]: Mass " << mass << "\n";
     
     // Only relevant for free laplace test.
     int Nc = 1;  // Only value that matters for staggered
@@ -690,83 +623,6 @@ int main(int argc, char** argv)
     
     delete[] shifts;
     
-    
-    
-    
-    
-    // Other tests!
-    /*
-    // NON-RESTARTED TESTS
-    
-    // Test an inversion.
-    zero<double>(lhs, fine_size);
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-    invif = minv_vector_bicgstab(lhs, rhs, fine_size, 100000, outer_precision, op, (void*)&stagif, &verb);
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
-    
-    // Test BiCGStab-l inversions in powers of 2.
-    for (i = 1; i <= 16; i*=2)
-    {
-        sstream.str(string()); // Clear the string stream.
-        sstream << "[BICGSTAB-" << i << "]: "; // Set the string stream.
-        verb.verb_prefix = sstream.str(); // Update the verbosity string.
-        
-        zero<double>(lhs, fine_size);
-        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-        invif = minv_vector_bicgstab_l(lhs, rhs, fine_size, 100000, outer_precision, i, op, (void*)&stagif, &verb);
-        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
-    }
-    
-    // Test GCR(\infty)
-    verb.verb_prefix = "[GCR]: ";
-        
-    zero<double>(lhs, fine_size);
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-    invif = minv_vector_gcr(lhs, rhs, fine_size, 100000, outer_precision, op, (void*)&stagif, &verb); // Remark: Dslash count should be doubled. 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
-    
-
-    // Suggestion from Kate: if the operator is staggered or g5_staggered, test the normal equations with CG.
-    if (opt == STAGGERED || opt == G5_STAGGERED)
-    {
-        verb.verb_prefix = "[CG_NORMAL]: ";
-        
-        zero<double>(lhs, fine_size);
-        
-        // Apply D^\dagger
-        zero<double>(check, fine_size); gamma_5(check, rhs, (void*)&stagif);
-        zero<double>(tmp2, fine_size); square_staggered_u1(tmp2, check, (void*)&stagif);
-        zero<double>(check, fine_size); gamma_5(check, tmp2, (void*)&stagif);
-        
-        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
-        invif = minv_vector_cg(lhs, check, fine_size, 100000, outer_precision, square_staggered_normal_u1, (void*)&stagif, &verb); // Remark: Dslash count should be doubled. 
-        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
-    }
-    
-    // Test restarted BiCGStab(64)
-    /*
-    int restart_freq = 64; 
-    
-    // Test an inversion.
-    sstream.str(string()); // Clear the string stream.
-    sstream << "[BICGSTAB(" << restart_freq << ")]: "; // Set the string stream.
-    verb.verb_prefix = sstream.str(); // Update the verbosity string.
-    
-    zero<double>(lhs, fine_size);
-    invif = minv_vector_bicgstab_restart(lhs, rhs, fine_size, 100000, outer_precision, restart_freq, op, (void*)&stagif, &verb);
-    
-    // Test BiCGStab-l inversions in powers of 2.
-    for (i = 1; i <= 16; i*=2)
-    {
-        sstream.str(string()); // Clear the string stream.
-        sstream << "[BICGSTAB-" << i << "(" << restart_freq << ")]: "; // Set the string stream.
-        verb.verb_prefix = sstream.str(); // Update the verbosity string.
-        
-        zero<double>(lhs, fine_size);
-        invif = minv_vector_bicgstab_l_restart(lhs, rhs, fine_size, 100000, outer_precision, restart_freq, i, op, (void*)&stagif, &verb);
-    }*/
-    
-    // Free the lattice.
     
     return 0; 
 }

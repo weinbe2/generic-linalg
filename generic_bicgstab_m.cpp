@@ -29,7 +29,7 @@ inversion_info minv_vector_bicgstab_m(double **phi, double *phi0, int n_shift, i
   // Initialize vectors.
   double *r, *r_prev, *s, *As, *w, *Aw, *wdag;
   double **s_s;
-  double alpha, beta, beta_prev, psi, delta, delta_prev, chi, rsq, rsqNew, bsqrt, truersq, tmp; 
+  double alpha, beta, beta_prev, psi, delta, delta_prev, chi, rsqNew, bsqrt, truersq, tmp; 
   double *alpha_s, *beta_s, *zeta_s, *zeta_s_prev, *chi_s, *rho_s, *rho_s_prev;
   int k,i,n;
   int n_shift_rem = n_shift; // number of systems to still iterate on. 
@@ -76,7 +76,7 @@ inversion_info minv_vector_bicgstab_m(double **phi, double *phi0, int n_shift, i
   }
 
   // Initialize values.
-  rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
+  rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
   for (n = 0; n < n_shift; n++)
   {
     // beta_0, zeta_0, zeta_-1
@@ -346,6 +346,7 @@ inversion_info minv_vector_bicgstab_m(double **phi, double *phi0, int n_shift, i
   }
   
   // Calculate explicit rsqs.
+  double* relres = new double[n_shift];
   for (n = 0; n < n_shift; n++)
   {
     zero<double>(As, size);
@@ -355,6 +356,7 @@ inversion_info minv_vector_bicgstab_m(double **phi, double *phi0, int n_shift, i
       As[i] = As[i] + (shifts[n]*phi[n][i]);
     }
     invif.resSqmrhs[n] = diffnorm2sq<double>(As, phi0, size);
+    relres[n] = sqrt(invif.resSqmrhs[n])/bsqrt;
   }
   
   
@@ -383,22 +385,8 @@ inversion_info minv_vector_bicgstab_m(double **phi, double *phi0, int n_shift, i
   
   delete[] mapping; 
 
-  // Need to update verbosity type things.
-  //print_verbosity_summary(verb, "CG", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
-  
-  if (verb != 0)
-  {
-    if (verb->verbosity == VERB_SUMMARY || verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
-    {
-      std::cout << verb->verb_prefix << "BICGSTAB-M " << " Success " << (invif.success ? "Y" : "N") << " Iter " << k+1 << " Ops " << invif.ops_count << " RelRes ";
-      for (n = 0; n < n_shift; n++)
-      {
-        std::cout << sqrt(invif.resSqmrhs[n])/bsqrt << " ";
-      }
-
-      std::cout << "\n";
-    }
-  }
+  print_verbosity_summary_multi(verb, "BICGSTAB-M", invif.success, k, invif.ops_count, relres, n_shift);
+  delete[] relres; 
   
   invif.resSq = truersq;
   invif.iter = k;
@@ -418,7 +406,7 @@ inversion_info minv_vector_bicgstab_m(complex<double> **phi, complex<double> *ph
   complex<double> *r, *r_prev, *s, *As, *w, *Aw, *wdag;
   complex<double> **s_s;
   complex<double> alpha, beta, beta_prev, psi, delta, delta_prev, chi, tmp;
-  double rsq, rsqNew, bsqrt, truersq;
+  double rsqNew, bsqrt, truersq;
   complex<double> *alpha_s, *beta_s, *zeta_s, *zeta_s_prev, *chi_s, *rho_s, *rho_s_prev;
   int k,i,n;
   int n_shift_rem = n_shift; // number of systems to still iterate on. 
@@ -466,7 +454,7 @@ inversion_info minv_vector_bicgstab_m(complex<double> **phi, complex<double> *ph
   }
 
   // Initialize values.
-  rsq = 0.0; rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
+  rsqNew = 0.0; bsqrt = 0.0; truersq = 0.0; k=0;
   for (n = 0; n < n_shift; n++)
   {
     // beta_0, zeta_0, zeta_-1
@@ -737,6 +725,7 @@ inversion_info minv_vector_bicgstab_m(complex<double> **phi, complex<double> *ph
   }
   
   // Calculate explicit rsqs.
+  double* relres = new double[n_shift];
   for (n = 0; n < n_shift; n++)
   {
     zero<double>(As, size);
@@ -746,6 +735,7 @@ inversion_info minv_vector_bicgstab_m(complex<double> **phi, complex<double> *ph
       As[i] = As[i] + (shifts[n]*phi[n][i]);
     }
     invif.resSqmrhs[n] = diffnorm2sq<double>(As, phi0, size);
+    relres[n] = sqrt(invif.resSqmrhs[n])/bsqrt;
   }
   
   
@@ -774,22 +764,8 @@ inversion_info minv_vector_bicgstab_m(complex<double> **phi, complex<double> *ph
   
   delete[] mapping; 
 
-  // Need to update verbosity type things.
-  //print_verbosity_summary(verb, "CG", invif.success, k, invif.ops_count, sqrt(truersq)/bsqrt);
-  
-  if (verb != 0)
-  {
-    if (verb->verbosity == VERB_SUMMARY || verb->verbosity == VERB_RESTART_DETAIL || verb->verbosity == VERB_DETAIL)
-    {
-      std::cout << verb->verb_prefix << "BICGSTAB-M " << " Success " << (invif.success ? "Y" : "N") << " Iter " << k+1 << " Ops " << invif.ops_count << " RelRes ";
-      for (n = 0; n < n_shift; n++)
-      {
-        std::cout << sqrt(invif.resSqmrhs[n])/bsqrt << " ";
-      }
-
-      std::cout << "\n";
-    }
-  }
+  print_verbosity_summary_multi(verb, "BICGSTAB-M", invif.success, k, invif.ops_count, relres, n_shift);
+  delete[] relres; 
   
   invif.resSq = truersq;
   invif.iter = k;
