@@ -29,15 +29,6 @@ using namespace std;
 // Define pi.
 #define PI 3.141592653589793
 
-enum op_type
-{
-    STAGGERED = 1,
-    LAPLACE = 0,
-    G5_STAGGERED = 2,
-    STAGGERED_NORMAL = 3,
-    STAGGERED_INDEX = 4
-};
-
 // Custom routine to load gauge field.
 void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, double BETA);
 
@@ -248,7 +239,7 @@ int main(int argc, char** argv)
     
     // Create the verbosity structure.
     inversion_verbose_struct verb;
-    verb.verbosity = VERB_DETAIL;
+    verb.verbosity = VERB_SUMMARY; //VERB_DETAIL;
     verb.verb_prefix = "[BICGSTAB]: ";
     verb.precond_verbosity = VERB_DETAIL;
     verb.precond_verb_prefix = "Prec ";
@@ -298,12 +289,12 @@ int main(int argc, char** argv)
     }
     
     // Test GCR(\infty)
-    verb.verb_prefix = "[GCR]: ";
+    /*verb.verb_prefix = "[GCR]: ";
         
     zero<double>(lhs, fine_size);
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time1);
     invif = minv_vector_gcr(lhs, rhs, fine_size, 100000, outer_precision, op, (void*)&stagif, &verb); // Remark: Dslash count should be doubled. 
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time2); timediff = diff(time1, time2); cout << "Time " << ((double)(long int)(1000000000*timediff.tv_sec + timediff.tv_nsec))*1e-9 << "\n";*/
     
 
     // Suggestion from Kate: if the operator is staggered or g5_staggered, test the normal equations with CG.
