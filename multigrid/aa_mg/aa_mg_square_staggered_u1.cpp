@@ -150,6 +150,7 @@ void display_usage()
     cout << "--nvec [nvec]                                     (default 4)\n";
     cout << "--nrefine [number coarse]                         (default 1)\n";
     cout << "--cycle-type [v, k]                               (default v)\n";
+    cout << "--mg-type [self, normal_eqn]                      (default self)\n";
     cout << "--smoother-solver [gcr, bicgstab, cg, minres,\n";
     cout << "         cr, bicgstab-l, none]                    (default gcr)\n"; 
     cout << "--smoother-type [self, normal_eqn]                (default self)\n";
@@ -281,6 +282,9 @@ int main(int argc, char** argv)
     {
         in_solve = NONE; 
     }
+    
+    // MG type---do I use D_coarse everywhere, or D^\dag_coarse D_coarse?
+    bool normal_eqn_mg = false; 
     
     // Smoother
     inner_solver in_smooth = GCR; //NONE; //GCR; BICGSTAB
@@ -677,6 +681,18 @@ int main(int argc, char** argv)
                 else
                 {
                     lattice_size_y = lattice_size_x; // At the end, don't try to grab the next element!
+                }
+                i++;
+            }
+            else if (strcmp(argv[i], "--mg-type") == 0)
+            {
+                if (strcmp(argv[i+1], "self") == 0)
+                {
+                    normal_eqn_mg = false;
+                }
+                else if (strcmp(argv[i+1], "normal_eqn") == 0)
+                {
+                    normal_eqn_mg = true;
                 }
                 i++;
             }
@@ -1118,8 +1134,6 @@ int main(int argc, char** argv)
     mgprecond.n_max = inner_max; // max number of steps to use for inner solver.
     mgprecond.n_restart = inner_restart; // frequency of restart (relevant for CG, GCR).
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
-    mgprecond.coarse_matrix_vector = /*coarse_square_staggered_normal;*/ coarse_square_staggered; // Function which applies the coarse operator. 
-    mgprecond.fine_matrix_vector = /*fine_square_staggered_normal;*/ fine_square_staggered; // Function which applies the fine operator. 
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
     
     // Inner precision. Default 1e-2. Maximum relative residual for coarse solves.
@@ -1159,19 +1173,35 @@ int main(int argc, char** argv)
     else // there are unique post smooth counts for each level.
     { for (i = 0; i < n_refine; i++) { mgprecond.n_post_smooth[i] = post_smooths[i]; } }
     
-    if (normal_eqn_smooth)
+    mgprecond.normal_eqn_smooth = normal_eqn_smooth;
+    mgprecond.normal_eqn_mg = normal_eqn_mg; 
+    if (normal_eqn_mg) // MG where we use D^\dagger_coarse D_coarse
     {
-        mgprecond.normal_eqn_smooth = true;
-        mgprecond.coarse_matrix_vector_dagger = coarse_square_staggered_dagger; // function which applies coarse dagger.
-        mgprecond.fine_matrix_vector_dagger = fine_square_staggered_dagger; // function which applies fine dagger.
-        mgprecond.coarse_matrix_vector_normal = coarse_square_staggered_normal; // function which applies normal of coarse op
-        mgprecond.fine_matrix_vector_normal = fine_square_staggered_normal; // function which applies normal of fine op.
-    }
-    else
-    {
-        mgprecond.normal_eqn_smooth = false;
-    }
+        mgprecond.coarse_matrix_vector = coarse_square_staggered_normal; // Function which applies the coarse operator. 
+        mgprecond.fine_matrix_vector = fine_square_staggered_normal; // Function which applies the fine operator. 
     
+        if (normal_eqn_smooth) // Sort of pointless. 
+        {
+            mgprecond.coarse_matrix_vector_dagger = coarse_square_staggered_normal; // function which applies coarse dagger.
+            mgprecond.fine_matrix_vector_dagger = fine_square_staggered_normal; // function which applies fine dagger.
+            mgprecond.coarse_matrix_vector_normal = coarse_square_staggered_normal; // function which applies normal of coarse op
+            mgprecond.fine_matrix_vector_normal = fine_square_staggered_normal; // function which applies normal of fine op.
+        }
+    }
+    else // Standard MG.
+    {
+        mgprecond.coarse_matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
+        mgprecond.fine_matrix_vector = fine_square_staggered; // Function which applies the fine operator. 
+    
+        if (normal_eqn_smooth)
+        {
+            mgprecond.coarse_matrix_vector_dagger = coarse_square_staggered_dagger; // function which applies coarse dagger.
+            mgprecond.fine_matrix_vector_dagger = fine_square_staggered_dagger; // function which applies fine dagger.
+            mgprecond.coarse_matrix_vector_normal = coarse_square_staggered_normal; // function which applies normal of coarse op
+            mgprecond.fine_matrix_vector_normal = fine_square_staggered_normal; // function which applies normal of fine op.
+        }
+    }
+
     // End set up MG preconditioners
 
     // Set right hand side.
@@ -1231,7 +1261,7 @@ int main(int argc, char** argv)
     }
     
     // Allocate stencils for daggered operator, if needed.
-    if (normal_eqn_smooth)
+    if (normal_eqn_smooth || normal_eqn_mg) 
     {
         mgstruct.have_dagger_stencil = true;
         
@@ -1854,7 +1884,7 @@ int main(int argc, char** argv)
 #endif
     
 #ifdef STENCIL_DAGGER_TEST
-    if (!normal_eqn_smooth)
+    if (!(normal_eqn_smooth || normal_eqn_mg))
     {
         cout << "The dagger test can only be performed if '--smoother-type normal_eqn' is set (which builds the dagger stencil).\n" << flush;
         
@@ -2198,6 +2228,17 @@ int main(int argc, char** argv)
     
 #endif // COARSE_ONLY
     
+    // What operator are we using, D^\dag D or D?
+    void (*fine_op)(complex<double>*,complex<double>*,void*);
+    if (normal_eqn_mg)
+    {
+        fine_op = fine_square_staggered_normal;
+    }
+    else
+    {
+        fine_op = fine_square_staggered;
+    }
+    
     if (my_test == TOP_LEVEL_ONLY)
     {
         // Try a direct solve.
@@ -2208,36 +2249,36 @@ int main(int argc, char** argv)
             case OUTER_GCR:
                 if (outer_restart)
                 {
-                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
+                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&stagif, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
+                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&stagif, &verb);
                 }
                 break;
             case OUTER_CG:
                 if (outer_restart)
                 {
-                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
+                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&stagif, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
+                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&stagif, &verb);
                 }
                 break;
             case OUTER_BICGSTAB:
                 if (outer_restart)
                 {
-                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, &verb);
+                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&stagif, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, &verb);
+                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&stagif, &verb);
                 }
                 break;
         }
         //invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
-        mgstruct.dslash_count->krylov[mgstruct.curr_level] += invif.ops_count; 
+        mgstruct.dslash_count->krylov[mgstruct.curr_level] += (normal_eqn_mg ? 2 : 1)*invif.ops_count; 
 
         if (invif.success == true)
         {
@@ -2286,41 +2327,41 @@ int main(int argc, char** argv)
                 if (outer_restart)
                 {
                     //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                     //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
                 }
                 else
                 {
-                    invif = minv_vector_gcr_var_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_gcr_var_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
             case OUTER_CG:
                 if (outer_restart)
                 {
                     //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered/*_normal*/, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                     //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
                 }
                 else
                 {
-                    invif = minv_vector_cg_flex_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered/*_normal*/, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_cg_flex_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
             case OUTER_BICGSTAB:
                 if (outer_restart)
                 {
                     //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_bicgstab_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_bicgstab_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                     //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
                 }
                 else
                 {
-                    invif = minv_vector_bicgstab_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_bicgstab_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
         }
         
-        mgstruct.dslash_count->krylov[mgstruct.curr_level] += invif.ops_count; 
+        mgstruct.dslash_count->krylov[mgstruct.curr_level] += (normal_eqn_mg ? 2 : 1)*invif.ops_count; 
         
         
 

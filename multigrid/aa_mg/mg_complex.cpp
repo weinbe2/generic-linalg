@@ -544,7 +544,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     if (mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level] > 0 && mgprecond->in_smooth_type != NONE)
     {
         // Are we smoothing via the normal equation?
-        if (mgprecond->normal_eqn_smooth) 
+        if (mgprecond->normal_eqn_smooth && !mgprecond->normal_eqn_mg) 
         {
             // We smooth via b = A^\dag rhs.
             zero<double>(tmp_smooth, fine_size);
@@ -580,7 +580,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 break;
         }
         printf("[L%d Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str()); fflush(stdout);
-        mgprecond->mgstruct->dslash_count->presmooth[mgprecond->mgstruct->curr_level] += (mgprecond->normal_eqn_smooth? 2 : 1)*invif.ops_count; 
+        mgprecond->mgstruct->dslash_count->presmooth[mgprecond->mgstruct->curr_level] += ((mgprecond->normal_eqn_smooth || mgprecond->normal_eqn_mg) ? 2 : 1)*invif.ops_count; 
         
         // Compute r1 = r - A z1.
         (*mgprecond->fine_matrix_vector)(r1, z1, mgprecond->matrix_extra_data); // Temporarily store Az1 in r1. 
@@ -645,7 +645,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             }
             
             printf("[L%d]: Iterations %d RelRes %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+2, invif.iter, sqrt(invif.resSq)/sqrt(norm2sq<double>(rhs_coarse, coarse_length)), invif.name.c_str());
-            mgprecond->mgstruct->dslash_count->krylov[mgprecond->mgstruct->curr_level+1] += invif.ops_count; 
+            mgprecond->mgstruct->dslash_count->krylov[mgprecond->mgstruct->curr_level+1] += (mgprecond->normal_eqn_mg ? 2 : 1)*invif.ops_count; 
         
         }
         else // Apply the fine operator preconditioned with the coarse op.
@@ -777,7 +777,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
         }
         
         // Are we smoothing via the normal equation?
-        if (mgprecond->normal_eqn_smooth) 
+        if (mgprecond->normal_eqn_smooth && !mgprecond->normal_eqn_mg) 
         {
             // We smooth via b = A^\dag r2.
             zero<double>(tmp_smooth, fine_size);
@@ -813,7 +813,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                 break;
         }
         printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());
-        mgprecond->mgstruct->dslash_count->postsmooth[mgprecond->mgstruct->curr_level] += (mgprecond->normal_eqn_smooth? 2 : 1)*invif.ops_count; 
+        mgprecond->mgstruct->dslash_count->postsmooth[mgprecond->mgstruct->curr_level] += ((mgprecond->normal_eqn_smooth || mgprecond->normal_eqn_mg) ? 2 : 1)*invif.ops_count; 
     }
     
     // Update lhs with z3. 

@@ -153,6 +153,9 @@ struct mg_precond_struct_complex
     // How many post-smooth steps?
     int* n_post_smooth;
     
+    // Are we solving with the coarse normal equations?
+    bool normal_eqn_mg; 
+    
     // Are we smoothing with the normal equations?
     bool normal_eqn_smooth; 
     
