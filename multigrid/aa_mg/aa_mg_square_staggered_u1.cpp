@@ -2286,36 +2286,36 @@ int main(int argc, char** argv)
                 if (outer_restart)
                 {
                     //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                     //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
                 }
                 else
                 {
-                    invif = minv_vector_gcr_var_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_gcr_var_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
             case OUTER_CG:
                 if (outer_restart)
                 {
                     //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                     //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
                 }
                 else
                 {
-                    invif = minv_vector_cg_flex_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_cg_flex_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
             case OUTER_BICGSTAB:
                 if (outer_restart)
                 {
                     //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_bicgstab_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_bicgstab_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                     //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
                 }
                 else
                 {
-                    invif = minv_vector_bicgstab_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_bicgstab_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
         }
