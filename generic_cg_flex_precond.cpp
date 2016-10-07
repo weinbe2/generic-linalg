@@ -331,7 +331,7 @@ inversion_info minv_vector_cg_flex_precond(complex<double>  *phi, complex<double
   {
      invif.success = true;
   }
-  
+  k++;
   
   zero<double>(Ap, size); 
   (*matrix_vector)(Ap,phi,extra_info); invif.ops_count++;
