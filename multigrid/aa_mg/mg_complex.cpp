@@ -90,13 +90,14 @@ void coarse_square_staggered_dagger(complex<double>* lhs, complex<double>* rhs, 
     mg_operator_struct_complex* mgstruct = (mg_operator_struct_complex*)extra_data; 
     
     // Check if we have a stencil!
-    if (mgstruct->dagger_stencils[mgstruct->curr_level+1] != 0 && mgstruct->dagger_stencils[mgstruct->curr_level+1]->generated == true)
+    if (mgstruct->dagger_stencils != 0 && mgstruct->dagger_stencils[mgstruct->curr_level+1] != 0 && mgstruct->dagger_stencils[mgstruct->curr_level+1]->generated == true)
     {
         // Just apply the stencil! Life is so good!
+   
         apply_stencil_2d(lhs, rhs, (void*)mgstruct->dagger_stencils[mgstruct->curr_level+1]);
     }
     else // We don't have a stencil, do it the old fashioned way!
-    {
+    {   
         // prolong, apply fine stencil, restrict.
         complex<double>* Prhs = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
         complex<double>* APrhs = new complex<double>[mgstruct->latt[mgstruct->curr_level]->get_lattice_size()];
@@ -148,7 +149,7 @@ void coarse_square_staggered_normal(complex<double>* lhs, complex<double>* rhs, 
     
     // Apply D
     coarse_square_staggered(tmp, rhs, extra_data);
-    
+
     // Apply D dagger.
     coarse_square_staggered_dagger(lhs, tmp, extra_data);
     

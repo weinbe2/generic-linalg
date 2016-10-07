@@ -1118,8 +1118,8 @@ int main(int argc, char** argv)
     mgprecond.n_max = inner_max; // max number of steps to use for inner solver.
     mgprecond.n_restart = inner_restart; // frequency of restart (relevant for CG, GCR).
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
-    mgprecond.coarse_matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
-    mgprecond.fine_matrix_vector = fine_square_staggered; // Function which applies the fine operator. 
+    mgprecond.coarse_matrix_vector = /*coarse_square_staggered_normal;*/ coarse_square_staggered; // Function which applies the coarse operator. 
+    mgprecond.fine_matrix_vector = /*fine_square_staggered_normal;*/ fine_square_staggered; // Function which applies the fine operator. 
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
     
     // Inner precision. Default 1e-2. Maximum relative residual for coarse solves.
@@ -2298,12 +2298,12 @@ int main(int argc, char** argv)
                 if (outer_restart)
                 {
                     //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_square_staggered/*_normal*/, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                     //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
                 }
                 else
                 {
-                    invif = minv_vector_cg_flex_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_cg_flex_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_square_staggered/*_normal*/, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
             case OUTER_BICGSTAB:
