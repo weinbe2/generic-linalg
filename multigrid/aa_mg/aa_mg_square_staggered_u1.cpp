@@ -136,7 +136,7 @@ void display_usage()
     cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
     cout << "--null-solver [gcr, bicgstab, cg, minres,\n";
     cout << "       arpack, bicgstab-l]                        (default bicgstab)\n";
-    cout << "--null-precision [null prec]                      (default 5e-5)\n";
+    cout << "--null-precision [null prec] {#, #...}            (default 5e-5)\n";
     cout << "--null-max-iter [null maximum iterations]         (default 500)\n";
     cout << "--null-restart [yes, no]                          (default no)\n";
     cout << "--null-restart-freq [#]                           (default 8 if restarting is enabled)\n";
@@ -260,7 +260,7 @@ int main(int argc, char** argv)
     int n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
                            // Can be overriden on command line with --nvec
     int null_max_iter = 500;
-    double null_precision = 5e-5; //5e-4; // Can be overriden on command line with --null-precision
+    vector<double> null_precisions; null_precisions.push_back(5e-5); // Can be overriden on command line with --null-precision
     bool null_restart = false; // do we restart?
     int null_restart_freq = 8; // if we are restarting, what's the frequency?
     double null_mass = 1e-4; // What mass do we use for null vector generation?
@@ -445,8 +445,13 @@ int main(int argc, char** argv)
             }
             else if (strcmp(argv[i], "--null-precision") == 0)
             {
-                null_precision = atof(argv[i+1]);
+                null_precisions[0] = atof(argv[i+1]);
                 i++;
+                while (i+1 != argc && argv[i+1][0] != '-')
+                {
+                    null_precisions.push_back(atof(argv[i+1]));
+                    i++;
+                }
             }
             else if (strcmp(argv[i], "--null-max-iter") == 0)
             {
@@ -1241,6 +1246,12 @@ int main(int argc, char** argv)
         }
     }
     
+    // Allocate null precisions.
+    double* null_precisions_vec = new double[n_refine];
+    if (null_precisions.size() == 1) { for (i = 0; i < n_refine; i++) { null_precisions_vec[i] = null_precisions[0]; } }
+    else // there are unique pre smooth counts for each level.
+    { for (i = 0; i < n_refine; i++) { null_precisions_vec[i] = null_precisions[i]; } }
+    
     // Allocate stencils.
     mgstruct.stencils = new stencil_2d*[n_refine+1];
     for (i = 0; i <= mgstruct.n_refine; i++)
@@ -1438,47 +1449,47 @@ int main(int argc, char** argv)
                         case NULL_GCR:
                             if (null_restart)
                             {
-                                invif = minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
-                                invif = minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
                             }
                             break;
                         case NULL_BICGSTAB:
                             if (null_restart)
                             {
-                                invif = minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
-                                invif = minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
                             }
                             break;
                         case NULL_CG:
                             if (null_restart) // why would you do this I don't know it's CG come on
                             {
-                                invif = minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
-                                invif = minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
                             }
                             break;
                         case NULL_MINRES:
                             // Restarting doesn't make sense for MinRes. 
-                            invif = minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
                             break;
                         case NULL_ARPACK: // it can't get here. 
                             break;
                         case NULL_BICGSTAB_L:
                             if (null_restart)
                             {
-                                invif = minv_vector_bicgstab_l_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_restart_freq, null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab_l_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_restart_freq, null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
-                                invif = minv_vector_bicgstab_l(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precision, null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab_l(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
                             }
                             break;
                     }
@@ -1578,7 +1589,7 @@ int main(int argc, char** argv)
                 arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); 
                 char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
                 complex<double>* eigs_tmp = new complex<double>[mgstruct.n_vector/null_partitions];
-                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, eigs_tmp, mgstruct.null_vectors[mgstruct.curr_level], mgstruct.curr_fine_size, n_eigen, n_cv, null_max_iter, eigtype, null_precision, 0.0, fine_square_staggered, (void*)&mgstruct); 
+                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, eigs_tmp, mgstruct.null_vectors[mgstruct.curr_level], mgstruct.curr_fine_size, n_eigen, n_cv, null_max_iter, eigtype, null_precisions_vec[n], 0.0, fine_square_staggered, (void*)&mgstruct); 
                 delete[] eigs_tmp; 
                 arpack_dcn_free(&ar_strc);
                 
@@ -2462,6 +2473,8 @@ int main(int argc, char** argv)
         delete mgstruct.dagger_stencils[0];
         delete mgstruct.dagger_stencils;
     }
+    
+    delete[] null_precisions_vec; 
     
     delete[] mgprecond.n_pre_smooth;
     delete[] mgprecond.n_post_smooth; 
