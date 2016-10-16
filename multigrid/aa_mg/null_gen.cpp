@@ -18,7 +18,7 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 		case BLOCK_EO:
 			for (j = 0; j < mgstruct->curr_fine_size; j++)
 			{
-				if (Lat->index_is_even(j))
+				if (!Lat->index_is_even(j))
 				{
 					mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j] = mgstruct->null_vectors[0][num_null_vec][j];
 					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;

@@ -59,6 +59,10 @@ void level_down(mg_operator_struct_complex* mgstruct);
 void level_up(mg_operator_struct_complex* mgstruct);
 
 // Generate a coarse stencil from a fine stencil.
+// ignore_shifts = true -> set to zero before building stencil. Otherwise, build shifts directly into new stencil.
+void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct, bool ignore_shifts);
+    
+// Assumes ignore_shifts = false.
 void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct);
 
 // Dslash tracker

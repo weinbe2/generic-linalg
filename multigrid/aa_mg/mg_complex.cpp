@@ -836,7 +836,8 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
 
 // Generate a coarse stencil from a fine stencil. This takes advantage of the prolong and restrict functions
 // explicitly, and also depends on the "sdir" variable the stencil object includes.
-void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct)
+// ignore_shifts = true -> set shifts to zero before building stencil. Otherwise, build shifts directly into new stencil.
+void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct, bool ignore_shifts)
 {   
     if (stenc_coarse->generated || stenc_fine->stencil_size > 2 || stenc_coarse->stencil_size > 2)
     {
@@ -864,6 +865,17 @@ void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* ste
     complex<double>* tmp_Prhs = new complex<double>[fine_size];
     complex<double>* tmp_APrhs = new complex<double>[fine_size];
     
+    // Back up shifts.
+    complex<double> shift = stenc_fine->shift;
+    complex<double> eo_shift = stenc_fine->eo_shift;
+    complex<double> dof_shift = stenc_fine->dof_shift;
+    
+    if (ignore_shifts)
+    {
+        stenc_fine->shift = 0.0;
+        stenc_fine->eo_shift = 0.0;
+        stenc_fine->dof_shift = 0.0;
+    }
     
     // Save the state of the fine stencil.
     stencil_dir saved_dir = stenc_fine->sdir; 
@@ -1178,6 +1190,14 @@ void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* ste
         
         //cout << "Finished color " << color << "\n" << flush; 
     }
+    
+    // Put shifts back in
+    if (ignore_shifts)
+    {
+        stenc_fine->shift = shift;
+        stenc_fine->eo_shift = eo_shift;
+        stenc_fine->dof_shift = dof_shift;
+    }
          
     delete[] tmp_lhs;
     delete[] tmp_rhs; 
@@ -1192,6 +1212,9 @@ void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* ste
     
 }
 
-
+void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct)
+{
+    generate_coarse_from_fine_stencil(stenc_coarse, stenc_fine, mgstruct, false);
+}
 
 

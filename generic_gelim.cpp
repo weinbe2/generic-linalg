@@ -453,7 +453,7 @@ int gaussian_elimination_multi_rhs(complex<double>** x, complex<double>** b, com
     // Eliminate the top row from lower rows.
     for (j=i+1;j<size;j++)
     {
-      double factor = -grown_matrix[j][i]/grown_matrix[i][i];
+      complex<double> factor = -grown_matrix[j][i]/grown_matrix[i][i];
       for (k=i;k<size+n_rhs;k++)
       {
         grown_matrix[j][k] = grown_matrix[j][k] + grown_matrix[i][k]*factor;
@@ -504,7 +504,7 @@ int gaussian_elimination_multi_rhs(complex<double>** x, complex<double>** b, com
   {
     for (j=i-1;j>=0;j--)
     {
-      double factor = -grown_matrix[j][i]/grown_matrix[i][i];
+      complex<double> factor = -grown_matrix[j][i]/grown_matrix[i][i];
       for (k=i;k<size+n_rhs;k++)
       {
         grown_matrix[j][k] = grown_matrix[j][k]+grown_matrix[i][k]*factor;

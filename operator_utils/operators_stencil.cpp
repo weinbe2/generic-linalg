@@ -82,7 +82,7 @@ void get_square_staggered_gamma5_u1_stencil(stencil_2d* stenc, staggered_u1_op* 
     {
         stenc->lat->index_to_coord(i, coords, color);
         eta1 = 1 - 2*(coords[0]%2);
-        eo_sign = stenc->lat->index_is_even(i) ? -1 : 1;
+        eo_sign = stenc->lat->index_is_even(i) ? 1.0 : -1.0;
         
         // Clover is the mass.
         stenc->clover[i] = eo_sign*stagif->mass;

@@ -56,6 +56,9 @@
 // Dagger stencil test! Make sure we correctly build the dagger of the stencil.
 //#define STENCIL_DAGGER_TEST
 
+// Test stencils with the shift built into the clover term vs. using the shift functionality in the stencil.
+//#define STENCIL_SHIFT_TEST
+
 // Do restrict/prolong test?
 //#define PDAGP_TEST
 
@@ -137,7 +140,7 @@ void display_usage()
     cout << "--null-solver [gcr, bicgstab, cg, minres,\n";
     cout << "       arpack, bicgstab-l]                        (default bicgstab)\n";
     cout << "--null-precision [null prec] {#, #...}            (default 5e-5)\n";
-    cout << "--null-max-iter [null maximum iterations]         (default 500)\n";
+    cout << "--null-max-iter [null nax iter] {#, #...}         (default 500)\n";
     cout << "--null-restart [yes, no]                          (default no)\n";
     cout << "--null-restart-freq [#]                           (default 8 if restarting is enabled)\n";
     cout << "--null-bicgstab-l [#]                             (default 4 if using bicgstab-l)\n"; 
@@ -180,6 +183,7 @@ int main(int argc, char** argv)
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     complex<double> *tmp, *tmp2; // For temporary space. 
+    double tmp_mass; // holds temporary mass values.
     double explicit_resid = 0.0;
     double bnorm = 0.0;
     std::mt19937 generator (1337u); // RNG, 1337u is the seed. 
@@ -259,7 +263,8 @@ int main(int argc, char** argv)
 //    Total number of null vectors is 4*VECTOR_COUNT. 
     int n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
                            // Can be overriden on command line with --nvec
-    int null_max_iter = 500;
+
+    vector<int> null_max_iters; null_max_iters.push_back(500); // Can be overriden on command line with --null-max-iter
     vector<double> null_precisions; null_precisions.push_back(5e-5); // Can be overriden on command line with --null-precision
     bool null_restart = false; // do we restart?
     int null_restart_freq = 8; // if we are restarting, what's the frequency?
@@ -455,8 +460,13 @@ int main(int argc, char** argv)
             }
             else if (strcmp(argv[i], "--null-max-iter") == 0)
             {
-                null_max_iter = atoi(argv[i+1]);
+                null_max_iters[0] = atoi(argv[i+1]);
                 i++;
+                while (i+1 != argc && argv[i+1][0] != '-')
+                {
+                    null_max_iters.push_back(atoi(argv[i+1]));
+                    i++;
+                }
             }
             else if (strcmp(argv[i], "--null-restart") == 0)
             {
@@ -929,7 +939,7 @@ int main(int argc, char** argv)
     verb.precond_verb_prefix = "Prec ";
     
     // Describe the gauge field. 
-    cout << "[GAUGE]: Creating a gauge field.\n";
+    cout << "[GAUGE]: Creating a gauge field.\n" << flush; 
     
     switch (gauge_load)
     {
@@ -1252,6 +1262,12 @@ int main(int argc, char** argv)
     else // there are unique pre smooth counts for each level.
     { for (i = 0; i < n_refine; i++) { null_precisions_vec[i] = null_precisions[i]; } }
     
+    // Allocate null max iters
+    double* null_max_iters_vec = new double[n_refine];
+    if (null_max_iters.size() == 1) { for (i = 0; i < n_refine; i++) { null_max_iters_vec[i] = null_max_iters[0]; } }
+    else // there are unique pre smooth counts for each level.
+    { for (i = 0; i < n_refine; i++) { null_max_iters_vec[i] = null_max_iters[i]; } }
+    
     // Allocate stencils.
     mgstruct.stencils = new stencil_2d*[n_refine+1];
     for (i = 0; i <= mgstruct.n_refine; i++)
@@ -1300,18 +1316,15 @@ int main(int argc, char** argv)
         mgstruct.dagger_stencils = 0;
     }
     
-    cout << "[MG]: Creating " << mgstruct.n_vector << " null vectors.\n";
+    cout << "[MG]: Creating " << mgstruct.n_vector << " null vectors.\n" << flush; 
     // Skip this depending on our test!
 
     if (!(my_test == TOP_LEVEL_ONLY || my_test == SMOOTHER_ONLY))
     {
         // Generate top level!
-        cout << "[NULLVEC]: About to generate null vectors.\n";
+        cout << "[NULLVEC]: About to generate null vectors.\n" << flush; 
         
         mgstruct.matrix_vector = op_null; // Trick op to null gen op.
-        
-        // Temporarily set the mass to 1e-4 for the null vector generation. 
-        stagif.mass = null_mass;
         
         // Back up verbosity string.
         std::string verb_string = verb.verb_prefix;
@@ -1320,8 +1333,8 @@ int main(int argc, char** argv)
         stencil_2d** save_stencil = mgstruct.stencils;
         
         // Allocate stencils for null vector generation. 
-        mgstruct.stencils = new stencil_2d*[n_refine+1];
-        for (i = 0; i <= mgstruct.n_refine; i++)
+        mgstruct.stencils = new stencil_2d*[n_refine];
+        for (i = 0; i < mgstruct.n_refine; i++)
         {
             // We can't allocate a stencil if the lattice gets too small.
             if (get_stencil_size(opt_null) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
@@ -1338,22 +1351,41 @@ int main(int argc, char** argv)
             }
         }
         
+        cout << "mgstruct.stencils[0] = " << mgstruct.stencils[0] << "\n" << flush;
+        
         // Fine level is handled specially. In some case, we have a special function to
         // populate the fine staggered stencil without a bunch of matrix multiplies. We don't have it for all
         // operators.
         switch (opt_null)
         {
-            case STAGGERED:
+            case STAGGERED: 
+                // Encode mass in shift, not in the stencil.
+                tmp_mass = stagif.mass; stagif.mass = 0.0;
                 get_square_staggered_u1_stencil(mgstruct.stencils[0], &stagif);
+                stagif.mass = tmp_mass;
+                mgstruct.stencils[0]->shift = null_mass;
                 break;
             case G5_STAGGERED:
+                // Encode mass in a phase shift, not in the stencil.
+                tmp_mass = stagif.mass; stagif.mass = 0.0;
                 get_square_staggered_gamma5_u1_stencil(mgstruct.stencils[0], &stagif);
+                stagif.mass = tmp_mass;
+                mgstruct.stencils[0]->eo_shift = null_mass; 
                 break;
             case LAPLACE: // not implemented yet...
             case LAPLACE_NC2:
+                // Encode mass in shift, not in the stencil.
+                tmp_mass = stagif.mass; stagif.mass = 0.0;
+                generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
+                stagif.mass = tmp_mass;
+                mgstruct.stencils[0]->shift = null_mass; 
+                break;
             case STAGGERED_NORMAL:
             case STAGGERED_INDEX:
+                // Use the null generation mass. 
+                tmp_mass = stagif.mass; stagif.mass = null_mass;
                 generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
+                stagif.mass = tmp_mass;
                 break;
         }
         cout << "[STENCIL_L1]: Built stencil.\n" << flush;
@@ -1449,47 +1481,47 @@ int main(int argc, char** argv)
                         case NULL_GCR:
                             if (null_restart)
                             {
-                                invif = minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
-                                invif = minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_gcr(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
                             }
                             break;
                         case NULL_BICGSTAB:
                             if (null_restart)
                             {
-                                invif = minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
-                                invif = minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
                             }
                             break;
                         case NULL_CG:
                             if (null_restart) // why would you do this I don't know it's CG come on
                             {
-                                invif = minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
-                                invif = minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_cg(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
                             }
                             break;
                         case NULL_MINRES:
                             // Restarting doesn't make sense for MinRes. 
-                            invif = minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
+                            invif = minv_vector_minres(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], fine_square_staggered, &mgstruct, &verb);
                             break;
                         case NULL_ARPACK: // it can't get here. 
                             break;
                         case NULL_BICGSTAB_L:
                             if (null_restart)
                             {
-                                invif = minv_vector_bicgstab_l_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_restart_freq, null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab_l_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_restart_freq, null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
-                                invif = minv_vector_bicgstab_l(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iter, null_precisions_vec[n], null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab_l(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
                             }
                             break;
                     }
@@ -1589,7 +1621,7 @@ int main(int argc, char** argv)
                 arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); 
                 char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
                 complex<double>* eigs_tmp = new complex<double>[mgstruct.n_vector/null_partitions];
-                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, eigs_tmp, mgstruct.null_vectors[mgstruct.curr_level], mgstruct.curr_fine_size, n_eigen, n_cv, null_max_iter, eigtype, null_precisions_vec[n], 0.0, fine_square_staggered, (void*)&mgstruct); 
+                arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, eigs_tmp, mgstruct.null_vectors[mgstruct.curr_level], mgstruct.curr_fine_size, n_eigen, n_cv, null_max_iters_vec[n], eigtype, null_precisions_vec[n], 0.0, fine_square_staggered, (void*)&mgstruct); 
                 delete[] eigs_tmp; 
                 arpack_dcn_free(&ar_strc);
                 
@@ -1658,16 +1690,40 @@ int main(int argc, char** argv)
                 // it failed if the volume wasn't big enough.
                 if (mgstruct.stencils[mgstruct.curr_level+1] != 0)
                 {
-                    if (get_stencil_size(opt) == 2)
+                    if (get_stencil_size(opt_null) == 2)
                     {
-                        // Generate the old, inefficient way.
+                        // Generate the old, inefficient way. This method builds the shifts directly in.
                         generate_stencil_2d(mgstruct.stencils[mgstruct.curr_level+1], coarse_square_staggered, (void*)&mgstruct);
                         cout << "[STENCIL_L" << mgstruct.curr_level+2 << "]: Null vector generation inefficient stencil build.\n" << flush;
                     }
                     else
                     {
                         // Generate the new, shiny way!
-                        generate_coarse_from_fine_stencil(mgstruct.stencils[mgstruct.curr_level+1], mgstruct.stencils[mgstruct.curr_level], &mgstruct); 
+                        if (bstrat == BLOCK_TOPO || (opt_null == G5_STAGGERED && (bstrat == BLOCK_NONE || bstrat == BLOCK_TOPO)))
+                        {
+                            // Need to block mass in since we've destroyed good chirality.
+                            generate_coarse_from_fine_stencil(mgstruct.stencils[mgstruct.curr_level+1], mgstruct.stencils[mgstruct.curr_level], &mgstruct, false);  // build shifts in.
+                        }
+                        else // we're good!
+                        {
+                            generate_coarse_from_fine_stencil(mgstruct.stencils[mgstruct.curr_level+1], mgstruct.stencils[mgstruct.curr_level], &mgstruct, true);  // true -> ignore shifts, don't build in.
+                            // Set shifted masses.
+                            switch (opt_null)
+                            {
+                                case STAGGERED: 
+                                case LAPLACE:
+                                case LAPLACE_NC2:
+                                    mgstruct.stencils[mgstruct.curr_level+1]->shift = mgstruct.stencils[mgstruct.curr_level]->shift;
+                                    break;
+                                case G5_STAGGERED:
+                                    mgstruct.stencils[mgstruct.curr_level+1]->dof_shift = (mgstruct.curr_level == 0 ? mgstruct.stencils[mgstruct.curr_level]->eo_shift : mgstruct.stencils[mgstruct.curr_level]->dof_shift);
+                                    break;
+                                case STAGGERED_NORMAL:
+                                case STAGGERED_INDEX:
+                                    // Can't get here anyway.
+                                    break;
+                            }
+                        }
                         cout << "[STENCIL_L" << mgstruct.curr_level+2 << "]: Null vector generation efficient stencil build.\n" << flush;
                     }
                 }
@@ -1684,7 +1740,7 @@ int main(int argc, char** argv)
         // Reset the tricks we've done. 
         
         // Clear out temporary null vector stencils.
-        for (i = 1; i <= mgstruct.n_refine; i++)
+        for (i = 1; i < mgstruct.n_refine; i++)
         {
             if (mgstruct.stencils[i] != 0) { delete mgstruct.stencils[i]; }
         }
@@ -1692,7 +1748,6 @@ int main(int argc, char** argv)
         delete[] mgstruct.stencils; 
         
         mgstruct.matrix_vector = op; // Reset op to solved op.
-        stagif.mass = MASS; 
         verb.verb_prefix = verb_string; 
         mgstruct.stencils = save_stencil;
         
@@ -1711,24 +1766,56 @@ int main(int argc, char** argv)
         switch (opt)
         {
             case STAGGERED:
+                // Encode mass in shift, not in the stencil.
+                tmp_mass = stagif.mass; stagif.mass = 0.0;
                 get_square_staggered_u1_stencil(mgstruct.stencils[0], &stagif);
                 if (mgstruct.have_dagger_stencil)
                 {
                     get_square_staggered_dagger_u1_stencil(mgstruct.dagger_stencils[0], &stagif);
                 }
+                stagif.mass = tmp_mass;
+                mgstruct.stencils[0]->shift = stagif.mass;
+                if (mgstruct.have_dagger_stencil)
+                {
+                    mgstruct.dagger_stencils[0]->shift = stagif.mass;
+                }
                 cout << "[STENCIL_L1]: Final efficient stencil build.\n" << flush;
                 break;
             case G5_STAGGERED:
+                // Encode mass in shift, not in the stencil.
+                tmp_mass = stagif.mass; stagif.mass = 0.0;
                 get_square_staggered_gamma5_u1_stencil(mgstruct.stencils[0], &stagif);
                 if (mgstruct.have_dagger_stencil)
                 {
                     // G5_STAGGERED is hermitian indefinite.
                     get_square_staggered_gamma5_u1_stencil(mgstruct.dagger_stencils[0], &stagif);
                 }
+                stagif.mass = tmp_mass;
+                mgstruct.stencils[0]->eo_shift = stagif.mass;
+                if (mgstruct.have_dagger_stencil)
+                {
+                    mgstruct.dagger_stencils[0]->eo_shift = stagif.mass;
+                }
                 cout << "[STENCIL_L1]: Final efficient stencil build.\n" << flush;
                 break;
             case LAPLACE: // not implemented yet...
             case LAPLACE_NC2:
+                // Encode mass in shift, not in the stencil.
+                tmp_mass = stagif.mass; stagif.mass = 0.0;
+                generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
+                if (mgstruct.have_dagger_stencil)
+                {
+                    // These operators are all hermitian (pos def or indef)
+                    generate_stencil_2d(mgstruct.dagger_stencils[0], fine_square_staggered, (void*)&mgstruct);
+                }
+                stagif.mass = tmp_mass;
+                mgstruct.stencils[0]->shift = stagif.mass;
+                if (mgstruct.have_dagger_stencil)
+                {
+                    mgstruct.dagger_stencils[0]->shift = stagif.mass;
+                }
+                cout << "[STENCIL_L1]: Final inefficient stencil build.\n" << flush;
+                break; 
             case STAGGERED_NORMAL:
             case STAGGERED_INDEX:
                 generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
@@ -1741,7 +1828,6 @@ int main(int argc, char** argv)
                 break;
         }
         
-        
         for (int n = 0; n < mgstruct.n_refine; n++)
         {
             if (mgstruct.stencils[n+1] != 0)
@@ -1749,7 +1835,7 @@ int main(int argc, char** argv)
                 mgstruct.stencils[n+1]->clear_stencils();
                 if (get_stencil_size(opt) == 2)
                 {
-                    // Generate the old, inefficient way.
+                    // Generate the old, inefficient way. This builds shifts directly in.
                     generate_stencil_2d(mgstruct.stencils[n+1], coarse_square_staggered, (void*)&mgstruct);
                     if (mgstruct.have_dagger_stencil)
                     {
@@ -1760,10 +1846,64 @@ int main(int argc, char** argv)
                 else
                 {
                     // Generate the new, shiny way!
-                    generate_coarse_from_fine_stencil(mgstruct.stencils[n+1], mgstruct.stencils[n], &mgstruct); 
+                    if (bstrat == BLOCK_TOPO || (opt == G5_STAGGERED && bstrat == BLOCK_NONE))
+                    {
+                        // Need to block mass in since we've destroyed good chirality.
+                        generate_coarse_from_fine_stencil(mgstruct.stencils[n+1], mgstruct.stencils[n], &mgstruct, false);  // build shifts in.
+                    }
+                    else // we're good!
+                    {
+                        generate_coarse_from_fine_stencil(mgstruct.stencils[n+1], mgstruct.stencils[n], &mgstruct, true);  // true -> ignore shifts, don't build in.
+                        // Set shifted masses.
+                        switch (opt)
+                        {
+                            case STAGGERED: 
+                            case LAPLACE:
+                            case LAPLACE_NC2:
+                                mgstruct.stencils[n+1]->shift = mgstruct.stencils[n]->shift; 
+                                break;
+                            case G5_STAGGERED:
+                                mgstruct.stencils[n+1]->dof_shift = (n == 0 ? mgstruct.stencils[n]->eo_shift : mgstruct.stencils[n]->dof_shift);
+                                break;
+                            case STAGGERED_NORMAL:
+                            case STAGGERED_INDEX:
+                                // Can't get here anyway.
+                                break;
+                        }
+                    }
+                    
+                    
+                    // Generate the new, shiny way!
+                    //generate_coarse_from_fine_stencil(mgstruct.stencils[n+1], mgstruct.stencils[n], &mgstruct); 
                     if (mgstruct.have_dagger_stencil)
                     {
-                        generate_coarse_from_fine_stencil(mgstruct.dagger_stencils[n+1], mgstruct.dagger_stencils[n], &mgstruct); 
+                        // Generate the new, shiny way!
+                        if (bstrat == BLOCK_TOPO || (opt == G5_STAGGERED && (bstrat == BLOCK_NONE || bstrat == BLOCK_TOPO)))
+                        {
+                            // Need to block mass in since we've destroyed good chirality.
+                            generate_coarse_from_fine_stencil(mgstruct.dagger_stencils[n+1], mgstruct.dagger_stencils[n], &mgstruct, false);  // build shifts in.
+                        }
+                        else // we're good!
+                        {
+                            generate_coarse_from_fine_stencil(mgstruct.dagger_stencils[n+1], mgstruct.dagger_stencils[n], &mgstruct, true);  // true -> ignore shifts, don't build in.
+                            // Set shifted masses.
+                            switch (opt)
+                            {
+                                case STAGGERED: 
+                                case LAPLACE:
+                                case LAPLACE_NC2:
+                                    mgstruct.dagger_stencils[n+1]->shift = mgstruct.dagger_stencils[n]->shift; 
+                                    break;
+                                case G5_STAGGERED:
+                                    mgstruct.stencils[n+1]->dof_shift = (n == 0 ? mgstruct.dagger_stencils[n]->eo_shift : mgstruct.dagger_stencils[n]->dof_shift);
+                                    break;
+                                case STAGGERED_NORMAL:
+                                case STAGGERED_INDEX:
+                                    // Can't get here anyway.
+                                    break;
+                            }
+                        }
+                        
                     }
                     cout << "[STENCIL_L" << n+2 << "]: Final efficient stencil build.\n" << flush;
                 }
@@ -1948,7 +2088,97 @@ int main(int argc, char** argv)
     
     return 0;
 #endif
+    
+    
+#ifdef STENCIL_SHIFT_TEST
+    
+    for (int n = 0; n <= mgstruct.n_refine; n++)
+    {
+        complex<double>* tmp_rhs = new complex<double>[mgstruct.latt[n]->get_lattice_size()];
+        complex<double>* tmp_lhs = new complex<double>[mgstruct.latt[n]->get_lattice_size()];
+        complex<double>* tmp_lhs2 = new complex<double>[mgstruct.latt[n]->get_lattice_size()];
 
+        // Randomize the rhs.
+        gaussian<double>(tmp_rhs, mgstruct.latt[n]->get_lattice_size(), generator);
+
+        // Apply op.
+        if (n == 0)
+        {
+            op(tmp_lhs, tmp_rhs, &stagif);
+        }
+        else
+        {
+            apply_stencil_2d(tmp_lhs, tmp_rhs, mgstruct.stencils[n]);
+        }
+        
+        // Generate stencil with shift built in.
+        stencil_2d* tmp_stencil = new stencil_2d(mgstruct.latt[n], get_stencil_size(opt));
+        if (n == 0)
+        {
+            switch (opt)
+            {
+                case STAGGERED:
+                    get_square_staggered_u1_stencil(tmp_stencil, &stagif);
+                    break;
+                case G5_STAGGERED:
+                    get_square_staggered_gamma5_u1_stencil(tmp_stencil, &stagif);
+                    break;
+                case LAPLACE: // not implemented yet...
+                case LAPLACE_NC2:
+                case STAGGERED_NORMAL:
+                case STAGGERED_INDEX:
+                    generate_stencil_2d(tmp_stencil, fine_square_staggered, (void*)&mgstruct);
+                    break;
+            }
+        }
+        else
+        {
+            generate_coarse_from_fine_stencil(tmp_stencil, mgstruct.stencils[n-1], &mgstruct, false);  // build shifts in.
+            level_down(&mgstruct);
+        }
+
+        // Apply stencil.
+        apply_stencil_2d(tmp_lhs2, tmp_rhs, tmp_stencil);
+
+        // Compare
+        cout << "Relative difference in test is " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[n]->get_lattice_size()) << "\n" << flush;
+        
+        delete[] tmp_rhs;
+        delete[] tmp_lhs;
+        delete[] tmp_lhs2;
+    }
+
+    return 0;
+    
+#endif
+    
+    /*
+    generate_coarse_from_fine_stencil(tmp_stencil, mgstruct.stencils[0], &mgstruct, false);  // build shifts in.
+    
+    complex<double>* tmp_rhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_lhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_lhs2 = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    complex<double>* tmp_tmp = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
+    
+    // Randomize the rhs.
+    gaussian<double>(tmp_rhs, mgstruct.latt[1]->get_lattice_size(), generator);
+    
+    cout << "L0 Shift stencil shift " << mgstruct.stencils[0]->shift << " eo_shift " << mgstruct.stencils[0]->eo_shift << " dof_shift " << mgstruct.stencils[0]->dof_shift << "\n" << flush;
+    
+    cout << "L1 Shift stencil shift " << mgstruct.stencils[1]->shift << " eo_shift " << mgstruct.stencils[1]->eo_shift << " dof_shift " << mgstruct.stencils[1]->dof_shift << "\n" << flush;
+    cout << "L1 Shift-built-in stencil shift " << tmp_stencil->shift << " eo_shift " << tmp_stencil->eo_shift << " dof_shift " << tmp_stencil->dof_shift << "\n" << flush;
+    
+    // Apply shift stencil.
+    apply_stencil_2d(tmp_lhs, tmp_rhs, mgstruct.stencils[1]);
+    
+    // Apply shift-built-in-stencil
+    apply_stencil_2d(tmp_lhs2, tmp_rhs, tmp_stencil);
+    
+    // Compare
+    cout << "Relative difference in test is " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[1]->get_lattice_size()) << "\n" << flush;
+    
+    return 0;
+    */
     
 #ifdef PDAGP_TEST
     {
@@ -2475,6 +2705,7 @@ int main(int argc, char** argv)
     }
     
     delete[] null_precisions_vec; 
+    delete[] null_max_iters_vec;
     
     delete[] mgprecond.n_pre_smooth;
     delete[] mgprecond.n_post_smooth; 

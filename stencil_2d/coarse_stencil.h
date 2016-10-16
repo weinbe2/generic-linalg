@@ -56,9 +56,19 @@ struct stencil_2d
     // Have we generated a lattice?
     bool generated;
     
+    // Identity shift, think local mass term. 
+    complex<double> shift; 
+    
+    // Even/odd shift (minus sign on odd), think mass term in g5_staggered
+    complex<double> eo_shift; 
+    
+    // Top/bottom half shift (minus sign on bottom half of color dof, think mass term on coarse g5_staggered.
+    // i.e., top half of dof gets a lhs[i] += dof_shift*rhs[i], bottom half gets a rhs[i] -= dof_shift*rhs[i]
+    complex<double> dof_shift;
+    
     // Base constructor.
-    stencil_2d(Lattice* in_lat, int in_stencil_size)
-        : lat(in_lat), stencil_size(in_stencil_size)
+    stencil_2d(Lattice* in_lat, int in_stencil_size, complex<double> in_shift = 0.0, complex<double> in_eo_shift = 0.0, complex<double> in_dof_shift = 0.0)
+        : lat(in_lat), stencil_size(in_stencil_size), shift(in_shift), eo_shift(in_eo_shift), dof_shift(in_dof_shift)
     {
         generated = false; 
             
@@ -95,6 +105,9 @@ struct stencil_2d
         sdir = obj.sdir;
         has_two = obj.has_two;
         stencil_size = obj.stencil_size;
+        shift = obj.shift; 
+        eo_shift = obj.eo_shift;
+        dof_shift = obj.dof_shift; 
         
         clover = new complex<double>[lat->get_volume()*lat->get_nc()*lat->get_nc()];
         copy<double>(clover, obj.clover, lat->get_volume()*lat->get_nc()*lat->get_nc());
@@ -136,6 +149,7 @@ struct stencil_2d
         }
         generated = false; 
     }
+    
     
 };
 

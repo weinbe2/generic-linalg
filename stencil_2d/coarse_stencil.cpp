@@ -148,6 +148,25 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
                 }
 
             }
+            
+            // Apply an identity shift.
+            if (abs(links->shift) != 0.0)
+            {
+                lhs[i] += links->shift*rhs[i];
+            }
+
+            // Apply even/odd phased shift.
+            if (abs(links->eo_shift) != 0.0)
+            {
+                lhs[i] += (links->lat->index_is_even(i) ? 1.0 : -1.0)*links->eo_shift*rhs[i];
+            }
+
+            // Apply top half/bottom half dof shift.
+            if (abs(links->dof_shift) != 0.0)
+            {
+                links->lat->index_to_coord(i, (int*)coords, color);
+                lhs[i] += (color < nc/2 ? 1.0 : -1.0)*links->dof_shift*rhs[i];
+            }
 
         }
     }
@@ -165,6 +184,25 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
                     for (c = 0; c < nc; c++)
                     {
                         lhs[i] += links->clover[c + nc*i]*rhs[links->lat->coord_to_index((int*)coords, c)];
+                    }
+                    
+                    // Apply an identity shift.
+                    if (abs(links->shift) != 0.0)
+                    {
+                        lhs[i] += links->shift*rhs[i];
+                    }
+
+                    // Apply even/odd phased shift.
+                    if (abs(links->eo_shift) != 0.0)
+                    {
+                        lhs[i] += (links->lat->index_is_even(i) ? 1.0 : -1.0)*links->eo_shift*rhs[i];
+                    }
+
+                    // Apply top half/bottom half dof shift.
+                    if (abs(links->dof_shift) != 0.0)
+                    {
+                        links->lat->index_to_coord(i, (int*)coords, color);
+                        lhs[i] += (color < nc/2 ? 1.0 : -1.0)*links->dof_shift*rhs[i];
                     }
                 }
                 break;
@@ -351,6 +389,9 @@ void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_da
                 break;
         } // end switch
     } // end only one link for the stencil. 
+            
+                
+    
 }
 
 

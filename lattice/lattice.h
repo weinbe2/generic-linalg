@@ -124,7 +124,7 @@ public:
         return i % nc;
     }
     
-    // Find out if site is even (0) or odd (1)
+    // Find out if site is even (true) or odd (false)
     inline bool index_is_even(int &i)
     {
         int color = 0;
@@ -135,7 +135,7 @@ public:
         for (int j = 0; j < nd; j++) { tmp += internal_coord[j]; }
 
 
-        return tmp % 2;
+        return (tmp+1) % 2;
     }
     
     // Find out of coord is even (1) or odd(0)
