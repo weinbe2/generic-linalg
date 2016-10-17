@@ -144,6 +144,7 @@ void display_usage()
     cout << "--null-restart [yes, no]                          (default no)\n";
     cout << "--null-restart-freq [#]                           (default 8 if restarting is enabled)\n";
     cout << "--null-bicgstab-l [#]                             (default 4 if using bicgstab-l)\n"; 
+    //cout << "--null-mass [mass] {#, #...}                      (default 1e-4)\n";
     cout << "--null-mass [mass]                                (default 1e-4)\n";
     cout << "--null-eo [corner, yes, no, topo]                 (default yes)\n";
     cout << "--null-global-ortho-conj [yes, no]                (default no, it only helps in some weird fluke cases)\n";
@@ -1093,7 +1094,7 @@ int main(int argc, char** argv)
     
     // Build lattice objects for each level. 
     mgstruct.latt = new Lattice*[n_refine+1];
-    mgstruct.latt[0] = &Lat; // The fine level already exists.
+    mgstruct.latt[0] = new Lattice(Lat); // The fine level already exists.
     
     if (n_refine > 0)
     {
@@ -2152,34 +2153,6 @@ int main(int argc, char** argv)
     
 #endif
     
-    /*
-    generate_coarse_from_fine_stencil(tmp_stencil, mgstruct.stencils[0], &mgstruct, false);  // build shifts in.
-    
-    complex<double>* tmp_rhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
-    complex<double>* tmp_lhs = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
-    complex<double>* tmp_lhs2 = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
-    complex<double>* tmp_tmp = new complex<double>[mgstruct.latt[1]->get_lattice_size()];
-    
-    // Randomize the rhs.
-    gaussian<double>(tmp_rhs, mgstruct.latt[1]->get_lattice_size(), generator);
-    
-    cout << "L0 Shift stencil shift " << mgstruct.stencils[0]->shift << " eo_shift " << mgstruct.stencils[0]->eo_shift << " dof_shift " << mgstruct.stencils[0]->dof_shift << "\n" << flush;
-    
-    cout << "L1 Shift stencil shift " << mgstruct.stencils[1]->shift << " eo_shift " << mgstruct.stencils[1]->eo_shift << " dof_shift " << mgstruct.stencils[1]->dof_shift << "\n" << flush;
-    cout << "L1 Shift-built-in stencil shift " << tmp_stencil->shift << " eo_shift " << tmp_stencil->eo_shift << " dof_shift " << tmp_stencil->dof_shift << "\n" << flush;
-    
-    // Apply shift stencil.
-    apply_stencil_2d(tmp_lhs, tmp_rhs, mgstruct.stencils[1]);
-    
-    // Apply shift-built-in-stencil
-    apply_stencil_2d(tmp_lhs2, tmp_rhs, tmp_stencil);
-    
-    // Compare
-    cout << "Relative difference in test is " << diffnorm2sq<double>(tmp_lhs, tmp_lhs2, mgstruct.latt[1]->get_lattice_size()) << "\n" << flush;
-    
-    return 0;
-    */
-    
 #ifdef PDAGP_TEST
     {
         // Begin PdagP test.
@@ -2484,42 +2457,46 @@ int main(int argc, char** argv)
     {
         // Try a direct solve.
         cout << "\n[ORIG]: Solve fine system.\n";
-
+        
+        cout << "Mgstruct fine size " << mgstruct.curr_fine_size << "\n" << flush;
+        
         switch (out_solve)
         {
             case OUTER_GCR:
                 if (outer_restart)
                 {
-                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&stagif, &verb);
+                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&stagif, &verb);
+                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, &verb);
                 }
                 break;
             case OUTER_CG:
                 if (outer_restart)
                 {
-                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&stagif, &verb);
+                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&stagif, &verb);
+                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, &verb);
                 }
                 break;
             case OUTER_BICGSTAB:
                 if (outer_restart)
                 {
-                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&stagif, &verb);
+                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&stagif, &verb);
+                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, &verb);
                 }
                 break;
         }
+        
         //invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
         mgstruct.dslash_count->krylov[mgstruct.curr_level] += (normal_eqn_mg ? 2 : 1)*invif.ops_count; 
+        
 
         if (invif.success == true)
         {
@@ -2535,7 +2512,7 @@ int main(int argc, char** argv)
 
         // Check and make sure we get the right answer.
         zero<double>(check, Lat.get_lattice_size());
-        (*op)(check, lhs, (void*)&stagif); 
+        (*fine_op)(check, lhs, (void*)&mgstruct); 
         //square_staggered_u1(check, lhs, (void*)&stagif);
 
         explicit_resid = 0.0;
@@ -2688,7 +2665,7 @@ int main(int argc, char** argv)
     delete[] mgstruct.null_vectors; 
     if (mgstruct.n_refine > 0)
     {
-        for (i = 1; i <= mgstruct.n_refine; i++)
+        for (i = 0; i <= mgstruct.n_refine; i++)
         {
             delete mgstruct.latt[i];
             if (mgstruct.stencils[i] != 0) { delete mgstruct.stencils[i]; }
@@ -2696,11 +2673,9 @@ int main(int argc, char** argv)
         }
     }
     delete[] mgstruct.latt;
-    delete mgstruct.stencils[0];
     delete[] mgstruct.stencils; 
     if (mgstruct.have_dagger_stencil)
     {
-        delete mgstruct.dagger_stencils[0];
         delete mgstruct.dagger_stencils;
     }
     
