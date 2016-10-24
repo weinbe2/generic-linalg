@@ -13,4 +13,12 @@ enum inner_solver
     BICGSTAB_L = 6,
 };
 
+enum outer_solver
+{
+    OUTER_GCR = 0, // VPGCR
+    OUTER_CG = 1, // FPCG
+    OUTER_BICGSTAB = 2 //PBICGSTAB
+}; 
+
+
 #endif // MG

@@ -8,6 +8,14 @@
 using std::complex;
 using std::string;
 
+// Different gauge field types. 
+enum gauge_create_type
+{
+    GAUGE_LOAD = 0,             // Load a gauge field.
+    GAUGE_RANDOM = 1,           // Create a gauge field with deviation 1/sqrt(beta)
+    GAUGE_UNIT = 2              // Use a unit gauge field.
+};
+
 // Load complex gauge field from file. 
 // Based on Rich Brower's u1 gauge routines. 
 // Reads in a U1 phase lattice from file, returns complex fields. 

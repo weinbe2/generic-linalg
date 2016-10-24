@@ -34,6 +34,7 @@
 #include "operators_stencil.h"
 #include "coarse_stencil.h"
 #include "tests.h"
+#include "input_params.h"
 
 // Are we checking eigenvalues?
 #define EIGEN_TEST
@@ -87,15 +88,6 @@ enum mg_test_types
 };
 
 
-
-// What gauge field do we use? Load, random, unit?
-enum gauge_create_type
-{
-    GAUGE_LOAD = 0,             // Load a gauge field.
-    GAUGE_RANDOM = 1,           // Create a gauge field with deviation 1/sqrt(beta)
-    GAUGE_UNIT = 2              // Use a unit gauge field.
-};
-
 // Custom routine to load gauge field.
 void internal_load_gauge_u1(complex<double>* lattice, int x_fine, int y_fine, double BETA);
 
@@ -106,81 +98,12 @@ enum src_type
     ORIGIN_POINT = 2 // for correlator test. 
 };
 
-enum outer_solver
-{
-    OUTER_GCR = 0, // VPGCR
-    OUTER_CG = 1, // FPCG
-    OUTER_BICGSTAB = 2 //PBICGSTAB
-}; 
-
-/*struct staggered_u1_op
-{
-    complex<double> *lattice;
-    double mass;
-    int x_fine;
-    int y_fine; 
-    Lattice* Lat; 
-    int Nc; // only relevant for square laplace. 
-};*/
-
-// Print usage. 
-void display_usage()
-{
-    cout << "--help\n";
-    cout << "--lattice-size [32, 64, 128] {##}                 (default 32x32)\n";
-    cout << "--operator [laplace, laplace2, staggered\n";
-    cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
-    cout << "--outer-solver [gcr, bicgstab, cg]                (default gcr)\n";
-    cout << "--outer-precision [outer prec]                    (default 5e-7)\n";
-    cout << "--outer-max-iter [outer maximum iterations]       (default 100000)\n";
-    cout << "--outer-restart [yes, no]                         (default yes)\n";
-    cout << "--outer-restart-freq [#]                          (default 64)\n";
-    cout << "--null-operator [laplace, laplace2, staggered\n";
-    cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
-    cout << "--null-solver [gcr, bicgstab, cg, minres,\n";
-    cout << "       arpack, bicgstab-l]                        (default bicgstab)\n";
-    cout << "--null-precision [null prec] {#, #...}            (default 5e-5)\n";
-    cout << "--null-max-iter [null nax iter] {#, #...}         (default 500)\n";
-    cout << "--null-restart [yes, no]                          (default no)\n";
-    cout << "--null-restart-freq [#]                           (default 8 if restarting is enabled)\n";
-    cout << "--null-bicgstab-l [#]                             (default 4 if using bicgstab-l)\n"; 
-    //cout << "--null-mass [mass] {#, #...}                      (default 1e-4)\n";
-    cout << "--null-mass [mass]                                (default 1e-4)\n";
-    cout << "--null-eo [corner, yes, no, topo]                 (default yes)\n";
-    cout << "--null-global-ortho-conj [yes, no]                (default no, it only helps in some weird fluke cases)\n";
-    cout << "--null-ortho-eo [yes, no]                         (default no)\n"; 
-    cout << "--mass [mass]                                     (default 1e-2)\n";
-    cout << "--blocksize [blocksize] {#, #...}                 (default 4, same for all levels)\n";
-    cout << "--nvec [nvec]                                     (default 4)\n";
-    cout << "--nrefine [number coarse]                         (default 1)\n";
-    cout << "--cycle-type [v, k]                               (default v)\n";
-    cout << "--mg-type [self, normal_eqn]                      (default self)\n";
-    cout << "--smoother-solver [gcr, bicgstab, cg, minres,\n";
-    cout << "         cr, bicgstab-l, none]                    (default gcr)\n"; 
-    cout << "--smoother-type [self, normal_eqn]                (default self)\n";
-    cout << "--npre-smooth [presmooth steps] {#, #, ...}       (default 6, same for all levels)\n";
-    cout << "--npost-smooth [postsmooth steps] {#, #, ...}     (default 6, same for all levels)\n";
-    cout << "--coarse-solver [gcr, bicgstab, cg, minres,\n";
-    cout << "         cr, none]                                (default gcr)\n";
-    cout << "--coarse-precision [coarse precision] {#, #, ...} (default 1e-2, same for all levels)\n";
-    cout << "--coarse-max-iter [coarse maximum iterations]     (default 1024)\n";
-    cout << "--gauge [unit, load, random]                      (default load)\n";
-    cout << "--gauge-transform [yes, no]                       (default no)\n";
-    cout << "--beta [3.0, 6.0, 10.0, 10000.0]                  (default 6.0)\n";
-    cout << "--load-cfg [path]                                 (default do not load, overrides beta)\n";
-    cout << "--do-freetest [yes, no]                           (default no)\n"; 
-#ifdef EIGEN_TEST
-    cout << "--do-eigentest [yes, no]                          (default no)\n";
-    cout << "--n-ev [all, # smallest]                          (default all)\n";
-    cout << "--n-cv [#]                                        (default min(all, 2.5*n-ev))\n";
-#endif // EIGEN_TEST
-}
-
 int main(int argc, char** argv)
 {  
     // Declare some variables.
     cout << setiosflags(ios::scientific) << setprecision(6);
-    int i, j, k, x, y;
+    unsigned int i; 
+    int j, k;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     complex<double> *tmp, *tmp2; // For temporary space. 
@@ -192,646 +115,45 @@ int main(int argc, char** argv)
     staggered_u1_op stagif;
     
     // Introducing coordinate functions slowly.
-    int nd = 2;
+    unsigned int nd = 2;
     int* coord = new int[nd];
     for (i = 0; i < nd; i++)
     {
         coord[i] = 0;
     }
     int lattice_size[nd];
-    int color = 0;
     
-    // Set parameters. 
+    // Set parameters. This input parameters class automatically
+    // gets populated by a set of default parameters. Look in 
+    // "input_params.cpp" to see the defaults.
+    mg_input_params params; // multigrid params. 
     
-    // How are we creating the gauge field? Load it, random, unit? Can set on command line.
-    gauge_create_type gauge_load = GAUGE_LOAD; // GAUGE_LOAD, GAUGE_UNIT, GAUGE_RANDOM
     
-    // Should we do a random gauge rotation? Can set on command line.
-    bool do_gauge_transform = false; 
-    
-    // What operator are we using for the solve? (Laplace is free only.) Can set on command line.
-    op_type opt = STAGGERED; // STAGGERED, LAPLACE, LAPLACE_NC2, G5_STAGGERED
-    
-    // What operator are we using for null vector generation? Can set on command line.
-    op_type opt_null = STAGGERED;
-
-    // What test are we performing?
-    mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
-    
-    // How are we generating null vectors?
-    mg_null_gen_type null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MINRES, NULL_BICGSTAB_L
-    
-    // L_x = L_y = Dimension for a lattice.
-    int lattice_size_x = 32; // Can be set on command line with --lattice-size. 
-    int lattice_size_y = 32; 
-    
-    // Describe the staggered fermions.
-    double MASS = 0.01; // Can be overridden on command line with --mass 
-    
+    // Other initialization-type deals. 
     // Describe the source type.
     src_type source = RANDOM_GAUSSIAN; // POINT, RANDOM_GAUSSIAN, or ORIGIN_POINT (for correlator test).
     
-    // Outer Inverter information.
-    outer_solver out_solve = OUTER_GCR; 
-    double outer_precision = 5e-7; 
-    bool outer_restart = true;
-    int outer_restart_freq = 64; 
-    int outer_max_iter = 100000;
+    // What test are we performing?
+    mg_test_types my_test = TWO_LEVEL; //THREE_LEVEL; // TWO_LEVEL is the default which won't override anything.
     
-    // Multigrid information. 
-    int n_refine = 1; // 1 = two level V cycle, 2 = three level V cycle, etc. 
-                      // Can be set on command line with --nrefine
     if (my_test == THREE_LEVEL) // FOR TEST ONLY
     {
-        n_refine = 2;
+        params.n_refine = 2;
     }
-    vector<int> blocksizes; blocksizes.push_back(4); // Vector of block sizes.
-    blocking_strategy bstrat = BLOCK_EO; // BLOCK_NONE, BLOCK_EO, BLOCK_CORNER
-    int null_partitions = 2; 
     
-    // Null vector generation
-    
-// If GEN_NULL_VECTOR isn't defined:
-//   1 for just const vector, 2 for const + even/odd vector, 4 for each corner
-//    of the hypercube.
-// If GEN_NULL_VECTOR is defined and eo = 0:
-//   Generate "n_null_vector" null vectors which are block orthogonalized.
-// IF GEN_NULL_VECTOR is defined and eo = 1:
-//   Generate "n_null_vector" null vectors, partition into even and odd.
-//    Total number of null vectors is 2*VECTOR_COUNT. 
-// IF GEN_NULL_VECTOR is defined and eo = 3:
-//   Generate "n_null_vector" null vectors, partition into four corners.
-//    Total number of null vectors is 4*VECTOR_COUNT. 
-    int n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
-                           // Can be overriden on command line with --nvec
-
-    vector<int> null_max_iters; null_max_iters.push_back(500); // Can be overriden on command line with --null-max-iter
-    vector<double> null_precisions; null_precisions.push_back(5e-5); // Can be overriden on command line with --null-precision
-    bool null_restart = false; // do we restart?
-    int null_restart_freq = 8; // if we are restarting, what's the frequency?
-    double null_mass = 1e-4; // What mass do we use for null vector generation?
-    int null_bicgstab_l = 4; // What l to use if we're using BiCGStab-l for null vector generation. 
-    
-    // Do we globally orthogonalize null vectors both against previous null vectors and their conjugate?
-    bool do_global_ortho_conj = false;
-    
-    // Do we split null vectors into even/odd, then orthogonalize, or do we orthogonalize first?
-    bool do_ortho_eo = false; 
-    
-    // Inner solver.
-    mg_multilevel_type mlevel_type = MLEVEL_SMOOTH; // MLEVEL_SMOOTH, MLEVEL_RECURSIVE --- do we smooth then go down, or smooth then krylov?
-    inner_solver in_solve = GCR; //CR; //GCR; 
-    vector<double> inner_precisions; inner_precisions.push_back(1e-2);
-    int inner_restart = 64;
-    int inner_max = 1024;
     if (my_test == SMOOTHER_ONLY)
     {
-        in_solve = NONE; 
+        params.in_solve = NONE; 
     }
     
-    // MG type---do I use D_coarse everywhere, or D^\dag_coarse D_coarse?
-    bool normal_eqn_mg = false; 
     
-    // Smoother
-    inner_solver in_smooth = GCR; //NONE; //GCR; BICGSTAB
-    double omega_smooth = 0.67; // for MINRES only. 
-    vector<int> pre_smooths; pre_smooths.push_back(6);
-    vector<int> post_smooths; post_smooths.push_back(6);
-    bool normal_eqn_smooth = false; // do we smooth with the normal equations?
-    
-    // Gauge field information.
-    double BETA = 6.0; // For random gauge field, phase angles have std.dev. 1/sqrt(beta).
-                       // For heatbath gauge field, corresponds to non-compact beta.
-                       // Can be set on command line with --beta.
-    
-    // Load an external cfg?
-    char* load_cfg = NULL;
-    bool do_load = false; 
-    
-    // Do the free field test? Overrides # null vectors, partitioning scheme, etc. 
-    bool do_free = false; 
-    
-#ifdef EIGEN_TEST
-    bool do_eigentest = false;
-    
-    int set_eigen = -1; // default for generating all eigenvalues.
-    int set_cv = -1; // default for generating all eigenvalues, or 
-#endif // EIGEN_TEST 
     
     /////////////////////////////////////////////
     // Get a few parameters from command line. //
     /////////////////////////////////////////////
-    for (i = 1; i < argc; i++)
+    if (!parse_inputs(argc, argv, &params)) // returns 0 on failure.
     {
-        if (strcmp(argv[i], "--help") == 0)
-        {
-            display_usage();
-            return 0;
-        }
-        if (i+1 != argc)
-        {
-            if (strcmp(argv[i], "--mass") == 0)
-            {
-                MASS = atof(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--operator") == 0)
-            {
-                if (strcmp(argv[i+1], "laplace") == 0)
-                {
-                    opt = LAPLACE; 
-                }
-                else if (strcmp(argv[i+1], "laplace2") == 0)
-                {
-                    opt = LAPLACE_NC2; 
-                }
-                else if (strcmp(argv[i+1], "staggered") == 0)
-                {
-                    opt = STAGGERED; 
-                }
-                else if (strcmp(argv[i+1], "g5_staggered") == 0)
-                {
-                    opt = G5_STAGGERED; 
-                }
-                else if (strcmp(argv[i+1], "normal_staggered") == 0)
-                {
-                    opt = STAGGERED_NORMAL;
-                }
-                else if (strcmp(argv[i+1], "index") == 0)
-                {
-                    opt = STAGGERED_INDEX;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--outer-solver") == 0)
-            {
-                if (strcmp(argv[i+1], "gcr") == 0)
-                {
-                    out_solve = OUTER_GCR;
-                }
-                else if (strcmp(argv[i+1], "bicgstab") == 0)
-                {
-                    out_solve = OUTER_BICGSTAB;
-                }
-                else if (strcmp(argv[i+1], "cg") == 0)
-                {
-                    out_solve = OUTER_CG;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--outer-precision") == 0)
-            {
-                outer_precision = atof(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--outer-max-iter") == 0)
-            {
-                outer_max_iter = atoi(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--outer-restart") == 0)
-            {
-                if (strcmp(argv[i+1], "yes") == 0)
-                {
-                    outer_restart = true;
-                }
-                else if (strcmp(argv[i+1], "no") == 0)
-                {
-                    outer_restart = false;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--outer-restart-freq") == 0)
-            {
-                outer_restart_freq = atoi(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--null-operator") == 0)
-            {
-                if (strcmp(argv[i+1], "laplace") == 0)
-                {
-                    opt_null = LAPLACE; 
-                }
-                else if (strcmp(argv[i+1], "laplace2") == 0)
-                {
-                    opt_null = LAPLACE_NC2; 
-                }
-                else if (strcmp(argv[i+1], "staggered") == 0)
-                {
-                    opt_null = STAGGERED; 
-                }
-                else if (strcmp(argv[i+1], "g5_staggered") == 0)
-                {
-                    opt_null = G5_STAGGERED; 
-                }
-                else if (strcmp(argv[i+1], "normal_staggered") == 0)
-                {
-                    opt_null = STAGGERED_NORMAL;
-                }
-                else if (strcmp(argv[i+1], "index") == 0)
-                {
-                    opt_null = STAGGERED_INDEX;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--blocksize") == 0)
-            {
-                blocksizes[0] = atoi(argv[i+1]);
-                i++;
-                while (i+1 != argc && argv[i+1][0] != '-')
-                {
-                    blocksizes.push_back(atoi(argv[i+1]));
-                    i++;
-                }
-            }
-            else if (strcmp(argv[i], "--nvec") == 0)
-            {
-                n_null_vector = atoi(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--null-precision") == 0)
-            {
-                null_precisions[0] = atof(argv[i+1]);
-                i++;
-                while (i+1 != argc && argv[i+1][0] != '-')
-                {
-                    null_precisions.push_back(atof(argv[i+1]));
-                    i++;
-                }
-            }
-            else if (strcmp(argv[i], "--null-max-iter") == 0)
-            {
-                null_max_iters[0] = atoi(argv[i+1]);
-                i++;
-                while (i+1 != argc && argv[i+1][0] != '-')
-                {
-                    null_max_iters.push_back(atoi(argv[i+1]));
-                    i++;
-                }
-            }
-            else if (strcmp(argv[i], "--null-restart") == 0)
-            {
-                if (strcmp(argv[i+1], "yes") == 0)
-                {
-                    null_restart = true;
-                }
-                else if (strcmp(argv[i+1], "no") == 0)
-                {
-                    null_restart = false;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--null-restart-freq") == 0)
-            {
-                null_restart_freq = atoi(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--null-bicgstab-l") == 0)
-            {
-                null_bicgstab_l = atoi(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--null-mass") == 0)
-            {
-                null_mass = atof(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--null-solver") == 0)
-            {
-                if (strcmp(argv[i+1], "gcr") == 0)
-                {
-                    null_gen = NULL_GCR;
-                }
-                else if (strcmp(argv[i+1], "bicgstab") == 0)
-                {
-                    null_gen = NULL_BICGSTAB;
-                }
-                else if (strcmp(argv[i+1], "cg") == 0)
-                {
-                    null_gen = NULL_CG;
-                }
-                else if (strcmp(argv[i+1], "minres") == 0)
-                {
-                    null_gen = NULL_MINRES;
-                }
-                else if (strcmp(argv[i+1], "arpack") == 0)
-                {
-#ifdef EIGEN_TEST
-                    null_gen = NULL_ARPACK;
-#else
-                    cout << "[ERROR]: Cannot use eigenvectors as null vectors without arpack bindings.\n";
-                    return 0;
-#endif //EIGEN_TEST
-                }
-                else if (strcmp(argv[i+1], "bicgstab-l") == 0)
-                {
-                    null_gen = NULL_BICGSTAB_L;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--null-eo") == 0)
-            {
-                if (strcmp(argv[i+1], "yes") == 0)
-                {
-                    bstrat = BLOCK_EO; // even/odd
-                }
-                else if (strcmp(argv[i+1], "corner") == 0)
-                {
-                    bstrat = BLOCK_CORNER; // corners
-                }
-                else if (strcmp(argv[i+1], "topo") == 0)
-                {
-                    bstrat = BLOCK_TOPO; // chirality as defined by taste singlet. 
-                }
-                else // none.
-                {
-                    bstrat = BLOCK_NONE; // fully reduce. 
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--null-global-ortho-conj") == 0)
-            {
-                if (strcmp(argv[i+1], "yes") == 0)
-                {
-                    do_global_ortho_conj = true; // yes, globally orthogonalize null vectors against previous and conj.
-                }
-                else if (strcmp(argv[i+1], "no") == 0)
-                {
-                    do_global_ortho_conj = false;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--null-ortho-eo") == 0)
-            {
-                if (strcmp(argv[i+1], "yes") == 0)
-                {
-                    do_ortho_eo = true; // yes, split null vectors into eo before orthogonalizing.
-                }
-                else if (strcmp(argv[i+1], "no") == 0)
-                {
-                    do_ortho_eo = false; 
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--nrefine") == 0)
-            {
-                n_refine = atoi(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--multi-strategy") == 0)
-            {
-                if (strcmp(argv[i+1], "smooth") == 0)
-                {
-                    mlevel_type = MLEVEL_SMOOTH;
-                }
-                else if (strcmp(argv[i+1], "recursive") == 0)
-                {
-                    mlevel_type = MLEVEL_RECURSIVE; 
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--cycle-type") == 0) // aliased to multi-strategy
-            {
-                if (strcmp(argv[i+1], "v") == 0)
-                {
-                    mlevel_type = MLEVEL_SMOOTH;
-                }
-                else if (strcmp(argv[i+1], "k") == 0)
-                {
-                    mlevel_type = MLEVEL_RECURSIVE; 
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--coarse-solver") == 0)
-            {
-                if (strcmp(argv[i+1], "cr") == 0)
-                {
-                    in_solve = CR;
-                }
-                else if (strcmp(argv[i+1], "bicgstab") == 0)
-                {
-                    in_solve = BICGSTAB;
-                }
-                else if (strcmp(argv[i+1], "cg") == 0)
-                {
-                    in_solve = CG;
-                }
-                else if (strcmp(argv[i+1], "gcr") == 0)
-                {
-                    in_solve = GCR;
-                }
-                else if (strcmp(argv[i+1], "minres") == 0)
-                {
-                    in_solve = MINRES;
-                }
-                else if (strcmp(argv[i+1], "none") == 0)
-                {
-                    in_solve = NONE;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--coarse-precision") == 0)
-            {
-                inner_precisions[0] = atof(argv[i+1]);
-                i++;
-                while (i+1 != argc && argv[i+1][0] != '-')
-                {
-                    inner_precisions.push_back(atof(argv[i+1]));
-                    i++;
-                }
-            }
-            else if (strcmp(argv[i], "--coarse-max-iter") == 0)
-            {
-                inner_max = atoi(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--gauge") == 0)
-            {
-                if (strcmp(argv[i+1], "unit") == 0)
-                {
-                    gauge_load = GAUGE_UNIT;
-                }
-                else if (strcmp(argv[i+1], "random") == 0)
-                {
-                    gauge_load = GAUGE_RANDOM;
-                }
-                else
-                {
-                    gauge_load = GAUGE_LOAD;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--gauge-transform") == 0)
-            {
-                if (strcmp(argv[i+1], "yes") == 0)
-                {
-                    do_gauge_transform = true;
-                }
-                else
-                {
-                    do_gauge_transform = false;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--beta") == 0)
-            {
-                BETA = atof(argv[i+1]);
-                i++;
-            }
-            else if (strcmp(argv[i], "--lattice-size") == 0)
-            {
-                lattice_size_x = atoi(argv[i+1]);
-                
-                if (i+2 != argc)
-                {
-                    if (argv[i+2][0] == '-' && argv[i+2][1] == '-') // look for --
-                    {
-                        lattice_size_y = lattice_size_x;
-                    }
-                    else // assume number
-                    {
-                        lattice_size_y = atoi(argv[i+2]);
-                        i++;
-                    }
-                }
-                else
-                {
-                    lattice_size_y = lattice_size_x; // At the end, don't try to grab the next element!
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--mg-type") == 0)
-            {
-                if (strcmp(argv[i+1], "self") == 0)
-                {
-                    normal_eqn_mg = false;
-                }
-                else if (strcmp(argv[i+1], "normal_eqn") == 0)
-                {
-                    normal_eqn_mg = true;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--smoother-solver") == 0)
-            {
-                if (strcmp(argv[i+1], "gcr") == 0)
-                {
-                    in_smooth = GCR;
-                }
-                else if (strcmp(argv[i+1], "bicgstab") == 0)
-                {
-                    in_smooth = BICGSTAB;
-                }
-                else if (strcmp(argv[i+1], "cg") == 0)
-                {
-                    in_smooth = CG;
-                }
-                else if (strcmp(argv[i+1], "cr") == 0)
-                {
-                    in_smooth = CR;
-                }
-                else if (strcmp(argv[i+1], "minres") == 0)
-                {
-                    in_smooth = MINRES;
-                }
-                else if (strcmp(argv[i+1], "bicgstab-l") == 0)
-                {
-                    in_smooth = BICGSTAB_L;
-                }
-                else if (strcmp(argv[i+1], "none") == 0)
-                {
-                    in_smooth = NONE;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--smoother-type") == 0)
-            {
-                if (strcmp(argv[i+1], "self") == 0)
-                {
-                    normal_eqn_smooth = false;
-                }
-                else if (strcmp(argv[i+1], "normal_eqn") == 0)
-                {
-                    normal_eqn_smooth = true;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--npre-smooth") == 0)
-            {
-                pre_smooths[0] = atoi(argv[i+1]);
-                i++;
-                while (i+1 != argc && argv[i+1][0] != '-')
-                {
-                    pre_smooths.push_back(atoi(argv[i+1]));
-                    i++;
-                }
-            }
-            else if (strcmp(argv[i], "--npost-smooth") == 0)
-            {
-                post_smooths[0] = atoi(argv[i+1]);
-                i++;
-                while (i+1 != argc && argv[i+1][0] != '-')
-                {
-                    post_smooths.push_back(atoi(argv[i+1]));
-                    i++;
-                }
-            }
-            else if (strcmp(argv[i], "--load-cfg") == 0)
-            {
-                load_cfg = argv[i+1];
-                do_load = true;
-                i++;
-            }
-            else if (strcmp(argv[i], "--do-freetest") == 0)
-            {
-                if (strcmp(argv[i+1], "yes") == 0)
-                {
-                    do_free = true;
-                }
-                else
-                {
-                    do_free = false;
-                }
-                i++;
-            }
-#ifdef EIGEN_TEST
-            else if (strcmp(argv[i], "--do-eigentest") == 0)
-            {
-                if (strcmp(argv[i+1], "yes") == 0)
-                {
-                    do_eigentest = true;
-                }
-                else
-                {
-                    do_eigentest = false;
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--n-ev") == 0)
-            {
-                if (strcmp(argv[i+1], "all") == 0)
-                {
-                    set_eigen = -1;
-                    set_cv = -1;
-                }
-                else
-                {
-                    set_eigen = atoi(argv[i+1]);
-                }
-                i++;
-            }
-            else if (strcmp(argv[i], "--n-cv") == 0)
-            {
-                set_cv = atoi(argv[i+1]);
-                i++;
-            }
-#endif // EIGENTEST
-            else
-            {
-                display_usage();
-                return 0;
-            }
-        }
+        return 0;
     }
     
     //printf("Mass %.8e Blocksize %d %d Null Vectors %d\n", MASS, X_BLOCKSIZE, Y_BLOCKSIZE, n_null_vector);
@@ -845,7 +167,7 @@ int main(int argc, char** argv)
     string op_name;
     void (*op)(complex<double>*, complex<double>*, void*);
     void (*op_dagger)(complex<double>*, complex<double>*, void*);
-    switch (opt)
+    switch (params.opt)
     {
         case STAGGERED:
             op = square_staggered_u1;
@@ -873,30 +195,30 @@ int main(int argc, char** argv)
             op = op_dagger = staggered_index_operator;
             break;
     }
-    cout << "[OP]: Operator " << op_name << " Mass " << MASS << "\n";
+    cout << "[OP]: Operator " << op_name << " Mass " << params.mass << "\n";
     
     // Only relevant for free laplace test.
-    int Nc = 1;  // Only value that matters for staggered
-    if (opt == LAPLACE_NC2)
+    unsigned int Nc = 1;  // Only value that matters for staggered
+    if (params.opt == LAPLACE_NC2)
     {
         Nc = 2;
     }
     
     // Unset eo for Laplace. 
-    if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
+    if (params.opt == LAPLACE || params.opt == LAPLACE_NC2) // FOR TEST ONLY
     {
-        bstrat = BLOCK_NONE;
+        params.bstrat = BLOCK_NONE;
     }
     
     // Describe the fine lattice. 
-    lattice_size[0] = lattice_size_x;
-    lattice_size[1] = lattice_size_y;
+    lattice_size[0] = params.lattice_size_x;
+    lattice_size[1] = params. lattice_size_y;
     
     // Create a lattice object.
     Lattice Lat(nd, lattice_size, Nc);
     
     cout << "[VOL]: X " << lattice_size[0] << " Y " << lattice_size[1] << " Volume " << Lat.get_volume();
-    if (opt == LAPLACE || opt == LAPLACE_NC2) // FOR TEST ONLY
+    if (params.opt == LAPLACE || params.opt == LAPLACE_NC2) // FOR TEST ONLY
     {
         cout << " Nc " << Nc;
     }
@@ -926,7 +248,7 @@ int main(int argc, char** argv)
     
     // Fill stagif.
     stagif.lattice = lattice;
-    stagif.mass = MASS; 
+    stagif.mass = params.mass; 
     stagif.x_fine = Lat.get_lattice_dimension(0); // DEPRECIATE
     stagif.y_fine = Lat.get_lattice_dimension(1); // DEPRECIATE
     //stagif.Lat = &Lat; 
@@ -942,32 +264,32 @@ int main(int argc, char** argv)
     // Describe the gauge field. 
     cout << "[GAUGE]: Creating a gauge field.\n" << flush; 
     
-    switch (gauge_load)
+    switch (params.gauge_load)
     {
         case GAUGE_UNIT:
             unit_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1));
             break;
         case GAUGE_RANDOM:
-            gauss_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), generator, BETA);
-            cout << "[GAUGE]: Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(BETA) << "\n";
+            gauss_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), generator, params.beta);
+            cout << "[GAUGE]: Created a U(1) gauge field with angle standard deviation " << 1.0/sqrt(params.beta) << "\n";
             break;
         case GAUGE_LOAD:
             // Unit first in case loading fails.
             unit_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1));
             // Load the gauge field.
-            if (do_load)
+            if (params.do_load)
             {
-                read_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), load_cfg);
-                cout << "[GAUGE]: Loaded a U(1) gauge field from " << load_cfg << "\n";
+                read_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), params.load_cfg);
+                cout << "[GAUGE]: Loaded a U(1) gauge field from " << params.load_cfg << "\n";
             }
             else // various predefined cfgs. 
             {
-                internal_load_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), BETA); // defined at end of file.
+                internal_load_gauge_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), params.beta); // defined at end of file.
             }
             break;
     }
     
-    if (do_gauge_transform)
+    if (params.do_gauge_transform)
     {
         // Generate and perform a random gauge transformation.
         rand_trans_u1(gauge_trans, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1), generator);
@@ -978,14 +300,14 @@ int main(int argc, char** argv)
     cout << "[GAUGE]: The average plaquette is " << get_plaquette_u1(lattice, Lat.get_lattice_dimension(0), Lat.get_lattice_dimension(1)) << ".\n";
     
     // Sanity check if we're doing a multigrid solve.
-    if (n_refine == 0)
+    if (params. n_refine == 0)
     {
         my_test = TOP_LEVEL_ONLY;
     }
     
     string op_null_name;
     void (*op_null)(complex<double>*, complex<double>*, void*) = square_staggered_u1; 
-    switch (opt_null)
+    switch (params.opt_null)
     {
         case STAGGERED:
             op_null = square_staggered_u1;
@@ -1020,31 +342,31 @@ int main(int argc, char** argv)
     mgstruct.x_fine = Lat.get_lattice_dimension(0);
     mgstruct.y_fine = Lat.get_lattice_dimension(1); 
     mgstruct.Nc = Nc; // only matters for square laplace.
-    mgstruct.n_refine = n_refine; 
-    mgstruct.dslash_count = new dslash_tracker(n_refine); 
+    mgstruct.n_refine = params.n_refine; 
+    mgstruct.dslash_count = new dslash_tracker(params.n_refine); 
     
-    if (blocksizes.size() != n_refine && blocksizes.size() != 1 && n_refine > 0)
+    if (params.blocksizes.size() != params.n_refine && params.blocksizes.size() != 1 && params.n_refine > 0)
     {
         cout << "[ERROR]: Incorrect number of block sizes supplied. Needs to be either 1 or nrefine.\n";
         return 0;
     }
     
-    mgstruct.blocksize_x = new int[n_refine];
-    mgstruct.blocksize_y = new int[n_refine];
-    if (blocksizes.size() == 1)
+    mgstruct.blocksize_x = new int[params.n_refine];
+    mgstruct.blocksize_y = new int[params.n_refine];
+    if (params.blocksizes.size() == 1)
     {
-        for (i = 0; i < n_refine; i++)
+        for (i = 0; i < params.n_refine; i++)
         {
-            mgstruct.blocksize_x[i] = blocksizes[0];
-            mgstruct.blocksize_y[i] = blocksizes[0];
+            mgstruct.blocksize_x[i] = params.blocksizes[0];
+            mgstruct.blocksize_y[i] = params.blocksizes[0];
         }
     }
     else // there are unique blocksizes for each level.
     {
-        for (i = 0; i < n_refine; i++)
+        for (i = 0; i < params.n_refine; i++)
         {
-            mgstruct.blocksize_x[i] = blocksizes[i];
-            mgstruct.blocksize_y[i] = blocksizes[i];
+            mgstruct.blocksize_x[i] = params.blocksizes[i];
+            mgstruct.blocksize_y[i] = params.blocksizes[i];
         }
     }
     
@@ -1053,25 +375,25 @@ int main(int argc, char** argv)
     //for (i = 1; i < n_refine; i++)
     
     // If we do the free test, we construct a constant vector.
-    if (do_free)
+    if (params.do_free)
     {
-        n_null_vector = 1;
+        params.n_null_vector = 1;
     }
     
-    switch (bstrat)
+    switch (params.bstrat)
     {
         case BLOCK_NONE:
-            mgstruct.n_vector = n_null_vector;
-            null_partitions = 1;
+            mgstruct.n_vector = params.n_null_vector;
+            params.null_partitions = 1;
             break;
         case BLOCK_EO:
         case BLOCK_TOPO:
-            mgstruct.n_vector = 2*n_null_vector;
-            null_partitions = 2;
+            mgstruct.n_vector = 2*params.n_null_vector;
+            params.null_partitions = 2;
             break;
         case BLOCK_CORNER:
-            mgstruct.n_vector = 4*n_null_vector;
-            null_partitions = 4; 
+            mgstruct.n_vector = 4*params.n_null_vector;
+            params.null_partitions = 4; 
             break;
     }
     
@@ -1081,24 +403,24 @@ int main(int argc, char** argv)
     
     
     cout << "[MG]: X_Block ";
-    for (i = 0; i < n_refine; i++)
+    for (i = 0; i < params.n_refine; i++)
     {
         cout << mgstruct.blocksize_x[i] << " ";
     }
     cout << "Y_Block ";
-    for (i = 0; i < n_refine; i++)
+    for (i = 0; i < params.n_refine; i++)
     {
         cout << mgstruct.blocksize_y[i] << " "; 
     }
-    cout << "NullVectors " << n_null_vector << "\n";
+    cout << "NullVectors " << params.n_null_vector << "\n";
     
     // Build lattice objects for each level. 
-    mgstruct.latt = new Lattice*[n_refine+1];
+    mgstruct.latt = new Lattice*[params.n_refine+1];
     mgstruct.latt[0] = new Lattice(Lat); // The fine level already exists.
     
-    if (n_refine > 0)
+    if (params.n_refine > 0)
     {
-        for (i = 1; i <= n_refine; i++)
+        for (i = 1; i <= params.n_refine; i++)
         {
             lattice_size[0] = mgstruct.latt[i-1]->get_lattice_dimension(0)/mgstruct.blocksize_x[i-1];
             lattice_size[1] = mgstruct.latt[i-1]->get_lattice_dimension(1)/mgstruct.blocksize_y[i-1];
@@ -1107,7 +429,7 @@ int main(int argc, char** argv)
     }
     
     // Print info about lattices.
-    for (i = 0; i <= n_refine; i++)
+    for (i = 0; i <= params.n_refine; i++)
     {
         cout << "[LATTICE_L" << i+1 << "]: X " << mgstruct.latt[i]->get_lattice_dimension(0) <<
                 " Y: " << mgstruct.latt[i]->get_lattice_dimension(1) <<
@@ -1123,7 +445,7 @@ int main(int argc, char** argv)
     mgstruct.curr_y_fine = mgstruct.latt[0]->get_lattice_dimension(1);
     mgstruct.curr_fine_size = mgstruct.latt[0]->get_lattice_size();
     
-    if (n_refine > 0)
+    if (params.n_refine > 0)
     {
         mgstruct.curr_dof_coarse = mgstruct.latt[1]->get_nc();
         mgstruct.curr_x_coarse = mgstruct.latt[1]->get_lattice_dimension(0);
@@ -1143,60 +465,60 @@ int main(int argc, char** argv)
     // Set up the MG preconditioner. 
     mg_precond_struct_complex mgprecond;
 
-    mgprecond.in_smooth_type = in_smooth; // What inner smoother? MinRes or GCR.
-    mgprecond.omega_smooth = omega_smooth; // What relaxation parameter should we use (MinRes only!)
-    mgprecond.mlevel_type = mlevel_type; // Do we smooth then go down, or smooth then start a new Krylov?
-    mgprecond.in_solve_type = in_solve; // What inner solver? NONE, MINRES, CG, GCR, BICGSTAB. Should also be used for recursive solve!!
-    mgprecond.n_max = inner_max; // max number of steps to use for inner solver.
-    mgprecond.n_restart = inner_restart; // frequency of restart (relevant for CG, GCR).
+    mgprecond.in_smooth_type = params.in_smooth; // What inner smoother? MinRes or GCR.
+    mgprecond.omega_smooth = params.omega_smooth; // What relaxation parameter should we use (MinRes only!)
+    mgprecond.mlevel_type = params.mlevel_type; // Do we smooth then go down, or smooth then start a new Krylov?
+    mgprecond.in_solve_type = params.in_solve; // What inner solver? NONE, MINRES, CG, GCR, BICGSTAB. Should also be used for recursive solve!!
+    mgprecond.n_max = params.inner_max; // max number of steps to use for inner solver.
+    mgprecond.n_restart = params.inner_restart; // frequency of restart (relevant for CG, GCR).
     mgprecond.mgstruct = &mgstruct; // Contains null vectors, fine operator. (Since we don't construct the fine op.)
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
     
     // Inner precision. Default 1e-2. Maximum relative residual for coarse solves.
-    if (inner_precisions.size() != n_refine && inner_precisions.size() != 1 && n_refine > 0)
+    if (params.inner_precisions.size() != params.n_refine && params.inner_precisions.size() != 1 && params.n_refine > 0)
     {
         cout << "[ERROR]: Incorrect number of inner precisions supplied. Needs to be either 1 or nrefine.\n";
         return 0;
     }
     
-    mgprecond.rel_res = new double[n_refine];
+    mgprecond.rel_res = new double[params.n_refine];
     
-    if (inner_precisions.size() == 1) { for (i = 0; i < n_refine; i++) { mgprecond.rel_res[i] = inner_precisions[0]; } }
+    if (params.inner_precisions.size() == 1) { for (i = 0; i < params.n_refine; i++) { mgprecond.rel_res[i] = params.inner_precisions[0]; } }
     else // there are unique pre smooth counts for each level.
-    { for (i = 0; i < n_refine; i++) { mgprecond.rel_res[i] = inner_precisions[i]; } }
+    { for (i = 0; i < params.n_refine; i++) { mgprecond.rel_res[i] = params.inner_precisions[i]; } }
     
     
     // Presmooth and postsmooth. Default 6 MinRes pre, post. 
-    if (pre_smooths.size() != n_refine && pre_smooths.size() != 1 && n_refine > 0)
+    if (params.pre_smooths.size() != params.n_refine && params.pre_smooths.size() != 1 && params.n_refine > 0)
     {
         cout << "[ERROR]: Incorrect number of presmoother iterations supplied. Needs to be either 1 or nrefine.\n";
         return 0;
     }
-    if (post_smooths.size() != n_refine && post_smooths.size() != 1 && n_refine > 0)
+    if (params.post_smooths.size() != params.n_refine && params.post_smooths.size() != 1 && params.n_refine > 0)
     {
         cout << "[ERROR]: Incorrect number of postsmoother iterations supplied. Needs to be either 1 or nrefine.\n";
         return 0;
     }
     
-    mgprecond.n_pre_smooth = new int[n_refine];
-    mgprecond.n_post_smooth = new int[n_refine];
+    mgprecond.n_pre_smooth = new int[params.n_refine];
+    mgprecond.n_post_smooth = new int[params.n_refine];
     
-    if (pre_smooths.size() == 1) { for (i = 0; i < n_refine; i++) { mgprecond.n_pre_smooth[i] = pre_smooths[0]; } }
+    if (params.pre_smooths.size() == 1) { for (i = 0; i < params.n_refine; i++) { mgprecond.n_pre_smooth[i] = params.pre_smooths[0]; } }
     else // there are unique pre smooth counts for each level.
-    { for (i = 0; i < n_refine; i++) { mgprecond.n_pre_smooth[i] = pre_smooths[i]; } }
+    { for (i = 0; i < params.n_refine; i++) { mgprecond.n_pre_smooth[i] = params.pre_smooths[i]; } }
     
-    if (post_smooths.size() == 1) { for (i = 0; i < n_refine; i++) { mgprecond.n_post_smooth[i] = post_smooths[0]; } }
+    if (params.post_smooths.size() == 1) { for (i = 0; i < params.n_refine; i++) { mgprecond.n_post_smooth[i] = params.post_smooths[0]; } }
     else // there are unique post smooth counts for each level.
-    { for (i = 0; i < n_refine; i++) { mgprecond.n_post_smooth[i] = post_smooths[i]; } }
+    { for (i = 0; i < params.n_refine; i++) { mgprecond.n_post_smooth[i] = params.post_smooths[i]; } }
     
-    mgprecond.normal_eqn_smooth = normal_eqn_smooth;
-    mgprecond.normal_eqn_mg = normal_eqn_mg; 
-    if (normal_eqn_mg) // MG where we use D^\dagger_coarse D_coarse
+    mgprecond.normal_eqn_smooth = params.normal_eqn_smooth;
+    mgprecond.normal_eqn_mg = params.normal_eqn_mg; 
+    if (params.normal_eqn_mg) // MG where we use D^\dagger_coarse D_coarse
     {
         mgprecond.coarse_matrix_vector = coarse_square_staggered_normal; // Function which applies the coarse operator. 
         mgprecond.fine_matrix_vector = fine_square_staggered_normal; // Function which applies the fine operator. 
     
-        if (normal_eqn_smooth) // Sort of pointless. 
+        if (params.normal_eqn_smooth) // Sort of pointless. 
         {
             mgprecond.coarse_matrix_vector_dagger = coarse_square_staggered_normal; // function which applies coarse dagger.
             mgprecond.fine_matrix_vector_dagger = fine_square_staggered_normal; // function which applies fine dagger.
@@ -1209,7 +531,7 @@ int main(int argc, char** argv)
         mgprecond.coarse_matrix_vector = coarse_square_staggered; // Function which applies the coarse operator. 
         mgprecond.fine_matrix_vector = fine_square_staggered; // Function which applies the fine operator. 
     
-        if (normal_eqn_smooth)
+        if (params.normal_eqn_smooth)
         {
             mgprecond.coarse_matrix_vector_dagger = coarse_square_staggered_dagger; // function which applies coarse dagger.
             mgprecond.fine_matrix_vector_dagger = fine_square_staggered_dagger; // function which applies fine dagger.
@@ -1258,23 +580,23 @@ int main(int argc, char** argv)
     }
     
     // Allocate null precisions.
-    double* null_precisions_vec = new double[n_refine];
-    if (null_precisions.size() == 1) { for (i = 0; i < n_refine; i++) { null_precisions_vec[i] = null_precisions[0]; } }
+    double* null_precisions_vec = new double[params.n_refine];
+    if (params.null_precisions.size() == 1) { for (i = 0; i < params.n_refine; i++) { null_precisions_vec[i] = params.null_precisions[0]; } }
     else // there are unique pre smooth counts for each level.
-    { for (i = 0; i < n_refine; i++) { null_precisions_vec[i] = null_precisions[i]; } }
+    { for (i = 0; i < params.n_refine; i++) { null_precisions_vec[i] = params.null_precisions[i]; } }
     
     // Allocate null max iters
-    double* null_max_iters_vec = new double[n_refine];
-    if (null_max_iters.size() == 1) { for (i = 0; i < n_refine; i++) { null_max_iters_vec[i] = null_max_iters[0]; } }
+    double* null_max_iters_vec = new double[params.n_refine];
+    if (params.null_max_iters.size() == 1) { for (i = 0; i < params.n_refine; i++) { null_max_iters_vec[i] = params.null_max_iters[0]; } }
     else // there are unique pre smooth counts for each level.
-    { for (i = 0; i < n_refine; i++) { null_max_iters_vec[i] = null_max_iters[i]; } }
+    { for (i = 0; i < params.n_refine; i++) { null_max_iters_vec[i] = params.null_max_iters[i]; } }
     
     // Allocate stencils.
-    mgstruct.stencils = new stencil_2d*[n_refine+1];
+    mgstruct.stencils = new stencil_2d*[params.n_refine+1];
     for (i = 0; i <= mgstruct.n_refine; i++)
     {
         // We can't allocate a stencil if the lattice gets too small.
-        if (get_stencil_size(opt) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
+        if (get_stencil_size(params.opt) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
         {
             mgstruct.stencils[i] = 0; // We can't generate a stencil. It's small enough that we just explicitly project.
         }
@@ -1284,20 +606,20 @@ int main(int argc, char** argv)
         }
         else // We can build a stencil.
         {
-            mgstruct.stencils[i] = new stencil_2d(mgstruct.latt[i], get_stencil_size(opt));
+            mgstruct.stencils[i] = new stencil_2d(mgstruct.latt[i], get_stencil_size(params.opt));
         }
     }
     
     // Allocate stencils for daggered operator, if needed.
-    if (normal_eqn_smooth || normal_eqn_mg) 
+    if (params.normal_eqn_smooth || params.normal_eqn_mg) 
     {
         mgstruct.have_dagger_stencil = true;
         
-        mgstruct.dagger_stencils = new stencil_2d*[n_refine+1];
+        mgstruct.dagger_stencils = new stencil_2d*[params.n_refine+1];
         for (i = 0; i <= mgstruct.n_refine; i++)
         {
             // We can't allocate a stencil if the lattice gets too small.
-            if (get_stencil_size(opt) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
+            if (get_stencil_size(params.opt) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
             {
                 mgstruct.dagger_stencils[i] = 0; // We can't generate a stencil. It's small enough that we just explicitly project.
             }
@@ -1307,7 +629,7 @@ int main(int argc, char** argv)
             }
             else // We can build a stencil.
             {
-                mgstruct.dagger_stencils[i] = new stencil_2d(mgstruct.latt[i], get_stencil_size(opt));
+                mgstruct.dagger_stencils[i] = new stencil_2d(mgstruct.latt[i], get_stencil_size(params.opt));
             }
         }
     }
@@ -1334,11 +656,11 @@ int main(int argc, char** argv)
         stencil_2d** save_stencil = mgstruct.stencils;
         
         // Allocate stencils for null vector generation. 
-        mgstruct.stencils = new stencil_2d*[n_refine];
+        mgstruct.stencils = new stencil_2d*[params.n_refine];
         for (i = 0; i < mgstruct.n_refine; i++)
         {
             // We can't allocate a stencil if the lattice gets too small.
-            if (get_stencil_size(opt_null) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
+            if (get_stencil_size(params.opt_null) == 2 && (mgstruct.latt[i]->get_lattice_dimension(0) < 4 || mgstruct.latt[i]->get_lattice_dimension(1) < 4))
             {
                 mgstruct.stencils[i] = 0; // We can't generate a stencil. It's small enough that we just explicitly project.
             }
@@ -1348,7 +670,7 @@ int main(int argc, char** argv)
             }
             else // We can build a stencil.
             {
-                mgstruct.stencils[i] = new stencil_2d(mgstruct.latt[i], get_stencil_size(opt_null));
+                mgstruct.stencils[i] = new stencil_2d(mgstruct.latt[i], get_stencil_size(params.opt_null));
             }
         }
         
@@ -1357,21 +679,21 @@ int main(int argc, char** argv)
         // Fine level is handled specially. In some case, we have a special function to
         // populate the fine staggered stencil without a bunch of matrix multiplies. We don't have it for all
         // operators.
-        switch (opt_null)
+        switch (params.opt_null)
         {
             case STAGGERED: 
                 // Encode mass in shift, not in the stencil.
                 tmp_mass = stagif.mass; stagif.mass = 0.0;
                 get_square_staggered_u1_stencil(mgstruct.stencils[0], &stagif);
                 stagif.mass = tmp_mass;
-                mgstruct.stencils[0]->shift = null_mass;
+                mgstruct.stencils[0]->shift = params.null_mass;
                 break;
             case G5_STAGGERED:
                 // Encode mass in a phase shift, not in the stencil.
                 tmp_mass = stagif.mass; stagif.mass = 0.0;
                 get_square_staggered_gamma5_u1_stencil(mgstruct.stencils[0], &stagif);
                 stagif.mass = tmp_mass;
-                mgstruct.stencils[0]->eo_shift = null_mass; 
+                mgstruct.stencils[0]->eo_shift = params.null_mass; 
                 break;
             case LAPLACE: // not implemented yet...
             case LAPLACE_NC2:
@@ -1379,12 +701,12 @@ int main(int argc, char** argv)
                 tmp_mass = stagif.mass; stagif.mass = 0.0;
                 generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
                 stagif.mass = tmp_mass;
-                mgstruct.stencils[0]->shift = null_mass; 
+                mgstruct.stencils[0]->shift = params.null_mass; 
                 break;
             case STAGGERED_NORMAL:
             case STAGGERED_INDEX:
                 // Use the null generation mass. 
-                tmp_mass = stagif.mass; stagif.mass = null_mass;
+                tmp_mass = stagif.mass; stagif.mass = params.null_mass;
                 generate_stencil_2d(mgstruct.stencils[0], fine_square_staggered, (void*)&mgstruct);
                 stagif.mass = tmp_mass;
                 break;
@@ -1398,14 +720,14 @@ int main(int argc, char** argv)
             // Update verb_prefix temporarily.
             verb.verb_prefix = "[L" + to_string(mgstruct.curr_level+1) + "_NULLVEC]: ";
             
-            if (do_free)
+            if (params.do_free)
             {
                 // Construct a single vector, partition as needed.
                 cout << "Build vector.\n" << flush;
                 for (i = 0; i < mgstruct.curr_fine_size; i++)
                 {
                     mgstruct.null_vectors[mgstruct.curr_level][0][i] = 1;
-                    if (do_gauge_transform && mgstruct.curr_level == 0) 
+                    if (params.do_gauge_transform && mgstruct.curr_level == 0) 
                     {
                         mgstruct.null_vectors[0][0][i] *= gauge_trans[i];
                     }
@@ -1416,22 +738,22 @@ int main(int argc, char** argv)
                 // This is handled differently if we're on the top level or further down. 
                 if (mgstruct.curr_level == 0) // top level routines
                 {
-                    null_partition_staggered(&mgstruct, 0, bstrat, &Lat);
+                    null_partition_staggered(&mgstruct, 0, params.bstrat, &Lat);
                 }
                 else // not on the top level
                 {
-                    null_partition_coarse(&mgstruct, 0, bstrat);
+                    null_partition_coarse(&mgstruct, 0, params.bstrat);
                 }
 
                 cout << "Normalize vector.\n" << flush;
-                for (k = 0; k < null_partitions; k++)
+                for (k = 0; k < params.null_partitions; k++)
                 {
-                    normalize(mgstruct.null_vectors[mgstruct.curr_level][k*n_null_vector], mgstruct.curr_fine_size);
+                    normalize(mgstruct.null_vectors[mgstruct.curr_level][k*params.n_null_vector], mgstruct.curr_fine_size);
                 }
                 
                 cout << "Generated vectors.\n" << flush;
             }
-            else if (null_gen != NULL_ARPACK) // Generate null vectors. 
+            else if (params.null_gen != NULL_ARPACK) // Generate null vectors. 
             {
 
                 // We generate null vectors by solving Ax = 0, with a
@@ -1441,7 +763,7 @@ int main(int argc, char** argv)
                 complex<double>* rand_guess = new complex<double>[mgstruct.curr_fine_size];
                 complex<double>* Arand_guess = new complex<double>[mgstruct.curr_fine_size];
 
-                for (i = 0; i < mgstruct.n_vector/null_partitions; i++)
+                for (i = 0; i < mgstruct.n_vector/params.null_partitions; i++)
                 {
                     // Create a gaussian random source. 
                     gaussian<double>(rand_guess, mgstruct.curr_fine_size, generator);
@@ -1451,14 +773,14 @@ int main(int argc, char** argv)
                     {
                         for (j = 0; j < i; j++) // Iterate over all of them...
                         {
-                            for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++) // And then iterate over even/odd or corners!
+                            for (k = 0; k < (params.do_ortho_eo ? params.null_partitions : 1); k++) // And then iterate over even/odd or corners!
                             {
-                                orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
-                                if (do_global_ortho_conj)
+                                orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j+k*params.n_null_vector], mgstruct.curr_fine_size);
+                                if (params.do_global_ortho_conj)
                                 {
-                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
-                                    orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
-                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
+                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*params.n_null_vector], mgstruct.curr_fine_size);
+                                    orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][j+k*params.n_null_vector], mgstruct.curr_fine_size);
+                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*params.n_null_vector], mgstruct.curr_fine_size);
                                 }
                             }
                         }
@@ -1477,12 +799,12 @@ int main(int argc, char** argv)
                     zero<double>(mgstruct.null_vectors[mgstruct.curr_level][i], mgstruct.curr_fine_size);
 
 
-                    switch (null_gen)
+                    switch (params.null_gen)
                     {
                         case NULL_GCR:
-                            if (null_restart)
+                            if (params.null_restart)
                             {
-                                invif = minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_gcr_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], params.null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
@@ -1490,9 +812,9 @@ int main(int argc, char** argv)
                             }
                             break;
                         case NULL_BICGSTAB:
-                            if (null_restart)
+                            if (params.null_restart)
                             {
-                                invif = minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], params.null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
@@ -1500,9 +822,9 @@ int main(int argc, char** argv)
                             }
                             break;
                         case NULL_CG:
-                            if (null_restart) // why would you do this I don't know it's CG come on
+                            if (params.null_restart) // why would you do this I don't know it's CG come on
                             {
-                                invif = minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_restart_freq, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_cg_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], params.null_restart_freq, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
@@ -1516,13 +838,13 @@ int main(int argc, char** argv)
                         case NULL_ARPACK: // it can't get here. 
                             break;
                         case NULL_BICGSTAB_L:
-                            if (null_restart)
+                            if (params.null_restart)
                             {
-                                invif = minv_vector_bicgstab_l_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_restart_freq, null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab_l_restart(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], params.null_restart_freq, params.null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
                             }
                             else
                             {
-                                invif = minv_vector_bicgstab_l(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
+                                invif = minv_vector_bicgstab_l(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess, mgstruct.curr_fine_size, null_max_iters_vec[n], null_precisions_vec[n], params.null_bicgstab_l, fine_square_staggered, &mgstruct, &verb);
                             }
                             break;
                     }
@@ -1536,25 +858,25 @@ int main(int argc, char** argv)
                     }
 
                     // Split into eo now if need be, otherwise we do it later.
-                    if (do_ortho_eo)
+                    if (params.do_ortho_eo)
                     {
                         // Aggregate in chirality (or corners) as needed.  
                         // This is handled differently if we're on the top level or further down. 
                         if (mgstruct.curr_level == 0) // top level routines
                         {
-                            null_partition_staggered(&mgstruct, i, bstrat, &Lat);
+                            null_partition_staggered(&mgstruct, i, params.bstrat, &Lat);
                         }
                         else // not on the top level
                         {
-                            null_partition_coarse(&mgstruct, i, bstrat);
+                            null_partition_coarse(&mgstruct, i, params.bstrat);
                         }
                     }
 
 
                     // Normalize new vectors.
-                    for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++)
+                    for (k = 0; k < (params.do_ortho_eo ? params.null_partitions : 1); k++)
                     {
-                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.curr_fine_size);
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.n_null_vector], mgstruct.curr_fine_size);
                     }
 
                     // Orthogonalize against previous vectors. 
@@ -1563,17 +885,17 @@ int main(int argc, char** argv)
                         for (j = 0; j < i; j++)
                         {
                             cout << "[L" << mgstruct.curr_level+1 << "_NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: "; 
-                            for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++)
+                            for (k = 0; k < (params.do_ortho_eo ? params.null_partitions : 1); k++)
                             {
                                 // Check dot product before normalization.
-                                cout << abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector],mgstruct.curr_fine_size))) << " ";
+                                cout << abs(dot<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.n_null_vector], mgstruct.null_vectors[mgstruct.curr_level][j+k*params.n_null_vector], mgstruct.curr_fine_size)/sqrt(norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.n_null_vector],mgstruct.curr_fine_size)*norm2sq<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*params.n_null_vector],mgstruct.curr_fine_size))) << " ";
 
-                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.null_vectors[0][j+k*n_null_vector], mgstruct.curr_fine_size); 
-                                if (do_global_ortho_conj)
+                                orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.n_null_vector], mgstruct.null_vectors[0][j+k*params.n_null_vector], mgstruct.curr_fine_size); 
+                                if (params.do_global_ortho_conj)
                                 {
-                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
-                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.null_vectors[0][j+k*n_null_vector], mgstruct.curr_fine_size); 
-                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*n_null_vector], mgstruct.curr_fine_size);
+                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*params.n_null_vector], mgstruct.curr_fine_size);
+                                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.n_null_vector], mgstruct.null_vectors[0][j+k*params.n_null_vector], mgstruct.curr_fine_size); 
+                                    conj<double>(mgstruct.null_vectors[mgstruct.curr_level][j+k*params.n_null_vector], mgstruct.curr_fine_size);
                                 }
                             }
                             cout << "\n";
@@ -1581,32 +903,32 @@ int main(int argc, char** argv)
                     }
 
                     // Normalize again.
-                    for (k = 0; k < (do_ortho_eo ? null_partitions : 1); k++)
+                    for (k = 0; k < (params.do_ortho_eo ? params.null_partitions : 1); k++)
                     {
-                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.curr_fine_size);
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.n_null_vector], mgstruct.curr_fine_size);
                     }
 
                 }
 
                 // If we didn't split null vectors before, we do it now.
-                if (!do_ortho_eo)
+                if (!params.do_ortho_eo)
                 {
-                    for (i = 0; i < mgstruct.n_vector/null_partitions; i++)
+                    for (i = 0; i < mgstruct.n_vector/params.null_partitions; i++)
                     {
-                        // Aggregate in chirality (or corners) as needed.  
+                        // Aggregatparams.e in chirality (or corners) as needed.  
                         // This is handled differently if we're on the top level or further down. 
                         if (mgstruct.curr_level == 0) // top level routines
                         {
-                            null_partition_staggered(&mgstruct, i, bstrat, &Lat);
+                            null_partition_staggered(&mgstruct, i, params.bstrat, &Lat);
                         }
                         else // not on the top level
                         {
-                            null_partition_coarse(&mgstruct, i, bstrat);
+                            null_partition_coarse(&mgstruct, i, params.bstrat);
                         }
 
-                        for (k = 0; k < null_partitions; k++)
+                        for (k = 0; k < params.null_partitions; k++)
                         {
-                            normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.curr_fine_size);
+                            normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.n_null_vector], mgstruct.curr_fine_size);
                         }
                     }
                 }
@@ -1617,11 +939,11 @@ int main(int argc, char** argv)
             else // use ARPACK. It can't get here if we don't have EIGEN_TEST
             {
 #ifdef EIGEN_TEST 
-                int n_eigen = mgstruct.n_vector/null_partitions;
-                int n_cv = min(10*mgstruct.n_vector/null_partitions, mgstruct.curr_fine_size);
+                int n_eigen = mgstruct.n_vector/params.null_partitions;
+                int n_cv = min(10*mgstruct.n_vector/params.null_partitions, mgstruct.curr_fine_size);
                 arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); 
                 char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
-                complex<double>* eigs_tmp = new complex<double>[mgstruct.n_vector/null_partitions];
+                complex<double>* eigs_tmp = new complex<double>[mgstruct.n_vector/params.null_partitions];
                 arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, eigs_tmp, mgstruct.null_vectors[mgstruct.curr_level], mgstruct.curr_fine_size, n_eigen, n_cv, null_max_iters_vec[n], eigtype, null_precisions_vec[n], 0.0, fine_square_staggered, (void*)&mgstruct); 
                 delete[] eigs_tmp; 
                 arpack_dcn_free(&ar_strc);
@@ -1631,22 +953,22 @@ int main(int argc, char** argv)
                 cout << "[L" << mgstruct.curr_level+1 << "_NULLVEC_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
                 cout << "[L" << mgstruct.curr_level+1 << "_NULLVEC_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
                 
-                for (i = 0; i < mgstruct.n_vector/null_partitions; i++)
+                for (i = 0; i < mgstruct.n_vector/params.null_partitions; i++)
                 {
                     // Aggregate in chirality (or corners) as needed.  
                     // This is handled differently if we're on the top level or further down. 
                     if (mgstruct.curr_level == 0) // top level routines
                     {
-                        null_partition_staggered(&mgstruct, i, bstrat, &Lat);
+                        null_partition_staggered(&mgstruct, i, params.bstrat, &Lat);
                     }
                     else // not on the top level
                     {
-                        null_partition_coarse(&mgstruct, i, bstrat);
+                        null_partition_coarse(&mgstruct, i, params.bstrat);
                     }
 
-                    for (k = 0; k < null_partitions; k++)
+                    for (k = 0; k < params.null_partitions; k++)
                     {
-                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*n_null_vector], mgstruct.curr_fine_size);
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.n_null_vector], mgstruct.curr_fine_size);
                     }
                 }
 #endif // EIGEN_TEST
@@ -1691,7 +1013,7 @@ int main(int argc, char** argv)
                 // it failed if the volume wasn't big enough.
                 if (mgstruct.stencils[mgstruct.curr_level+1] != 0)
                 {
-                    if (get_stencil_size(opt_null) == 2)
+                    if (get_stencil_size(params.opt_null) == 2)
                     {
                         // Generate the old, inefficient way. This method builds the shifts directly in.
                         generate_stencil_2d(mgstruct.stencils[mgstruct.curr_level+1], coarse_square_staggered, (void*)&mgstruct);
@@ -1700,7 +1022,7 @@ int main(int argc, char** argv)
                     else
                     {
                         // Generate the new, shiny way!
-                        if (bstrat == BLOCK_TOPO || (opt_null == G5_STAGGERED && (bstrat == BLOCK_NONE || bstrat == BLOCK_TOPO)))
+                        if (params.bstrat == BLOCK_TOPO || (params.opt_null == G5_STAGGERED && (params.bstrat == BLOCK_NONE || params.bstrat == BLOCK_TOPO)))
                         {
                             // Need to block mass in since we've destroyed good chirality.
                             generate_coarse_from_fine_stencil(mgstruct.stencils[mgstruct.curr_level+1], mgstruct.stencils[mgstruct.curr_level], &mgstruct, false);  // build shifts in.
@@ -1709,7 +1031,7 @@ int main(int argc, char** argv)
                         {
                             generate_coarse_from_fine_stencil(mgstruct.stencils[mgstruct.curr_level+1], mgstruct.stencils[mgstruct.curr_level], &mgstruct, true);  // true -> ignore shifts, don't build in.
                             // Set shifted masses.
-                            switch (opt_null)
+                            switch (params.opt_null)
                             {
                                 case STAGGERED: 
                                 case LAPLACE:
@@ -1764,7 +1086,7 @@ int main(int argc, char** argv)
         
         // First, build the top level.
         mgstruct.stencils[0]->clear_stencils();
-        switch (opt)
+        switch (params.opt)
         {
             case STAGGERED:
                 // Encode mass in shift, not in the stencil.
@@ -1834,7 +1156,7 @@ int main(int argc, char** argv)
             if (mgstruct.stencils[n+1] != 0)
             {
                 mgstruct.stencils[n+1]->clear_stencils();
-                if (get_stencil_size(opt) == 2)
+                if (get_stencil_size(params.opt) == 2)
                 {
                     // Generate the old, inefficient way. This builds shifts directly in.
                     generate_stencil_2d(mgstruct.stencils[n+1], coarse_square_staggered, (void*)&mgstruct);
@@ -1847,7 +1169,7 @@ int main(int argc, char** argv)
                 else
                 {
                     // Generate the new, shiny way!
-                    if (bstrat == BLOCK_TOPO || (opt == G5_STAGGERED && bstrat == BLOCK_NONE))
+                    if (params.bstrat == BLOCK_TOPO || (params.opt == G5_STAGGERED && params.bstrat == BLOCK_NONE))
                     {
                         // Need to block mass in since we've destroyed good chirality.
                         generate_coarse_from_fine_stencil(mgstruct.stencils[n+1], mgstruct.stencils[n], &mgstruct, false);  // build shifts in.
@@ -1856,7 +1178,7 @@ int main(int argc, char** argv)
                     {
                         generate_coarse_from_fine_stencil(mgstruct.stencils[n+1], mgstruct.stencils[n], &mgstruct, true);  // true -> ignore shifts, don't build in.
                         // Set shifted masses.
-                        switch (opt)
+                        switch (params.opt)
                         {
                             case STAGGERED: 
                             case LAPLACE:
@@ -1879,7 +1201,7 @@ int main(int argc, char** argv)
                     if (mgstruct.have_dagger_stencil)
                     {
                         // Generate the new, shiny way!
-                        if (bstrat == BLOCK_TOPO || (opt == G5_STAGGERED && (bstrat == BLOCK_NONE || bstrat == BLOCK_TOPO)))
+                        if (params.bstrat == BLOCK_TOPO || (params.opt == G5_STAGGERED && (params.bstrat == BLOCK_NONE || params.bstrat == BLOCK_TOPO)))
                         {
                             // Need to block mass in since we've destroyed good chirality.
                             generate_coarse_from_fine_stencil(mgstruct.dagger_stencils[n+1], mgstruct.dagger_stencils[n], &mgstruct, false);  // build shifts in.
@@ -1888,7 +1210,7 @@ int main(int argc, char** argv)
                         {
                             generate_coarse_from_fine_stencil(mgstruct.dagger_stencils[n+1], mgstruct.dagger_stencils[n], &mgstruct, true);  // true -> ignore shifts, don't build in.
                             // Set shifted masses.
-                            switch (opt)
+                            switch (params.opt)
                             {
                                 case STAGGERED: 
                                 case LAPLACE:
@@ -1948,16 +1270,16 @@ int main(int argc, char** argv)
     
 #ifdef EIGEN_TEST
     
-    if (do_eigentest)
+    if (params.do_eigentest)
     {   
-        test_eigenvalue_overlap(&mgstruct, &stagif, opt, set_eigen, set_cv); 
+        test_eigenvalue_overlap(&mgstruct, &stagif, params.opt, params.set_eigen, params.set_cv); 
     } // do_eigentest
 #endif // EIGEN_TEST
     
 #ifdef STENCIL_CONSTRUCT_TEST
     for (i = 0; i <= mgstruct.n_refine; i++)
     {
-        test_stencil_construct(&mgstruct, i, get_stencil_size(opt)); 
+        test_stencil_construct(&mgstruct, i, get_stencil_size(params.opt)); 
     }
 
     return 0; 
@@ -2444,7 +1766,7 @@ int main(int argc, char** argv)
     
     // What operator are we using, D^\dag D or D?
     void (*fine_op)(complex<double>*,complex<double>*,void*);
-    if (normal_eqn_mg)
+    if (params.normal_eqn_mg)
     {
         fine_op = fine_square_staggered_normal;
     }
@@ -2460,42 +1782,42 @@ int main(int argc, char** argv)
         
         cout << "Mgstruct fine size " << mgstruct.curr_fine_size << "\n" << flush;
         
-        switch (out_solve)
+        switch (params.out_solve)
         {
             case OUTER_GCR:
-                if (outer_restart)
+                if (params.outer_restart)
                 {
-                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, &verb);
+                    invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, params.outer_restart_freq, fine_op, (void*)&mgstruct, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, &verb);
+                    invif = minv_vector_gcr(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, fine_op, (void*)&mgstruct, &verb);
                 }
                 break;
             case OUTER_CG:
-                if (outer_restart)
+                if (params.outer_restart)
                 {
-                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, &verb);
+                    invif = minv_vector_cg_restart(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, params.outer_restart_freq, fine_op, (void*)&mgstruct, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, &verb);
+                    invif = minv_vector_cg(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, fine_op, (void*)&mgstruct, &verb);
                 }
                 break;
             case OUTER_BICGSTAB:
-                if (outer_restart)
+                if (params.outer_restart)
                 {
-                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, &verb);
+                    invif = minv_vector_bicgstab_restart(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, params.outer_restart_freq, fine_op, (void*)&mgstruct, &verb);
                 }
                 else
                 {
-                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, &verb);
+                    invif = minv_vector_bicgstab(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, fine_op, (void*)&mgstruct, &verb);
                 }
                 break;
         }
         
         //invif = minv_vector_gcr_restart(lhs, rhs, Lat.get_lattice_size(), 100000, outer_precision, outer_restart, square_staggered_u1, (void*)&stagif);
-        mgstruct.dslash_count->krylov[mgstruct.curr_level] += (normal_eqn_mg ? 2 : 1)*invif.ops_count; 
+        mgstruct.dslash_count->krylov[mgstruct.curr_level] += (params.normal_eqn_mg ? 2 : 1)*invif.ops_count; 
         
 
         if (invif.success == true)
@@ -2539,47 +1861,41 @@ int main(int argc, char** argv)
         // Well, maybe this will work?
         zero<double>(lhs, Lat.get_lattice_size());
         
-        switch (out_solve)
+        switch (params.out_solve)
         {
             case OUTER_GCR:
-                if (outer_restart)
+                if (params.outer_restart)
                 {
-                    //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
+                    invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, params.outer_restart_freq, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 else
                 {
-                    invif = minv_vector_gcr_var_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_gcr_var_precond(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
             case OUTER_CG:
-                if (outer_restart)
+                if (params.outer_restart)
                 {
-                    //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
+                    invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, params.outer_restart_freq, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 else
                 {
-                    invif = minv_vector_cg_flex_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_cg_flex_precond(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
             case OUTER_BICGSTAB:
-                if (outer_restart)
+                if (params.outer_restart)
                 {
-                    //invif = minv_vector_cg_flex_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, op, (void*)&stagif, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    invif = minv_vector_bicgstab_precond_restart(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, outer_restart_freq, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
-                    //invif = minv_vector_gcr_var_precond_restart(lhs, rhs, Lat.get_lattice_size(), 10000, outer_precision, outer_restart_freq, square_staggered_u1, (void*)&stagif, mg_preconditioner, (void*)&mgprecond); 
+                    invif = minv_vector_bicgstab_precond_restart(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, params.outer_restart_freq, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 else
                 {
-                    invif = minv_vector_bicgstab_precond(lhs, rhs, Lat.get_lattice_size(), outer_max_iter, outer_precision, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
+                    invif = minv_vector_bicgstab_precond(lhs, rhs, Lat.get_lattice_size(), params.outer_max_iter, params.outer_precision, fine_op, (void*)&mgstruct, mg_preconditioner, (void*)&mgprecond, &verb); 
                 }
                 break;
         }
         
-        mgstruct.dslash_count->krylov[mgstruct.curr_level] += (normal_eqn_mg ? 2 : 1)*invif.ops_count; 
+        mgstruct.dslash_count->krylov[mgstruct.curr_level] += (params.normal_eqn_mg ? 2 : 1)*invif.ops_count; 
         
         
 
