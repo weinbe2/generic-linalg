@@ -54,7 +54,7 @@ struct mg_input_params
     blocking_strategy bstrat;
     bool do_global_ortho_conj; 
     bool do_ortho_eo; 
-    unsigned int n_refine; 
+    int n_refine; 
     mg_multilevel_type mlevel_type; 
     bool normal_eqn_mg; 
     

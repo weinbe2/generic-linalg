@@ -637,6 +637,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                     invif = minv_vector_gcr_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res[mgprecond->mgstruct->curr_level], mgprecond->n_restart, mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
                     break;
                 case BICGSTAB:
+                case BICGSTAB_L: // not really, BiCGstab(l) doesn't have a faithful precond form.
                     invif = minv_vector_bicgstab(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res[mgprecond->mgstruct->curr_level], mgprecond->coarse_matrix_vector, mgprecond->matrix_extra_data, verb);
                     break;
                 case CR:
@@ -684,6 +685,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
                             invif = minv_vector_gcr_var_precond_restart(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res[mgprecond->mgstruct->curr_level-1], mgprecond->n_restart, mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, (void*)mgprecond, verb); 
                             break;
                         case BICGSTAB:
+                        case BICGSTAB_L: // kind of a lie. BiCGstab(l) doesn't have a faithful precond form.
                             invif = minv_vector_bicgstab_precond(lhs_coarse, rhs_coarse, coarse_length, mgprecond->n_max, mgprecond->rel_res[mgprecond->mgstruct->curr_level-1], mgprecond->fine_matrix_vector, mgprecond->matrix_extra_data, mg_preconditioner, (void*)mgprecond, verb);  // Should probably add a flag for restarting, but meh, it's bicg, it's already flexible. 
                             break;
                             
@@ -847,11 +849,11 @@ void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* ste
     Lattice* latt_fine = stenc_fine->lat;
     Lattice* latt_coarse = stenc_coarse->lat; 
     
-    int i,x,y;
+    int i;
     int coord[2];
     int color, c;
     
-    int stencil_distance = stenc_coarse->stencil_size; 
+    //int stencil_distance = stenc_coarse->stencil_size; 
     
     int fine_size = latt_fine->get_lattice_size(); // Only required to allocate temporary vectors. 
     int coarse_size = latt_coarse->get_lattice_size();

@@ -102,8 +102,7 @@ int main(int argc, char** argv)
 {  
     // Declare some variables.
     cout << setiosflags(ios::scientific) << setprecision(6);
-    unsigned int i; 
-    int j, k;
+    int i, j, k;
     complex<double> *lattice; // Holds the gauge field.
     complex<double> *lhs, *rhs, *check; // For some Kinetic terms.
     complex<double> *tmp, *tmp2; // For temporary space. 
@@ -115,7 +114,7 @@ int main(int argc, char** argv)
     staggered_u1_op stagif;
     
     // Introducing coordinate functions slowly.
-    unsigned int nd = 2;
+    int nd = 2;
     int* coord = new int[nd];
     for (i = 0; i < nd; i++)
     {
@@ -165,8 +164,8 @@ int main(int argc, char** argv)
     
     
     string op_name;
-    void (*op)(complex<double>*, complex<double>*, void*);
-    void (*op_dagger)(complex<double>*, complex<double>*, void*);
+    void (*op)(complex<double>*, complex<double>*, void*) = square_staggered_u1;
+    void (*op_dagger)(complex<double>*, complex<double>*, void*) = square_staggered_dagger_u1; 
     switch (params.opt)
     {
         case STAGGERED:
@@ -198,7 +197,7 @@ int main(int argc, char** argv)
     cout << "[OP]: Operator " << op_name << " Mass " << params.mass << "\n";
     
     // Only relevant for free laplace test.
-    unsigned int Nc = 1;  // Only value that matters for staggered
+    int Nc = 1;  // Only value that matters for staggered
     if (params.opt == LAPLACE_NC2)
     {
         Nc = 2;
@@ -345,7 +344,7 @@ int main(int argc, char** argv)
     mgstruct.n_refine = params.n_refine; 
     mgstruct.dslash_count = new dslash_tracker(params.n_refine); 
     
-    if (params.blocksizes.size() != params.n_refine && params.blocksizes.size() != 1 && params.n_refine > 0)
+    if ((int)params.blocksizes.size() != params.n_refine && params.blocksizes.size() != 1 && params.n_refine > 0)
     {
         cout << "[ERROR]: Incorrect number of block sizes supplied. Needs to be either 1 or nrefine.\n";
         return 0;
@@ -475,7 +474,7 @@ int main(int argc, char** argv)
     mgprecond.matrix_extra_data = (void*)&mgstruct; // What extra_data the coarse operator expects. 
     
     // Inner precision. Default 1e-2. Maximum relative residual for coarse solves.
-    if (params.inner_precisions.size() != params.n_refine && params.inner_precisions.size() != 1 && params.n_refine > 0)
+    if ((int)params.inner_precisions.size() != params.n_refine && params.inner_precisions.size() != 1 && params.n_refine > 0)
     {
         cout << "[ERROR]: Incorrect number of inner precisions supplied. Needs to be either 1 or nrefine.\n";
         return 0;
@@ -489,12 +488,12 @@ int main(int argc, char** argv)
     
     
     // Presmooth and postsmooth. Default 6 MinRes pre, post. 
-    if (params.pre_smooths.size() != params.n_refine && params.pre_smooths.size() != 1 && params.n_refine > 0)
+    if ((int)params.pre_smooths.size() != params.n_refine && params.pre_smooths.size() != 1 && params.n_refine > 0)
     {
         cout << "[ERROR]: Incorrect number of presmoother iterations supplied. Needs to be either 1 or nrefine.\n";
         return 0;
     }
-    if (params.post_smooths.size() != params.n_refine && params.post_smooths.size() != 1 && params.n_refine > 0)
+    if ((int)params.post_smooths.size() != params.n_refine && params.post_smooths.size() != 1 && params.n_refine > 0)
     {
         cout << "[ERROR]: Incorrect number of postsmoother iterations supplied. Needs to be either 1 or nrefine.\n";
         return 0;

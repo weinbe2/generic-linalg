@@ -105,7 +105,7 @@ struct mg_operator_struct_complex
 {
     int x_fine; // Fine x dimension.
     int y_fine; // Fine y dimension. 
-    unsigned int n_refine; // How many refinements? 1 = two level, 2 = three level, etc. 
+    int n_refine; // How many refinements? 1 = two level, 2 = three level, etc. 
     
     int* blocksize_x; // How much to block in x direction.
     int* blocksize_y; // How much to block in y direction. 
