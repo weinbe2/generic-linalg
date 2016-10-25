@@ -37,23 +37,10 @@ struct mg_input_params
     int outer_restart_freq; 
     
     // Information about the null space generation.
-    op_type opt_null;
-    int n_null_vector; 
-    mg_null_gen_type null_gen; 
-    std::vector<double> null_precisions; 
-    std::vector<int> null_max_iters; 
-    bool null_restart; 
-    int null_restart_freq; 
-    int null_bicgstab_l; 
-    double null_mass; 
-    int null_partitions; 
-    
+    null_vector_params nvec_params; 
     
     // Information about MG.
     std::vector<int> blocksizes; 
-    blocking_strategy bstrat;
-    bool do_global_ortho_conj; 
-    bool do_ortho_eo; 
     int n_refine; 
     mg_multilevel_type mlevel_type; 
     bool normal_eqn_mg; 

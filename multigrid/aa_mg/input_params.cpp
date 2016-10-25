@@ -147,27 +147,27 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             {
                 if (strcmp(argv[i+1], "laplace") == 0)
                 {
-                    params->opt_null = LAPLACE; 
+                    params->nvec_params.opt_null = LAPLACE; 
                 }
                 else if (strcmp(argv[i+1], "laplace2") == 0)
                 {
-                    params->opt_null = LAPLACE_NC2; 
+                    params->nvec_params.opt_null = LAPLACE_NC2; 
                 }
                 else if (strcmp(argv[i+1], "staggered") == 0)
                 {
-                    params->opt_null = STAGGERED; 
+                    params->nvec_params.opt_null = STAGGERED; 
                 }
                 else if (strcmp(argv[i+1], "g5_staggered") == 0)
                 {
-                    params->opt_null = G5_STAGGERED; 
+                    params->nvec_params.opt_null = G5_STAGGERED; 
                 }
                 else if (strcmp(argv[i+1], "normal_staggered") == 0)
                 {
-                    params->opt_null = STAGGERED_NORMAL;
+                    params->nvec_params.opt_null = STAGGERED_NORMAL;
                 }
                 else if (strcmp(argv[i+1], "index") == 0)
                 {
-                    params->opt_null = STAGGERED_INDEX;
+                    params->nvec_params.opt_null = STAGGERED_INDEX;
                 }
                 i++;
             }
@@ -183,26 +183,26 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             }
             else if (strcmp(argv[i], "--nvec") == 0)
             {
-                params->n_null_vector = atoi(argv[i+1]);
+                params->nvec_params.n_null_vector = atoi(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--null-precision") == 0)
             {
-                params->null_precisions[0] = atof(argv[i+1]);
+                params->nvec_params.null_precisions[0] = atof(argv[i+1]);
                 i++;
                 while (i+1 != argc && argv[i+1][0] != '-')
                 {
-                    params->null_precisions.push_back(atof(argv[i+1]));
+                    params->nvec_params.null_precisions.push_back(atof(argv[i+1]));
                     i++;
                 }
             }
             else if (strcmp(argv[i], "--null-max-iter") == 0)
             {
-                params->null_max_iters[0] = atoi(argv[i+1]);
+                params->nvec_params.null_max_iters[0] = atoi(argv[i+1]);
                 i++;
                 while (i+1 != argc && argv[i+1][0] != '-')
                 {
-                    params->null_max_iters.push_back(atoi(argv[i+1]));
+                    params->nvec_params.null_max_iters.push_back(atoi(argv[i+1]));
                     i++;
                 }
             }
@@ -210,56 +210,56 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             {
                 if (strcmp(argv[i+1], "yes") == 0)
                 {
-                    params->null_restart = true;
+                    params->nvec_params.null_restart = true;
                 }
                 else if (strcmp(argv[i+1], "no") == 0)
                 {
-                    params->null_restart = false;
+                    params->nvec_params.null_restart = false;
                 }
                 i++;
             }
             else if (strcmp(argv[i], "--null-restart-freq") == 0)
             {
-                params->null_restart_freq = atoi(argv[i+1]);
+                params->nvec_params.null_restart_freq = atoi(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--null-bicgstab-l") == 0)
             {
-                params->null_bicgstab_l = atoi(argv[i+1]);
+                params->nvec_params.null_bicgstab_l = atoi(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--null-mass") == 0)
             {
-                params->null_mass = atof(argv[i+1]);
+                params->nvec_params.null_mass = atof(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--null-solver") == 0)
             {
                 if (strcmp(argv[i+1], "gcr") == 0)
                 {
-                    params->null_gen = NULL_GCR;
+                    params->nvec_params.null_gen = NULL_GCR;
                 }
                 else if (strcmp(argv[i+1], "bicgstab") == 0)
                 {
-                    params->null_gen = NULL_BICGSTAB;
+                    params->nvec_params.null_gen = NULL_BICGSTAB;
                 }
                 else if (strcmp(argv[i+1], "cg") == 0)
                 {
-                    params->null_gen = NULL_CG;
+                    params->nvec_params.null_gen = NULL_CG;
                 }
                 else if (strcmp(argv[i+1], "minres") == 0)
                 {
-                    params->null_gen = NULL_MINRES;
+                    params->nvec_params.null_gen = NULL_MINRES;
                 }
                 else if (strcmp(argv[i+1], "arpack") == 0)
                 {
-                    params->null_gen = NULL_ARPACK;
+                    params->nvec_params.null_gen = NULL_ARPACK;
                     //cout << "[ERROR]: Cannot use eigenvectors as null vectors without arpack bindings.\n";
                     return 0;
                 }
                 else if (strcmp(argv[i+1], "bicgstab-l") == 0)
                 {
-                    params->null_gen = NULL_BICGSTAB_L;
+                    params->nvec_params.null_gen = NULL_BICGSTAB_L;
                 }
                 i++;
             }
@@ -267,19 +267,19 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             {
                 if (strcmp(argv[i+1], "yes") == 0)
                 {
-                    params->bstrat = BLOCK_EO; // even/odd
+                    params->nvec_params.bstrat = BLOCK_EO; // even/odd
                 }
                 else if (strcmp(argv[i+1], "corner") == 0)
                 {
-                    params->bstrat = BLOCK_CORNER; // corners
+                    params->nvec_params.bstrat = BLOCK_CORNER; // corners
                 }
                 else if (strcmp(argv[i+1], "topo") == 0)
                 {
-                    params->bstrat = BLOCK_TOPO; // chirality as defined by taste singlet. 
+                    params->nvec_params.bstrat = BLOCK_TOPO; // chirality as defined by taste singlet. 
                 }
                 else // none.
                 {
-                    params->bstrat = BLOCK_NONE; // fully reduce. 
+                    params->nvec_params.bstrat = BLOCK_NONE; // fully reduce. 
                 }
                 i++;
             }
@@ -287,11 +287,11 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             {
                 if (strcmp(argv[i+1], "yes") == 0)
                 {
-                    params->do_global_ortho_conj = true; // yes, globally orthogonalize null vectors against previous and conj.
+                    params->nvec_params.do_global_ortho_conj = true; // yes, globally orthogonalize null vectors against previous and conj.
                 }
                 else if (strcmp(argv[i+1], "no") == 0)
                 {
-                    params->do_global_ortho_conj = false;
+                    params->nvec_params.do_global_ortho_conj = false;
                 }
                 i++;
             }
@@ -299,11 +299,11 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             {
                 if (strcmp(argv[i+1], "yes") == 0)
                 {
-                    params->do_ortho_eo = true; // yes, split null vectors into eo before orthogonalizing.
+                    params->nvec_params.do_ortho_eo = true; // yes, split null vectors into eo before orthogonalizing.
                 }
                 else if (strcmp(argv[i+1], "no") == 0)
                 {
-                    params->do_ortho_eo = false; 
+                    params->nvec_params.do_ortho_eo = false; 
                 }
                 i++;
             }
@@ -620,7 +620,7 @@ mg_input_params::mg_input_params()
     
     // What operator are we using for null vector generation? Can set on command line.
     //op_type
-    opt_null = STAGGERED;
+    nvec_params.opt_null = STAGGERED;
     
     // Null vector generation
     
@@ -636,58 +636,59 @@ mg_input_params::mg_input_params()
     //   Generate "n_null_vector" null vectors, partition into four corners.
     //    Total number of null vectors is 4*VECTOR_COUNT. 
     //int
-    n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
+    nvec_params.n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
                            // Can be overriden on command line with --nvec
     
     // How are we generating null vectors?
     //mg_null_gen_type
-    null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MINRES, NULL_BICGSTAB_L
+    nvec_params.null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MINRES, NULL_BICGSTAB_L
     
     // Relative precision we solve the residual equation to, per level.
     //vector<double>
-    null_precisions.push_back(5e-5); // Can be overriden on command line with --null-precision
+    nvec_params.null_precisions.push_back(5e-5); // Can be overriden on command line with --null-precision
     
     // Maximum number of iterations for null vector generation, per level.
     //vector<int>
-    null_max_iters.push_back(500); // Can be overriden on command line with --null-max-iter
+    nvec_params.null_max_iters.push_back(500); // Can be overriden on command line with --null-max-iter
     
     // Do we restart our null space solver?
     //bool
-    null_restart = false; 
+    nvec_params.null_restart = false; 
     
     // if we are restarting, what's the frequency?
     //int
-    null_restart_freq = 8; 
+    nvec_params.null_restart_freq = 8; 
     
     // What l to use if we're using BiCGStab-l for null vector generation.
     //int
-    null_bicgstab_l = 4; 
+    nvec_params.null_bicgstab_l = 4; 
     
     // What mass do we use for null vector generation?
     //double
-    null_mass = 1e-4; 
+    nvec_params.null_mass = 1e-4; 
     
     // How many ways do we split the null vectors up?
     //int
-    null_partitions = 2; 
+    nvec_params.null_partitions = 2; 
+    
+    // blocking strategy
+    //blocking_strategy
+    nvec_params.bstrat = BLOCK_EO; // BLOCK_NONE, BLOCK_EO, BLOCK_CORNER
+    
+    // Do we globally orthogonalize null vectors both against previous null vectors and their conjugate?
+    //bool
+    nvec_params.do_global_ortho_conj = false;
+    
+    // Do we split null vectors into even/odd, then orthogonalize, or do we orthogonalize first?
+    //bool
+    nvec_params.do_ortho_eo = false; 
+    
     
     //////// MG PROPERTIES ////////////
     
     // vector of block sizes.
     //vector<int>
     blocksizes.push_back(4); 
-    
-    // blocking strategy
-    //blocking_strategy
-    bstrat = BLOCK_EO; // BLOCK_NONE, BLOCK_EO, BLOCK_CORNER
-    
-    // Do we globally orthogonalize null vectors both against previous null vectors and their conjugate?
-    //bool
-    do_global_ortho_conj = false;
-    
-    // Do we split null vectors into even/odd, then orthogonalize, or do we orthogonalize first?
-    //bool
-    do_ortho_eo = false; 
     
     // Multigrid information. 
     //int
