@@ -10,6 +10,7 @@ using std::complex;
 #include "verbosity.h"
 #include "coarse_stencil.h"
 #include "operators.h" // needed for 'dagger' functions, since different ops have different daggered versions. 
+#include "generic_inverters.h"
 
 // For multilevel: smooth then down, or recursive Krylov?
 enum mg_multilevel_type
@@ -146,7 +147,7 @@ struct mg_operator_struct_complex
 struct mg_precond_struct_complex
 {
     // What inner smoother?
-    inner_solver in_smooth_type; // MR or GCR
+    minv_inverter in_smooth_type; // MR or GCR
     
     // Set the relaxation parameter (MR only.)
     double omega_smooth;

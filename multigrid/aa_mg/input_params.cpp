@@ -455,31 +455,31 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             {
                 if (strcmp(argv[i+1], "gcr") == 0)
                 {
-                    params->in_smooth = GCR;
+                    params->in_smooth = MINV_GCR;
                 }
                 else if (strcmp(argv[i+1], "bicgstab") == 0)
                 {
-                    params->in_smooth = BICGSTAB;
+                    params->in_smooth = MINV_BICGSTAB;
                 }
                 else if (strcmp(argv[i+1], "cg") == 0)
                 {
-                    params->in_smooth = CG;
+                    params->in_smooth = MINV_CG;
                 }
                 else if (strcmp(argv[i+1], "cr") == 0)
                 {
-                    params->in_smooth = CR;
+                    params->in_smooth = MINV_CR;
                 }
                 else if (strcmp(argv[i+1], "minres") == 0)
                 {
-                    params->in_smooth = MINRES;
+                    params->in_smooth = MINV_MINRES;
                 }
                 else if (strcmp(argv[i+1], "bicgstab-l") == 0)
                 {
-                    params->in_smooth = BICGSTAB_L;
+                    params->in_smooth = MINV_BICGSTAB_L;
                 }
                 else if (strcmp(argv[i+1], "none") == 0)
                 {
-                    params->in_smooth = NONE;
+                    params->in_smooth = MINV_INVALID;
                 }
                 i++;
             }
@@ -717,7 +717,7 @@ mg_input_params::mg_input_params()
     
     // What solver do we use to smooth?
     //inner_solver
-    in_smooth = GCR; //NONE; //GCR; BICGSTAB
+    in_smooth = MINV_GCR; // MINV_BICGSTAB, MINV_BICGSTAB_L, MINV_CG, MINV_CR, MINV_MINRES, MINV_INVALID for none. 
     
     // What relaxation parameter do we use (for MINRES)
     //double

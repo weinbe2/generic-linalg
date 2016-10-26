@@ -47,7 +47,7 @@ struct mg_input_params
     bool normal_eqn_mg; 
     
     // Information about MG smoother.
-    inner_solver in_smooth; 
+    minv_inverter in_smooth; 
     double omega_smooth;
     std::vector<int> pre_smooths;
     std::vector<int> post_smooths; 

@@ -541,7 +541,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     zero<double>(z1, fine_size);
     complex<double>* r1 = new complex<double>[fine_size];
     zero<double>(r1, fine_size);
-    if (mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level] > 0 && mgprecond->in_smooth_type != NONE)
+    if (mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level] > 0 && mgprecond->in_smooth_type != MINV_INVALID)
     {
         // Are we smoothing via the normal equation?
         if (mgprecond->normal_eqn_smooth && !mgprecond->normal_eqn_mg) 
@@ -556,29 +556,17 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             copy<double>(tmp_smooth, rhs, fine_size);
         }
             
-        switch (mgprecond->in_smooth_type)
-        {
-            case NONE: // can't reach here, anyway.
-                break;
-            case CG:
-                invif = minv_vector_cg(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
-                break;
-            case MINRES:
-                invif = minv_vector_minres(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, smooth_op, mgprecond->matrix_extra_data); 
-                break;
-            case GCR: 
-                invif = minv_vector_gcr(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
-                break; 
-            case BICGSTAB:
-                invif = minv_vector_bicgstab(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
-                break;
-            case CR:
-                invif = minv_vector_cr(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
-                break; 
-            case BICGSTAB_L:
-                invif = minv_vector_bicgstab_l(z1, tmp_smooth, fine_size, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level], smooth_op, mgprecond->matrix_extra_data); 
-                break;
-        }
+        // Populate an inverter struct.
+        minv_inverter_params pre_solve;
+        pre_solve.tol = 1e-20; 
+        pre_solve.max_iters = mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level];
+        pre_solve.restart = false;
+        pre_solve.restart_freq = -1;
+        pre_solve.minres_omega = 1.0; // should expose.
+        pre_solve.bicgstabl_l = mgprecond->n_pre_smooth[mgprecond->mgstruct->curr_level];
+        
+        invif = minv_unpreconditioned(z1, tmp_smooth, fine_size, mgprecond->in_smooth_type, pre_solve, smooth_op, mgprecond->matrix_extra_data);
+
         printf("[L%d Presmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str()); fflush(stdout);
         mgprecond->mgstruct->dslash_count->presmooth[mgprecond->mgstruct->curr_level] += ((mgprecond->normal_eqn_smooth || mgprecond->normal_eqn_mg) ? 2 : 1)*invif.ops_count; 
         
@@ -766,7 +754,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     complex<double>* z3 = new complex<double>[fine_size]; zero<double>(z3, fine_size); 
     // Almost done! Do some post-smoothing. on z3 = A^(-1) r2
     // 7. Post smooth.
-    if (mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level] > 0 && mgprecond->in_smooth_type != NONE)
+    if (mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level] > 0 && mgprecond->in_smooth_type != MINV_INVALID)
     {
         // Form the residual equation.
         // Compute r2 = rhs - A lhs.
@@ -791,29 +779,17 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
             copy<double>(tmp_smooth, r2, fine_size);
         }
         
-        switch (mgprecond->in_smooth_type)
-        {
-            case NONE: // Can't reach here, anyway.
-                break;
-            case CG:
-                invif = minv_vector_cg(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
-                break;
-            case MINRES:
-                invif = minv_vector_minres(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->omega_smooth, smooth_op, mgprecond->matrix_extra_data); 
-                break;
-            case GCR:
-                invif = minv_vector_gcr(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
-                break;
-            case BICGSTAB:
-                invif = minv_vector_bicgstab(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
-                break;
-            case CR:
-                invif = minv_vector_gcr(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, smooth_op, mgprecond->matrix_extra_data); 
-                break;
-            case BICGSTAB_L:
-                invif = minv_vector_bicgstab_l(z3, tmp_smooth, fine_size, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], 1e-20, mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level], smooth_op, mgprecond->matrix_extra_data); 
-                break;
-        }
+        // Populate an inverter struct.
+        minv_inverter_params post_solve;
+        post_solve.tol = 1e-20; 
+        post_solve.max_iters = mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level];
+        post_solve.restart = false;
+        post_solve.restart_freq = -1;
+        post_solve.minres_omega = 1.0; // should expose.
+        post_solve.bicgstabl_l = mgprecond->n_post_smooth[mgprecond->mgstruct->curr_level];
+        
+        invif = minv_unpreconditioned(z3, tmp_smooth, fine_size, mgprecond->in_smooth_type, post_solve, smooth_op, mgprecond->matrix_extra_data);
+        
         printf("[L%d Postsmooth]: Iterations %d Res %.8e Err N Algorithm %s\n", mgprecond->mgstruct->curr_level+1, invif.iter, sqrt(invif.resSq), invif.name.c_str());
         mgprecond->mgstruct->dslash_count->postsmooth[mgprecond->mgstruct->curr_level] += ((mgprecond->normal_eqn_smooth || mgprecond->normal_eqn_mg) ? 2 : 1)*invif.ops_count; 
     }
