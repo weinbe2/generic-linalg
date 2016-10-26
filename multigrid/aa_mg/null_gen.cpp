@@ -9,12 +9,7 @@
 #include "operators.h"
 #include "verbosity.h"
 
-#include "generic_bicgstab.h"
-#include "generic_cg.h"
-#include "generic_cr.h"
-#include "generic_gcr.h"
-#include "generic_minres.h"
-#include "generic_bicgstab_l.h"
+#include "generic_inverters.h"
 
 // Function to partition null vectors on the top level.
 void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null_vec, blocking_strategy bstrat, Lattice* Lat)
@@ -200,7 +195,7 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 	inversion_info invif; 
 	
 	// Populate an inverter struct.
-	solver_params solve;
+	minv_inverter_params solve;
 	solve.tol = nvec_params->null_precisions[mgstruct->curr_level];
 	solve.max_iters = nvec_params->null_max_iters[mgstruct->curr_level];
 	solve.restart = nvec_params->null_restart;
@@ -338,63 +333,6 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 
 	delete[] rand_guess; 
 	delete[] Arand_guess; 
-}
-
-inversion_info minv_unpreconditioned(complex<double>* lhs, complex<double>* rhs, int size, mg_null_gen_type type, solver_params& params, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verb)
-{
-	switch (type)
-	{
-		case NULL_GCR:
-			if (params.restart)
-			{
-				return minv_vector_gcr_restart(lhs, rhs, size, params.max_iters, params.tol, params.restart_freq, matrix_vector, extra_info, verb);
-			}
-			else
-			{
-				return minv_vector_gcr(lhs, rhs, size, params.max_iters, params.tol, matrix_vector, extra_info, verb);
-			}
-			break;
-		case NULL_BICGSTAB:
-			if (params.restart)
-			{
-				return minv_vector_bicgstab_restart(lhs, rhs, size, params.max_iters, params.tol, params.restart_freq, matrix_vector, extra_info, verb);
-			}
-			else
-			{
-				return minv_vector_bicgstab(lhs, rhs, size, params.max_iters, params.tol, matrix_vector, extra_info, verb);
-			}
-			break;
-		case NULL_CG:
-			if (params.restart) // why would you do this I don't know it's CG come on
-			{
-				return minv_vector_cg_restart(lhs, rhs, size, params.max_iters, params.tol, params.restart_freq, matrix_vector, extra_info, verb);
-			}
-			else
-			{
-				return minv_vector_cg(lhs, rhs, size, params.max_iters, params.tol, matrix_vector, extra_info, verb);
-			}
-			break;
-		case NULL_MINRES:
-			// Restarting doesn't make sense for MinRes. 
-			return minv_vector_minres(lhs, rhs, size, params.max_iters, params.tol, params.minres_omega, matrix_vector, extra_info, verb);
-			break;
-		case NULL_ARPACK: // it can't get here. 
-			break;
-		case NULL_BICGSTAB_L:
-			if (params.restart)
-			{
-				return minv_vector_bicgstab_l_restart(lhs, rhs, size, params.max_iters, params.tol, params.restart_freq, params.bicgstabl_l, matrix_vector, extra_info, verb);
-			}
-			else
-			{
-				return minv_vector_bicgstab_l(lhs, rhs, size, params.max_iters, params.tol, params.bicgstabl_l, matrix_vector, extra_info, verb);
-			}
-			break;
-		default:
-			return inversion_info();
-	}
-
-	return inversion_info();
 }
 
 

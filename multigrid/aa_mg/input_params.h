@@ -38,6 +38,7 @@ struct mg_input_params
     
     // Information about the null space generation.
     null_vector_params nvec_params; 
+    bool nvec_use_eigen; 
     
     // Information about MG.
     std::vector<int> blocksizes; 

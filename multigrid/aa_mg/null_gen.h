@@ -5,20 +5,10 @@
 
 #include <vector>
 
+#include "generic_inverters.h"
 #include "inverter_struct.h"
 #include "mg_complex.h"
 #include "lattice.h"
-
-// How should we generate null vectors?
-enum mg_null_gen_type
-{
-    NULL_GCR = 0,                    // Generate null vectors with GCR
-    NULL_BICGSTAB = 1,               // Generate null vectors with BiCGStab
-    NULL_CG = 2,                    // Generate null vectors with CG
-    NULL_MINRES = 3,                // Generate null vectors with MinRes
-    NULL_ARPACK = 4,                // Generate null vectors as low eigenvectors with Arpack. 
-    NULL_BICGSTAB_L = 5,            // Generate null vectors with BiCGStab-l
-};
 
 // What structure are we preserving when we block? None, E/O, Corners?
 enum blocking_strategy
@@ -33,7 +23,7 @@ struct null_vector_params
 {
     op_type opt_null;
     int n_null_vector; 
-    mg_null_gen_type null_gen; 
+    minv_inverter null_gen; 
     std::vector<double> null_precisions; 
     std::vector<int> null_max_iters; 
     bool null_restart; 
@@ -58,27 +48,5 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 
 // Function to generate null vectors by throwing a random source and smoothing.
 void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vector_params* nvec_params, inversion_verbose_struct* verb, std::mt19937* generator);
-
-// Functions related to un-preconditioned solver factories. This should be made more general.
-struct solver_params
-{
-    // General properties.
-    double tol;
-    int max_iters;
-    bool restart;
-    int restart_freq;
-    
-    // Solver-specific properties.
-    
-    // MinRes:
-    double minres_omega; 
-    
-    // BiCGstab-L:
-    int bicgstabl_l;
-    
-};
-
-inversion_info minv_unpreconditioned(complex<double>* lhs, complex<double>* rhs, int size, mg_null_gen_type type, solver_params& params, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity = 0);
-    
 
 #endif // MG_NULL_GEN

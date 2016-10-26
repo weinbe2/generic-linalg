@@ -15,6 +15,9 @@
 #include "generic_vector.h"
 #include "verbosity.h"
 
+#include "generic_inverters.h"
+#include "generic_inverters_precond.h"
+
 #include "generic_bicgstab.h"
 #include "generic_cg.h"
 #include "generic_cr.h"
@@ -726,13 +729,9 @@ int main(int argc, char** argv)
             {
                 null_generate_random_smooth(&mgstruct, &params.nvec_params, params.do_gauge_transform, gauge_trans);
             }
-            else if (params.nvec_params.null_gen != NULL_ARPACK) // Generate null vectors. 
+            else if (params.nvec_use_eigen) // use ARPACK. It can't get here if we don't have EIGEN_TEST
             {
-                null_generate_random_smooth(&mgstruct, &params.nvec_params, &verb, &generator);
-            }
-            else // use ARPACK. It can't get here if we don't have EIGEN_TEST
-            {
-#ifdef EIGEN_TEST 
+                #ifdef EIGEN_TEST 
                 int n_eigen = mgstruct.n_vector/params.nvec_params.null_partitions;
                 int n_cv = min(10*mgstruct.n_vector/params.nvec_params.null_partitions, mgstruct.curr_fine_size);
                 arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); 
@@ -766,6 +765,11 @@ int main(int argc, char** argv)
                     }
                 }
 #endif // EIGEN_TEST
+
+            }
+            else // Generate null vectors. 
+            {
+                null_generate_random_smooth(&mgstruct, &params.nvec_params, &verb, &generator);
             }
 
 

@@ -18,7 +18,7 @@ void display_usage()
     cout << "--outer-restart-freq [#]                          (default 64)\n";
     cout << "--null-operator [laplace, laplace2, staggered\n";
     cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
-    cout << "--null-solver [gcr, bicgstab, cg, minres,\n";
+    cout << "--null-solver [gcr, bicgstab, cg, cr, minres,\n";
     cout << "       arpack, bicgstab-l]                        (default bicgstab)\n";
     cout << "--null-precision [null prec] {#, #...}            (default 5e-5)\n";
     cout << "--null-max-iter [null nax iter] {#, #...}         (default 500)\n";
@@ -237,29 +237,34 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             {
                 if (strcmp(argv[i+1], "gcr") == 0)
                 {
-                    params->nvec_params.null_gen = NULL_GCR;
+                    params->nvec_params.null_gen = MINV_GCR;
                 }
                 else if (strcmp(argv[i+1], "bicgstab") == 0)
                 {
-                    params->nvec_params.null_gen = NULL_BICGSTAB;
+                    params->nvec_params.null_gen = MINV_BICGSTAB;
                 }
                 else if (strcmp(argv[i+1], "cg") == 0)
                 {
-                    params->nvec_params.null_gen = NULL_CG;
+                    params->nvec_params.null_gen = MINV_CG;
+                }
+                else if (strcmp(argv[i+1], "cr") == 0)
+                {
+                    params->nvec_params.null_gen = MINV_CR;
                 }
                 else if (strcmp(argv[i+1], "minres") == 0)
                 {
-                    params->nvec_params.null_gen = NULL_MINRES;
+                    params->nvec_params.null_gen = MINV_MINRES;
                 }
                 else if (strcmp(argv[i+1], "arpack") == 0)
                 {
-                    params->nvec_params.null_gen = NULL_ARPACK;
+                    params->nvec_params.null_gen = MINV_INVALID;
+                    params->nvec_use_eigen = true; 
                     //cout << "[ERROR]: Cannot use eigenvectors as null vectors without arpack bindings.\n";
                     return 0;
                 }
                 else if (strcmp(argv[i+1], "bicgstab-l") == 0)
                 {
-                    params->nvec_params.null_gen = NULL_BICGSTAB_L;
+                    params->nvec_params.null_gen = MINV_BICGSTAB_L;
                 }
                 i++;
             }
@@ -641,7 +646,7 @@ mg_input_params::mg_input_params()
     
     // How are we generating null vectors?
     //mg_null_gen_type
-    nvec_params.null_gen = NULL_BICGSTAB; // NULL_BICGSTAB, NULL_GCR, NULL_CG, NULL_MINRES, NULL_BICGSTAB_L
+    nvec_params.null_gen = MINV_BICGSTAB; // MINV_GCR, MINV_CG, MINV_MINRES, MINV_BICGSTAB_L
     
     // Relative precision we solve the residual equation to, per level.
     //vector<double>
@@ -682,6 +687,9 @@ mg_input_params::mg_input_params()
     // Do we split null vectors into even/odd, then orthogonalize, or do we orthogonalize first?
     //bool
     nvec_params.do_ortho_eo = false; 
+    
+    // Do we just generate null vectors with arpack instead?
+    nvec_use_eigen = false; 
     
     
     //////// MG PROPERTIES ////////////
