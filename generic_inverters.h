@@ -65,5 +65,50 @@ using std::complex;
 // Gauss-Seidel: https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method
 // Jacobi iterations: https://en.wikipedia.org/wiki/Jacobi_method
 
+// Enumerates all current solvers without preconditioners.
+// Add new inverters here.
+enum minv_inverter
+{
+    MINV_CG = 0,
+    MINV_CR = 1,
+    MINV_GCR = 2,
+    MINV_BICGSTAB = 3,
+    MINV_BICGSTAB_L = 4,
+    MINV_GMRES = 5,
+    MINV_SOR = 6,
+    MINV_MINRES = 7,
+    MINV_INVALID = -1,
+};
+
+// A structure which holds all properties shared by different inverters, and
+// custom properties that are only relevant for some inverters (i.e., are 
+// ignored by others.
+struct minv_inverter_params
+{
+    // General properties.
+    double tol;
+    int max_iters;
+    bool restart;
+    int restart_freq;
+    
+    // Solver-specific properties.
+    
+    // SOR:
+    double sor_omega;
+    
+    // MinRes:
+    double minres_omega; 
+    
+    // BiCGstab-L:
+    int bicgstabl_l;
+};
+
+// A general function that takes an 'minv_inverter_params' and an 'minv_inverter' enum, then calls
+// the right inverter. Not as efficient as it could be (due to overhead of conditional statements),
+// but it's a bit more compact than other methods.
+inversion_info minv_unpreconditioned(double* lhs, double* rhs, int size, minv_inverter type, minv_inverter_params& params, void (*matrix_vector)(double*,double*,void*), void* extra_info, inversion_verbose_struct* verbosity = 0);
+
+inversion_info minv_unpreconditioned(complex<double>* lhs, complex<double>* rhs, int size, minv_inverter type, minv_inverter_params& params, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_info, inversion_verbose_struct* verbosity = 0);
+
 
 #endif // define ESW_INVERTER
