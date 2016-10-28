@@ -157,7 +157,7 @@ void null_partition_coarse(mg_operator_struct_complex* mgstruct, int num_null_ve
 }
 
 // Function to generate free field null vectors.
-void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vector_params* nvec_params, bool do_gauge_transform, std::complex<double>* gauge_trans)
+void null_generate_free(mg_operator_struct_complex* mgstruct, null_vector_params* nvec_params, bool do_gauge_transform, std::complex<double>* gauge_trans)
 {
 	int i,k;
 	

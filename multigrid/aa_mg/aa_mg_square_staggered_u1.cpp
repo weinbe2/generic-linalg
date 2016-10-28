@@ -727,7 +727,7 @@ int main(int argc, char** argv)
             
             if (params.do_free)
             {
-                null_generate_random_smooth(&mgstruct, &params.nvec_params, params.do_gauge_transform, gauge_trans);
+                null_generate_free(&mgstruct, &params.nvec_params, params.do_gauge_transform, gauge_trans);
             }
             else if (params.nvec_use_eigen) // use ARPACK. It can't get here if we don't have EIGEN_TEST
             {

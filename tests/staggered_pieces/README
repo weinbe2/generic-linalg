@@ -1,0 +1,10 @@
+This test verifies that the various staggered Dslash functions are working correctly.
+
+* Compares the \gamma5 D function with applying D then \gamma_5.
+* Compares the D^\dagger function with applying \gamma_5 then D then \gamma_5
+* Compares summing applying D_{eo}, D_{oe}, and the mass term to applying D.
+* Compares summing applying -D_{eo}D_{oe}, -D_{oe}D_{eo}, and the mass term squared to applying D^\dagger D.
+* Compares inverting D directly with even-odd reconstruction.
+
+To do: 
+* Test building a chiral stencil (make 2^2 hypercube internal dof), perform a chirality reconstruction solve.

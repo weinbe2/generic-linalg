@@ -71,8 +71,16 @@ void fine_square_staggered(complex<double>* lhs, complex<double>* rhs, void* ext
     
     if (mgstruct->curr_level == 0)
     {
-        zero<double>(lhs, mgstruct->curr_fine_size);
-        (*mgstruct->matrix_vector)(lhs, rhs, mgstruct->matrix_extra_data);
+        if (mgstruct->stencils[0] != 0 && mgstruct->stencils[0]->generated == true)
+        {
+            // Just apply the stencil!
+            apply_stencil_2d(lhs, rhs, (void*)mgstruct->stencils[0]);
+        }
+        else
+        {
+            zero<double>(lhs, mgstruct->curr_fine_size);
+            (*mgstruct->matrix_vector)(lhs, rhs, mgstruct->matrix_extra_data);
+        }
     }
     else
     {

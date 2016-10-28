@@ -64,6 +64,15 @@ void square_staggered_dagger_u1(complex<double>* lhs, complex<double>* rhs, void
 // Staggered normal equations.
 void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
+// Square staggered 2d operator w/ u1 function, D_{eo} only.
+void square_staggered_deo_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Square staggered 2d operator w/ u1 function, D_{oe} only.
+void square_staggered_doe_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Square staggered 2d operator w/ u1 function, m^2 - D_{eo} D_{oe} [zeroes odd explicitly]
+void square_staggered_m2mdeodoe_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
 // Operators for symmetric shifts.
 void staggered_symmshift_x(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 void staggered_symmshift_y(complex<double>* lhs, complex<double>* rhs, void* extra_data); 

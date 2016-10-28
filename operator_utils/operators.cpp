@@ -261,6 +261,47 @@ void gamma_5(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 // Square \gamma_5 staggered 2d operator w/out u1 function.
 void square_staggered_gamma5(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
+    // Declare variables.
+    int i;
+    int x,y;
+    double eta1; 
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    double mass = stagif->mass; 
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+    double eo_sign; 
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        eta1 = 1 - 2*(x%2);
+        eo_sign = ((x+y)%2 == 0) ? 1.0 : -1.0;
+
+        // + e1.
+        lhs[i] = lhs[i]-eo_sign*rhs[y*x_fine+((x+1)%x_fine)];
+
+        // - e1.
+        lhs[i] = lhs[i]+ eo_sign*rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+        // + e2.
+        lhs[i] = lhs[i]- eo_sign*eta1*rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]+ eo_sign*eta1*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+        // 0
+        // Added mass term here.
+        lhs[i] = lhs[i]+ eo_sign*mass*rhs[i];
+
+    }
+    
+    /*    
     staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
     complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
     
@@ -268,25 +309,123 @@ void square_staggered_gamma5(complex<double>* lhs, complex<double>* rhs, void* e
     gamma_5(lhs, tmp, extra_data);
     
     delete[] tmp;
-    
+    */
 }
 
 // Square \gamma_5 staggered 2d operator w/ u1 function.
 void square_staggered_gamma5_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
+    // Declare variables.
+    int i;
+    int x,y;
+    double eta1; 
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* lattice = stagif->lattice;
+    double mass = stagif->mass; 
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+    double eo_sign; 
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        eta1 = 1 - 2*(x%2);
+        eo_sign = ((x+y)%2 == 0) ? 1.0 : -1.0;
+
+        // + e1.
+        lhs[i] = lhs[i]-eo_sign*lattice[y*x_fine*2+x*2]*rhs[y*x_fine+((x+1)%x_fine)];
+
+        // - e1.
+        lhs[i] = lhs[i]+ eo_sign*conj(lattice[y*x_fine*2+((x+x_fine-1)%x_fine)*2])*rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+        // + e2.
+        lhs[i] = lhs[i]- eo_sign*eta1*lattice[y*x_fine*2+x*2+1]*rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]+ eo_sign*eta1*conj(lattice[((y+y_fine-1)%y_fine)*x_fine*2+x*2+1])*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+        // 0
+        // Added mass term here.
+        lhs[i] = lhs[i]+ eo_sign*mass*rhs[i];
+
+    }
+    
+    /*
     staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
     complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
     
     square_staggered_u1(tmp, rhs, extra_data);
     gamma_5(lhs, tmp, extra_data);
     
-    delete[] tmp;
+    delete[] tmp;*/
     
 }
 
 // staggered dagger operator.
+// Mass is the same, hopping is flipped.
 void square_staggered_dagger_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
+    // Declare variables.
+    int i;
+    int x,y;
+    double eta1; 
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* lattice = stagif->lattice;
+    double mass = stagif->mass; 
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+
+    // For a 2D square lattice, the stencil is:
+    //   1 |  0 +eta1  0 |
+    //   - | -1    0  +1 |  , where eta1 = (-1)^x
+    //   2 |  0 -eta1  0 |
+    //
+    // e2 = yhat
+    // ^
+    // | 
+    // |-> e1 = xhat
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        eta1 = 1 - 2*(x%2);
+
+        // + e1.
+        lhs[i] = lhs[i]+lattice[y*x_fine*2+x*2]*rhs[y*x_fine+((x+1)%x_fine)];
+
+        // - e1.
+        lhs[i] = lhs[i]- conj(lattice[y*x_fine*2+((x+x_fine-1)%x_fine)*2])*rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+        // + e2.
+        lhs[i] = lhs[i]+ eta1*lattice[y*x_fine*2+x*2+1]*rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]- eta1*conj(lattice[((y+y_fine-1)%y_fine)*x_fine*2+x*2+1])*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+        // 0
+        // Added mass term here.
+        lhs[i] = lhs[i]+ mass*rhs[i];
+
+        // Apply a gamma5.
+        /*if ((x+y)%2 == 1)
+        {
+            lhs[i] = -lhs[i];
+        }*/
+    }
+    
+    /*
     staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
     complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
     
@@ -298,7 +437,7 @@ void square_staggered_dagger_u1(complex<double>* lhs, complex<double>* rhs, void
         lhs[i] = tmp[i];
     }
     
-    delete[] tmp;
+    delete[] tmp;*/
 }
 
 // Staggered normal equations.
@@ -308,9 +447,119 @@ void square_staggered_normal_u1(complex<double>* lhs, complex<double>* rhs, void
     complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
     
     square_staggered_u1(tmp, rhs, extra_data);
-    gamma_5(lhs, tmp, extra_data);
-    square_staggered_u1(tmp, lhs, extra_data);
-    gamma_5(lhs, tmp, extra_data);
+    square_staggered_dagger_u1(lhs, tmp, extra_data);
+    
+    delete[] tmp;
+}
+
+// Square staggered 2d operator w/ u1 function, D_{eo} only.
+void square_staggered_deo_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Declare variables.
+    int i;
+    int x,y;
+    double eta1; 
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* lattice = stagif->lattice;
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        eta1 = 1 - 2*(x%2);
+        
+        if ((x+y)%2 == 1) // update even only.
+        {
+            continue; 
+        }
+
+        // + e1.
+        lhs[i] = lhs[i]-lattice[y*x_fine*2+x*2]*rhs[y*x_fine+((x+1)%x_fine)];
+
+        // - e1.
+        lhs[i] = lhs[i]+ conj(lattice[y*x_fine*2+((x+x_fine-1)%x_fine)*2])*rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+        // + e2.
+        lhs[i] = lhs[i]- eta1*lattice[y*x_fine*2+x*2+1]*rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]+ eta1*conj(lattice[((y+y_fine-1)%y_fine)*x_fine*2+x*2+1])*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+    }
+    
+}
+
+// Square staggered 2d operator w/ u1 function, D_{oe} only.
+void square_staggered_doe_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    // Declare variables.
+    int i;
+    int x,y;
+    double eta1; 
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* lattice = stagif->lattice;
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+
+    // Apply the stencil.
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        lhs[i] = 0.0;
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        eta1 = 1 - 2*(x%2);
+        
+        if ((x+y)%2 == 0) // update odd only.
+        {
+            continue; 
+        }
+
+        // + e1.
+        lhs[i] = lhs[i]-lattice[y*x_fine*2+x*2]*rhs[y*x_fine+((x+1)%x_fine)];
+
+        // - e1.
+        lhs[i] = lhs[i]+ conj(lattice[y*x_fine*2+((x+x_fine-1)%x_fine)*2])*rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+        // + e2.
+        lhs[i] = lhs[i]- eta1*lattice[y*x_fine*2+x*2+1]*rhs[((y+1)%y_fine)*x_fine+x];
+
+        // - e2.
+        lhs[i] = lhs[i]+ eta1*conj(lattice[((y+y_fine-1)%y_fine)*x_fine*2+x*2+1])*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+        // Normalization.
+        lhs[i] = 0.5*lhs[i];
+
+    }
+}
+
+// Square staggered 2d operator w/ u1 function, m^2 - D_{eo} D_{oe} [zeroes odd explicitly]
+void square_staggered_m2mdeodoe_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+    int i,x,y;
+    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+    complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
+    int x_fine = stagif->x_fine;
+    int y_fine = stagif->y_fine;
+    
+    square_staggered_doe_u1(tmp, rhs, extra_data);
+    square_staggered_deo_u1(lhs, tmp, extra_data);
+    
+    for (i = 0; i < x_fine*y_fine; i++)
+    {
+        x = i%x_fine; // integer mod.
+        y = i/x_fine; // integer divide.
+        if ((x+y)%2 == 0)
+        {
+            lhs[i] = stagif->mass*stagif->mass*rhs[i] - lhs[i];
+        }
+    }
     
     delete[] tmp;
 }
