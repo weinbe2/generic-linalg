@@ -66,6 +66,20 @@ void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* ste
 // Assumes ignore_shifts = false.
 void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* stenc_fine, mg_operator_struct_complex* mgstruct);
 
+
+// Functions for applying a specialized stencil. Based on analagous "tb" functions in operators_stencil{.h,.cpp}
+
+// Prepare an top rhs for a top/bottom preconditioned solve.
+// Takes in rhs_orig, returns rhs_t. 
+void apply_square_staggered_tbprec_prepare_stencil(complex<double>* rhs_t, complex<double>* rhs_orig, stencil_2d* stenc);
+
+// Square staggered 2d operator w/ u1 function, m^2 - D_{tb} D_{bt} [zeroes odd explicitly]
+void apply_square_staggered_m2mdtbdbt_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Reconstruct the full solution for an even/odd preconditioned solve.
+// Takes in lhs_t, rhs_b, returns lhs_full (copying over the top part from lhs_t)
+void apply_square_staggered_tbprec_reconstruct_stencil(complex<double>* lhs_full, complex<double>* lhs_t, complex<double>* rhs_b, stencil_2d* stenc);
+
 // Dslash tracker
 struct dslash_tracker
 {

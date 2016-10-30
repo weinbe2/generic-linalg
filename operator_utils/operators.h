@@ -6,21 +6,21 @@ using namespace std;
 
 struct staggered_u1_op
 {
-    complex<double> *lattice;
-    double mass;
-    int x_fine;
-    int y_fine; 
-    int Nc; // only relevant for square laplace. 
+  complex<double> *lattice;
+  double mass;
+  int x_fine;
+  int y_fine; 
+  int Nc; // only relevant for square laplace. 
 };
 
 enum op_type
 {
-    STAGGERED = 0,
-    LAPLACE = 1,
-    LAPLACE_NC2 = 2,
-    G5_STAGGERED = 3,
-    STAGGERED_NORMAL = 4,
-    STAGGERED_INDEX = 5
+  STAGGERED = 0,
+  LAPLACE = 1,
+  LAPLACE_NC2 = 2,
+  G5_STAGGERED = 3,
+  STAGGERED_NORMAL = 4,
+  STAGGERED_INDEX = 5
 };
 
 // Get the stencil size (maximum number of hops) as a function of the operator.
@@ -70,8 +70,16 @@ void square_staggered_deo_u1(complex<double>* lhs, complex<double>* rhs, void* e
 // Square staggered 2d operator w/ u1 function, D_{oe} only.
 void square_staggered_doe_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
+// Prepare an even rhs for an even/odd preconditioned solve.
+// Takes in rhs_orig, returns rhs_e. 
+void square_staggered_eoprec_prepare(complex<double>* rhs_e, complex<double>* rhs_orig, void* extra_data);
+
 // Square staggered 2d operator w/ u1 function, m^2 - D_{eo} D_{oe} [zeroes odd explicitly]
 void square_staggered_m2mdeodoe_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Reconstruct the full solution for an even/odd preconditioned solve.
+// Takes in lhs_e, rhs_o, returns lhs_full (copying over the even part from lhs_e)
+void square_staggered_eoprec_reconstruct(complex<double>* lhs_full, complex<double>* lhs_e, complex<double>* rhs_o, void* extra_data);
 
 // Operators for symmetric shifts.
 void staggered_symmshift_x(complex<double>* lhs, complex<double>* rhs, void* extra_data);

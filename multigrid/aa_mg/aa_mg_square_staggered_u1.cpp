@@ -214,7 +214,7 @@ int main(int argc, char** argv)
     
     // Describe the fine lattice. 
     lattice_size[0] = params.lattice_size_x;
-    lattice_size[1] = params. lattice_size_y;
+    lattice_size[1] = params.lattice_size_y;
     
     // Create a lattice object.
     Lattice Lat(nd, lattice_size, Nc);

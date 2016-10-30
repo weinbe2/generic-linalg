@@ -1,5 +1,5 @@
-#ifndef MG_COORDINATES
-#define MG_COORDINATES
+#ifndef LATTICE_HEADER
+#define LATTICE_HEADER
 
 class Lattice
 {
@@ -198,4 +198,4 @@ public:
 
 
 
-#endif // MG_COORDINATES
+#endif // LATTICE_HEADER

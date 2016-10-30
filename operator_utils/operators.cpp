@@ -1,5 +1,5 @@
 
-
+#include <iostream>
 #include <complex>
 #include "operators.h"
 
@@ -482,16 +482,15 @@ void square_staggered_deo_u1(complex<double>* lhs, complex<double>* rhs, void* e
 
         // - e1.
         lhs[i] = lhs[i]+ conj(lattice[y*x_fine*2+((x+x_fine-1)%x_fine)*2])*rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
-
+      
         // + e2.
         lhs[i] = lhs[i]- eta1*lattice[y*x_fine*2+x*2+1]*rhs[((y+1)%y_fine)*x_fine+x];
 
         // - e2.
         lhs[i] = lhs[i]+ eta1*conj(lattice[((y+y_fine-1)%y_fine)*x_fine*2+x*2+1])*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
-
+      
         // Normalization.
         lhs[i] = 0.5*lhs[i];
-
     }
     
 }
@@ -539,29 +538,81 @@ void square_staggered_doe_u1(complex<double>* lhs, complex<double>* rhs, void* e
     }
 }
 
+// Prepare an even rhs for an even/odd preconditioned solve.
+// Takes in rhs_orig, returns rhs_e. 
+void square_staggered_eoprec_prepare(complex<double>* rhs_e, complex<double>* rhs_orig, void* extra_data)
+{
+  int i,x,y;
+  staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+  int x_fine = stagif->x_fine;
+  int y_fine = stagif->y_fine;
+  int fine_size = x_fine*y_fine; // *Nc
+  
+  // Prepare rhs: m rhs_e - D_{eo} rhs_o
+  square_staggered_deo_u1(rhs_e, rhs_orig, extra_data); // zeroes odd sites in rhs_e.
+  for (i = 0; i < fine_size; i++)
+  {
+    x = i%x_fine;
+    y = i/x_fine;
+    
+    if ((x+y)%2 == 0) // even
+    {
+      rhs_e[i] = stagif->mass*rhs_orig[i] - rhs_e[i];
+    }
+  }
+}
+
 // Square staggered 2d operator w/ u1 function, m^2 - D_{eo} D_{oe} [zeroes odd explicitly]
 void square_staggered_m2mdeodoe_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {
-    int i,x,y;
-    staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
-    complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
-    int x_fine = stagif->x_fine;
-    int y_fine = stagif->y_fine;
-    
-    square_staggered_doe_u1(tmp, rhs, extra_data);
-    square_staggered_deo_u1(lhs, tmp, extra_data);
-    
-    for (i = 0; i < x_fine*y_fine; i++)
+  int i,x,y;
+  staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+  complex<double>* tmp = new complex<double>[stagif->x_fine*stagif->y_fine];
+  int x_fine = stagif->x_fine;
+  int y_fine = stagif->y_fine;
+
+  square_staggered_doe_u1(tmp, rhs, extra_data);
+  square_staggered_deo_u1(lhs, tmp, extra_data);
+
+  for (i = 0; i < x_fine*y_fine; i++)
+  {
+    x = i%x_fine; // integer mod.
+    y = i/x_fine; // integer divide.
+    if ((x+y)%2 == 0)
     {
-        x = i%x_fine; // integer mod.
-        y = i/x_fine; // integer divide.
-        if ((x+y)%2 == 0)
-        {
-            lhs[i] = stagif->mass*stagif->mass*rhs[i] - lhs[i];
-        }
+      lhs[i] = stagif->mass*stagif->mass*rhs[i] - lhs[i];
     }
-    
-    delete[] tmp;
+  }
+
+  delete[] tmp;
+}
+
+// Reconstruct the full solution for an even/odd preconditioned solve.
+// Takes in lhs_e, rhs_o, returns lhs_full (copying over the even part from lhs_e)
+void square_staggered_eoprec_reconstruct(complex<double>* lhs_full, complex<double>* lhs_e, complex<double>* rhs_o, void* extra_data)
+{
+  int i,x,y;
+  staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+  int x_fine = stagif->x_fine;
+  int y_fine = stagif->y_fine;
+  int fine_size = x_fine*y_fine; // *Nc
+  double inv_mass = 1.0/stagif->mass;
+  
+  // Reconstruct odd: m^{-1}*(rhs_o - D_{oe} lhs2_e)
+  square_staggered_doe_u1(lhs_full, lhs_e, extra_data);
+  for (i = 0; i < fine_size; i++)
+  {
+    x = i%x_fine;
+    y = i/x_fine;
+    if ((x+y)%2 == 1) // odd
+    {
+      lhs_full[i] = inv_mass*(rhs_o[i] - lhs_full[i]);
+    }
+    else
+    {
+      lhs_full[i] = lhs_e[i];
+    }
+  }
 }
 
 // Operators for symmetric shifts.

@@ -156,6 +156,18 @@ struct stencil_2d
 // Applies an (up to two link) stencil as defined by a stencil_2d object.
 void apply_stencil_2d(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
+// Applies the eo piece of an (up to 2 link) stencil as defined by a stencil_2d object.
+void apply_stencil_2d_eo(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+    
+// Applies the oe piece of an (up to 2 link) stencil as defined by a stencil_2d object.
+void apply_stencil_2d_oe(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Applies the tb (takes bottom half of dof to top half of dof) of an (up to 2 link) stencil as defined by a stencil_2d object.
+void apply_stencil_2d_tb(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Applies the bt (takes top half of dof to bottom half of dof) of an (up to 2 link) stencil as defined by a stencil_2d object.
+void apply_stencil_2d_bt(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
 // Generate a stencil operator given a function and a coarsening distance (max 2...)
 void generate_stencil_2d(stencil_2d* stenc, void (*matrix_vector)(complex<double>*,complex<double>*,void*), void* extra_data);
 

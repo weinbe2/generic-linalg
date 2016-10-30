@@ -1203,4 +1203,71 @@ void generate_coarse_from_fine_stencil(stencil_2d* stenc_coarse, stencil_2d* ste
     generate_coarse_from_fine_stencil(stenc_coarse, stenc_fine, mgstruct, false);
 }
 
+// Functions for applying a specialized stencil. Based on analagous "tb" functions in operators_stencil{.h,.cpp}
+
+// Prepare an top rhs for a top/bottom preconditioned solve.
+// Takes in rhs_orig, returns rhs_t. 
+void apply_square_staggered_tbprec_prepare_stencil(complex<double>* rhs_t, complex<double>* rhs_orig, stencil_2d* stenc)
+{
+  int lattice_size = stenc->lat->get_lattice_size();
+  int nc = stenc->lat->get_nc();
+  
+  // Prepare rhs: m rhs_t - D_{tb} rhs_b
+  apply_stencil_2d_tb(rhs_t, rhs_orig, stenc); // zeroes b sites in rhs_t.
+  for (int i = 0; i < lattice_size; i++)
+  {
+    if (stenc->lat->index_to_color(i) < nc/2)
+    {
+      rhs_t[i] = stenc->shift*rhs_orig[i] - rhs_t[i];
+    }
+  }
+}
+
+// Square staggered 2d operator w/ u1 function, m^2 - D_{tb} D_{bt} [zeroes odd explicitly]
+void apply_square_staggered_m2mdtbdbt_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+  stencil_2d* stenc = (stencil_2d*)extra_data;
+  int nc = stenc->lat->get_nc();
+  int lattice_size = stenc->lat->get_lattice_size();
+  
+  complex<double>* tmp = new complex<double>[lattice_size];
+  
+  apply_stencil_2d_bt(tmp, rhs, extra_data);
+  apply_stencil_2d_tb(lhs, tmp, extra_data);
+
+  for (int i = 0; i < lattice_size; i++)
+  {
+    if (stenc->lat->index_to_color(i) < nc/2) // top
+    {
+      lhs[i] = stenc->shift*stenc->shift*rhs[i] - lhs[i];
+    }
+  }
+
+  delete[] tmp;
+}
+
+// Reconstruct the full solution for an even/odd preconditioned solve.
+// Takes in lhs_t, rhs_b, returns lhs_full (copying over the top part from lhs_t)
+void apply_square_staggered_tbprec_reconstruct_stencil(complex<double>* lhs_full, complex<double>* lhs_t, complex<double>* rhs_b, stencil_2d* stenc)
+{
+  int lattice_size = stenc->lat->get_lattice_size();
+  int nc = stenc->lat->get_nc();
+  double inv_mass = 1.0/real(stenc->shift);
+  
+  // Reconstruct odd: m^{-1}*(rhs_b - D_{bt} lhs2_t)
+  apply_stencil_2d_bt(lhs_full, lhs_t, stenc);
+  for (int i = 0; i < lattice_size; i++)
+  {
+    if (stenc->lat->index_to_color(i) >= nc/2) // bottom
+    {
+      lhs_full[i] = inv_mass*(rhs_b[i] - lhs_full[i]);
+    }
+    else
+    {
+      lhs_full[i] = lhs_t[i];
+    }
+  }
+}
+
+
 
