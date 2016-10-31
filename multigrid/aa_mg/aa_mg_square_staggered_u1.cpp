@@ -160,36 +160,6 @@ int main(int argc, char** argv)
 
   //printf("Mass %.8e Blocksize %d %d Null Vectors %d\n", MASS, X_BLOCKSIZE, Y_BLOCKSIZE, n_null_vector);
   //return 0;
-
-  // Check for incompatible command line arguments.
-
-  if (params.nvec_params.null_eo_prec) // Do even-odd preconditioned generation. Doesn't support all flags.
-  {
-    // Check for some destructive cases.
-
-    if (params.nvec_params.bstrat == BLOCK_NONE || params.nvec_params.bstrat == BLOCK_TOPO)
-    {
-      cout << "Even-odd preconditioned null generation doesn't work unless --null-eo is \"yes\" or \"corner\".\n" << flush;
-      return 1;
-    }
-
-    if (params.nvec_params.opt_null != STAGGERED)
-    {
-      cout << "Even-odd preconditioned null generation doesn't work unless --null-operator is \"staggered\".\n" << flush;
-      return 1;
-    }
-
-    for (i = 0; i < mgstruct.n_refine; i++)
-    {
-      // If a stencil doesn't exist (or is too small, but for the time being it won't exist if it's too small...)
-      if (mgstruct.stencils[i] == 0)
-      {
-        cout << "Even-odd preconditioned null generation doesn't work unless all fine and intermediate stencils exist and have all dimensions >= 2.\n" << flush;
-
-        return 1;
-      }
-    }
-  }
     
     ///////////////////////////////////////
     // End of human-readable parameters! //
@@ -676,6 +646,36 @@ int main(int argc, char** argv)
         mgstruct.have_dagger_stencil = false;
         mgstruct.dagger_stencils = 0;
     }
+  
+  // Check for incompatible command line arguments.
+
+  if (params.nvec_params.null_eo_prec) // Do even-odd preconditioned generation. Doesn't support all flags.
+  {
+    // Check for some destructive cases.
+
+    if (params.nvec_params.bstrat == BLOCK_NONE || params.nvec_params.bstrat == BLOCK_TOPO)
+    {
+      cout << "Even-odd preconditioned null generation doesn't work unless --null-eo is \"yes\" or \"corner\".\n" << flush;
+      return 1;
+    }
+
+    if (params.nvec_params.opt_null != STAGGERED)
+    {
+      cout << "Even-odd preconditioned null generation doesn't work unless --null-operator is \"staggered\".\n" << flush;
+      return 1;
+    }
+
+    for (i = 0; i < mgstruct.n_refine; i++)
+    {
+      // If a stencil doesn't exist (or is too small, but for the time being it won't exist if it's too small...)
+      if (mgstruct.stencils[i] == 0)
+      {
+        cout << "Even-odd preconditioned null generation doesn't work unless all fine and intermediate stencils exist and have all dimensions >= 2.\n" << flush;
+
+        return 1;
+      }
+    }
+  }
     
     if (!(my_test == TOP_LEVEL_ONLY || my_test == SMOOTHER_ONLY))
     {
