@@ -118,100 +118,100 @@ struct dslash_tracker
 // Multigrid operator struct.
 struct mg_operator_struct_complex
 {
-    int x_fine; // Fine x dimension.
-    int y_fine; // Fine y dimension. 
-    int n_refine; // How many refinements? 1 = two level, 2 = three level, etc. 
-    
-    int* blocksize_x; // How much to block in x direction.
-    int* blocksize_y; // How much to block in y direction. 
-    unsigned int Nc; // What's Nc on the top level? Square laplace only.
-    
-    Lattice** latt; // Array of pointers to lattice classes for each level.
-    
-    stencil_2d** stencils; // Array of pointers to stencils for each level.
-    
-    bool have_dagger_stencil; // Do we have dagger stencils?
-    stencil_2d** dagger_stencils; // Array of pointers to stencils of daggered operator for each level.
-                                  // Only created if needed (eg, for normal smoother).
-    
-    int n_vector; // Number of vectors. 
-    complex<double>*** null_vectors; // Holds the null vectors. First index level, second n_vector, third size.
-    void (*matrix_vector)(complex<double>*, complex<double>*, void*);
-    void (*matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
-    void* matrix_extra_data; 
-    
-    // Track current state.
-    int curr_level;
-    
-    int curr_dof_fine; // degrees of freedom per site. 
-    int curr_x_fine;
-    int curr_y_fine; 
-    int curr_fine_size; 
-    
-    int curr_dof_coarse; 
-    int curr_x_coarse;
-    int curr_y_coarse; 
-    int curr_coarse_size; 
-    
-    // Track dslashes
-    dslash_tracker* dslash_count; 
+  int x_fine; // Fine x dimension.
+  int y_fine; // Fine y dimension. 
+  int n_refine; // How many refinements? 1 = two level, 2 = three level, etc. 
+
+  int* blocksize_x; // How much to block in x direction.
+  int* blocksize_y; // How much to block in y direction. 
+  unsigned int Nc; // What's Nc on the top level? Square laplace only.
+
+  Lattice** latt; // Array of pointers to lattice classes for each level.
+
+  stencil_2d** stencils; // Array of pointers to stencils for each level.
+
+  bool have_dagger_stencil; // Do we have dagger stencils?
+  stencil_2d** dagger_stencils; // Array of pointers to stencils of daggered operator for each level.
+                                // Only created if needed (eg, for normal smoother).
+
+  int n_vector; // Number of vectors. 
+  complex<double>*** null_vectors; // Holds the null vectors. First index level, second n_vector, third size.
+  void (*matrix_vector)(complex<double>*, complex<double>*, void*);
+  void (*matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
+  void* matrix_extra_data; 
+
+  // Track current state.
+  int curr_level;
+
+  int curr_dof_fine; // degrees of freedom per site. 
+  int curr_x_fine;
+  int curr_y_fine; 
+  int curr_fine_size; 
+
+  int curr_dof_coarse; 
+  int curr_x_coarse;
+  int curr_y_coarse; 
+  int curr_coarse_size; 
+
+  // Track dslashes
+  dslash_tracker* dslash_count; 
 };
 
 // Preconditioning struct
 struct mg_precond_struct_complex
 {
-    // What inner smoother?
-    minv_inverter in_smooth_type; // MR or GCR
-    
-    // Set the relaxation parameter (MR only.)
-    double omega_smooth;
-    
-    // How many pre-smooth steps?
-    int* n_pre_smooth;
-    
-    // How many post-smooth steps?
-    int* n_post_smooth;
-    
-    // Are we solving with the coarse normal equations?
-    bool normal_eqn_mg; 
-    
-    // Are we smoothing with the normal equations?
-    bool normal_eqn_smooth; 
-    
-    // How do we do recursive MG?
-    mg_multilevel_type mlevel_type; // SMOOTH, RECURSIVE
-    
-    // What inner solver should we use?
-    inner_solver in_solve_type; // MR, CG, CR, or GCR
-    int n_max; // Max steps for inner solver?
-    int n_restart; // restart frequency (relevant for CG, CR, GCR).
-    double* rel_res; // Rel_res for inner solver?
-    
-    // What's the mg_info?
-    mg_operator_struct_complex* mgstruct; 
-    
-    // What's matrix function are we dealing with?
-    // This is the fine function.
-    void (*fine_matrix_vector)(complex<double>*, complex<double>*, void*);
-    
-    // This is the coarse function. 
-    void (*coarse_matrix_vector)(complex<double>*, complex<double>*, void*);
-    
-    // If we need the dagger (thus far only for 'normal_eqn_smooth'), what are the dagger functions?
-    // This is the fine function.
-    void (*fine_matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
-    
-    // This is the coarse function. 
-    void (*coarse_matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
-    
-    // If we need the normal operator, what is it?
-    void (*fine_matrix_vector_normal)(complex<double>*, complex<double>*, void*);
-    
-    // This is the coarse function. 
-    void (*coarse_matrix_vector_normal)(complex<double>*, complex<double>*, void*);
-    
-    
-    void* matrix_extra_data; 
+  // What inner smoother?
+  minv_inverter in_smooth_type; // MR or GCR
+
+  // Set the relaxation parameter (MR only.)
+  double omega_smooth;
+
+  // How many pre-smooth steps?
+  int* n_pre_smooth;
+
+  // How many post-smooth steps?
+  int* n_post_smooth;
+
+  // Are we solving with the coarse normal equations?
+  bool normal_eqn_mg; 
+
+  // Are we smoothing with the normal equations?
+  bool normal_eqn_smooth; 
+
+  // How do we do recursive MG?
+  mg_multilevel_type mlevel_type; // SMOOTH, RECURSIVE
+
+  // What inner solver should we use?
+  inner_solver in_solve_type; // MR, CG, CR, or GCR
+  int n_max; // Max steps for inner solver?
+  int n_restart; // restart frequency (relevant for CG, CR, GCR).
+  double* rel_res; // Rel_res for inner solver?
+
+  // What's the mg_info?
+  mg_operator_struct_complex* mgstruct; 
+
+  // What's matrix function are we dealing with?
+  // This is the fine function.
+  void (*fine_matrix_vector)(complex<double>*, complex<double>*, void*);
+
+  // This is the coarse function. 
+  void (*coarse_matrix_vector)(complex<double>*, complex<double>*, void*);
+
+  // If we need the dagger (thus far only for 'normal_eqn_smooth'), what are the dagger functions?
+  // This is the fine function.
+  void (*fine_matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
+
+  // This is the coarse function. 
+  void (*coarse_matrix_vector_dagger)(complex<double>*, complex<double>*, void*);
+
+  // If we need the normal operator, what is it?
+  void (*fine_matrix_vector_normal)(complex<double>*, complex<double>*, void*);
+
+  // This is the coarse function. 
+  void (*coarse_matrix_vector_normal)(complex<double>*, complex<double>*, void*);
+
+
+  void* matrix_extra_data; 
 };
 
 // MG preconditioner!

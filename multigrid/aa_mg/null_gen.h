@@ -24,6 +24,7 @@ struct null_vector_params
   op_type opt_null;
   int n_null_vector; 
   minv_inverter null_gen; 
+  bool null_eo_prec; 
   std::vector<double> null_precisions; 
   std::vector<int> null_max_iters; 
   bool null_restart; 
@@ -40,6 +41,7 @@ struct null_vector_params
     opt_null = STAGGERED;
     n_null_vector = 0;
     null_gen = MINV_BICGSTAB;
+    null_eo_prec = false; 
     null_restart = false;
     null_restart_freq = -1;
     null_bicgstab_l = -1;

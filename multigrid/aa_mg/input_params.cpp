@@ -7,52 +7,53 @@
 // Print usage. 
 void display_usage()
 {
-    cout << "--help\n";
-    cout << "--lattice-size [32, 64, 128] {##}                 (default 32x32)\n";
-    cout << "--operator [laplace, laplace2, staggered\n";
-    cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
-    cout << "--outer-solver [gcr, bicgstab, cg]                (default gcr)\n";
-    cout << "--outer-precision [outer prec]                    (default 5e-7)\n";
-    cout << "--outer-max-iter [outer maximum iterations]       (default 100000)\n";
-    cout << "--outer-restart [yes, no]                         (default yes)\n";
-    cout << "--outer-restart-freq [#]                          (default 64)\n";
-    cout << "--null-operator [laplace, laplace2, staggered\n";
-    cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
-    cout << "--null-solver [gcr, bicgstab, cg, cr, minres,\n";
-    cout << "       arpack, bicgstab-l]                        (default bicgstab)\n";
-    cout << "--null-precision [null prec] {#, #...}            (default 5e-5)\n";
-    cout << "--null-max-iter [null nax iter] {#, #...}         (default 500)\n";
-    cout << "--null-restart [yes, no]                          (default no)\n";
-    cout << "--null-restart-freq [#]                           (default 8 if restarting is enabled)\n";
-    cout << "--null-bicgstab-l [#]                             (default 4 if using bicgstab-l)\n"; 
-    //cout << "--null-mass [mass] {#, #...}                      (default 1e-4)\n";
-    cout << "--null-mass [mass]                                (default 1e-4)\n";
-    cout << "--null-eo [corner, yes, no, topo]                 (default yes)\n";
-    cout << "--null-global-ortho-conj [yes, no]                (default no, it only helps in some weird fluke cases)\n";
-    cout << "--null-ortho-eo [yes, no]                         (default no)\n"; 
-    cout << "--mass [mass]                                     (default 1e-2)\n";
-    cout << "--blocksize [blocksize] {#, #...}                 (default 4, same for all levels)\n";
-    cout << "--nvec [nvec]                                     (default 4)\n";
-    cout << "--nrefine [number coarse]                         (default 1)\n";
-    cout << "--cycle-type [v, k]                               (default v)\n";
-    cout << "--mg-type [self, normal_eqn]                      (default self)\n";
-    cout << "--smoother-solver [gcr, bicgstab, cg, minres,\n";
-    cout << "         cr, bicgstab-l, none]                    (default gcr)\n"; 
-    cout << "--smoother-type [self, normal_eqn]                (default self)\n";
-    cout << "--npre-smooth [presmooth steps] {#, #, ...}       (default 6, same for all levels)\n";
-    cout << "--npost-smooth [postsmooth steps] {#, #, ...}     (default 6, same for all levels)\n";
-    cout << "--coarse-solver [gcr, bicgstab, cg, minres,\n";
-    cout << "         cr, none]                                (default gcr)\n";
-    cout << "--coarse-precision [coarse precision] {#, #, ...} (default 1e-2, same for all levels)\n";
-    cout << "--coarse-max-iter [coarse maximum iterations]     (default 1024)\n";
-    cout << "--gauge [unit, load, random]                      (default load)\n";
-    cout << "--gauge-transform [yes, no]                       (default no)\n";
-    cout << "--beta [3.0, 6.0, 10.0, 10000.0]                  (default 6.0)\n";
-    cout << "--load-cfg [path]                                 (default do not load, overrides beta)\n";
-    cout << "--do-freetest [yes, no]                           (default no)\n"; 
-    cout << "--do-eigentest [yes, no]                          (default no)\n";
-    cout << "--n-ev [all, # smallest]                          (default all)\n";
-    cout << "--n-cv [#]                                        (default min(all, 2.5*n-ev))\n";
+  cout << "--help\n";
+  cout << "--lattice-size [32, 64, 128] {##}                 (default 32x32)\n";
+  cout << "--operator [laplace, laplace2, staggered\n";
+  cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
+  cout << "--outer-solver [gcr, bicgstab, cg]                (default gcr)\n";
+  cout << "--outer-precision [outer prec]                    (default 5e-7)\n";
+  cout << "--outer-max-iter [outer maximum iterations]       (default 100000)\n";
+  cout << "--outer-restart [yes, no]                         (default yes)\n";
+  cout << "--outer-restart-freq [#]                          (default 64)\n";
+  cout << "--null-operator [laplace, laplace2, staggered\n";
+  cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
+  cout << "--null-eo-precond [yes, no]                       (default no, only applies to staggered)\n";
+  cout << "--null-solver [gcr, bicgstab, cg, cr, minres,\n";
+  cout << "       arpack, bicgstab-l]                        (default bicgstab)\n";
+  cout << "--null-precision [null prec] {#, #...}            (default 5e-5)\n";
+  cout << "--null-max-iter [null nax iter] {#, #...}         (default 500)\n";
+  cout << "--null-restart [yes, no]                          (default no)\n";
+  cout << "--null-restart-freq [#]                           (default 8 if restarting is enabled)\n";
+  cout << "--null-bicgstab-l [#]                             (default 4 if using bicgstab-l)\n"; 
+  //cout << "--null-mass [mass] {#, #...}                      (default 1e-4)\n";
+  cout << "--null-mass [mass]                                (default 1e-2)\n";
+  cout << "--null-eo [corner, yes, no, topo]                 (default yes)\n";
+  cout << "--null-global-ortho-conj [yes, no]                (default no, it only helps in some weird fluke cases)\n";
+  cout << "--null-ortho-eo [yes, no]                         (default no)\n"; 
+  cout << "--mass [mass]                                     (default 1e-2)\n";
+  cout << "--blocksize [blocksize] {#, #...}                 (default 4, same for all levels)\n";
+  cout << "--nvec [nvec]                                     (default 4)\n";
+  cout << "--nrefine [number coarse]                         (default 1)\n";
+  cout << "--cycle-type [v, k]                               (default v)\n";
+  cout << "--mg-type [self, normal_eqn]                      (default self)\n";
+  cout << "--smoother-solver [gcr, bicgstab, cg, minres,\n";
+  cout << "         cr, bicgstab-l, none]                    (default gcr)\n"; 
+  cout << "--smoother-type [self, normal_eqn]                (default self)\n";
+  cout << "--npre-smooth [presmooth steps] {#, #, ...}       (default 6, same for all levels)\n";
+  cout << "--npost-smooth [postsmooth steps] {#, #, ...}     (default 6, same for all levels)\n";
+  cout << "--coarse-solver [gcr, bicgstab, cg, minres,\n";
+  cout << "         cr, none]                                (default gcr)\n";
+  cout << "--coarse-precision [coarse precision] {#, #, ...} (default 1e-2, same for all levels)\n";
+  cout << "--coarse-max-iter [coarse maximum iterations]     (default 1024)\n";
+  cout << "--gauge [unit, load, random]                      (default load)\n";
+  cout << "--gauge-transform [yes, no]                       (default no)\n";
+  cout << "--beta [3.0, 6.0, 10.0, 10000.0]                  (default 6.0)\n";
+  cout << "--load-cfg [path]                                 (default do not load, overrides beta)\n";
+  cout << "--do-freetest [yes, no]                           (default no)\n"; 
+  cout << "--do-eigentest [yes, no]                          (default no)\n";
+  cout << "--n-ev [all, # smallest]                          (default all)\n";
+  cout << "--n-cv [#]                                        (default min(all, 2.5*n-ev))\n";
 }
 
 // Parse inputs, put into mg_input_params.
@@ -185,6 +186,18 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             {
                 params->nvec_params.n_null_vector = atoi(argv[i+1]);
                 i++;
+            }
+            else if (strcmp(argv[i], "--null-eo-precond") == 0)
+            {
+              if (strcmp(argv[i+1], "yes") == 0)
+              {
+                params->nvec_params.null_eo_prec = true;
+              }
+              else if (strcmp(argv[i+1], "no") == 0)
+              {
+                params->nvec_params.null_eo_prec = false;
+              }
+              i++;
             }
             else if (strcmp(argv[i], "--null-precision") == 0)
             {
@@ -670,7 +683,7 @@ mg_input_params::mg_input_params()
     
     // What mass do we use for null vector generation?
     //double
-    nvec_params.null_mass = 1e-4; 
+    nvec_params.null_mass = 1e-2; 
     
     // How many ways do we split the null vectors up?
     //int

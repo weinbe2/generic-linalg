@@ -20,7 +20,7 @@ enum op_type
   LAPLACE_NC2 = 2,
   G5_STAGGERED = 3,
   STAGGERED_NORMAL = 4,
-  STAGGERED_INDEX = 5
+  STAGGERED_INDEX = 5,
 };
 
 // Get the stencil size (maximum number of hops) as a function of the operator.

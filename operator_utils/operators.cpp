@@ -7,19 +7,19 @@ using namespace std;
 
 int get_stencil_size(op_type opt)
 {
-    switch (opt)
-    {
-        case STAGGERED:
-        case LAPLACE:
-        case LAPLACE_NC2:
-        case G5_STAGGERED:
-            return 1;
-            break;
-        case STAGGERED_INDEX: // Has around the corner
-        case STAGGERED_NORMAL: // Has around the corner, two link.
-            return 2;
-    }
-    return 0;
+  switch (opt)
+  {
+    case STAGGERED:
+    case LAPLACE:
+    case LAPLACE_NC2:
+    case G5_STAGGERED:
+      return 1;
+      break;
+    case STAGGERED_INDEX: // Has around the corner
+    case STAGGERED_NORMAL: // Has around the corner, two link.
+      return 2;
+  }
+  return 0;
 }
 
 // Square lattice.
