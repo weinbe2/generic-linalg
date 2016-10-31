@@ -80,6 +80,25 @@ void apply_square_staggered_m2mdtbdbt_stencil(complex<double>* lhs, complex<doub
 // Takes in lhs_t, rhs_b, returns lhs_full (copying over the top part from lhs_t)
 void apply_square_staggered_tbprec_reconstruct_stencil(complex<double>* lhs_full, complex<double>* lhs_t, complex<double>* rhs_b, stencil_2d* stenc);
 
+// Functions for applying a non-Galerkin normal operator, that is, D^\dagger D, where D is fine or coarse
+// Only works for staggered.
+
+// Fine. Applies (-D_{eo}D_{oe} -D_{oe}D_{eo} + m^2). 
+void apply_square_staggered_normal_eo_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Coarse. Applies (-D_{tb}D_{bt} -D_{bt}D_{tb} + m^2). 
+void apply_square_staggered_normal_tb_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Functions for applying D^\dagger, that is, \sigma3 D \sigma3, were D is fine or coarse.
+// Only works for staggered.
+
+// Fine. Applies \epsilon D \epsilon.
+void apply_square_staggered_dagger_eo_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+// Coarse. Applies \sigma3 D \sigma3
+void apply_square_staggered_dagger_tb_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data);
+
+
 // Dslash tracker
 struct dslash_tracker
 {

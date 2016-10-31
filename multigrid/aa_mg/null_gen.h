@@ -19,17 +19,26 @@ enum blocking_strategy
   BLOCK_TOPO = 3                    // Chirality defined by taste singlet
 };
 
+// What preconditioning strategy are we using? None, even/odd, normal equation?
+enum null_precond_strategy
+{
+  NULL_PRECOND_NONE = 0,            // No preconditioning.
+  NULL_PRECOND_EO = 1,              // Perform even/odd preconditioning.
+  NULL_PRECOND_NORMAL = 2,          // Solve as the normal equation.
+}; 
+
 struct null_vector_params
 {
   op_type opt_null;
   int n_null_vector; 
   minv_inverter null_gen; 
-  bool null_eo_prec; 
+  null_precond_strategy null_prec; 
   std::vector<double> null_precisions; 
   std::vector<int> null_max_iters; 
   bool null_restart; 
   int null_restart_freq; 
   int null_bicgstab_l; 
+  double null_relaxation; 
   double null_mass; 
   int null_partitions; 
   blocking_strategy bstrat;
@@ -41,10 +50,11 @@ struct null_vector_params
     opt_null = STAGGERED;
     n_null_vector = 0;
     null_gen = MINV_BICGSTAB;
-    null_eo_prec = false; 
+    null_prec = NULL_PRECOND_NONE; 
     null_restart = false;
     null_restart_freq = -1;
     null_bicgstab_l = -1;
+    null_relaxation = 1.0; 
     null_mass = 0.0;
     null_partitions = 0;
     bstrat = BLOCK_NONE;

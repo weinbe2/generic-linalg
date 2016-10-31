@@ -27,6 +27,7 @@ using namespace std;
 #include "mg.h"
 #include "mg_complex.h"
 #include "lattice.h"
+#include "lattice_functions.h"
 #include "operators.h"
 
 // General multigrid projector function!
@@ -1267,6 +1268,107 @@ void apply_square_staggered_tbprec_reconstruct_stencil(complex<double>* lhs_full
       lhs_full[i] = lhs_t[i];
     }
   }
+}
+
+// Functions for applying a non-Galerkin normal operator, that is, D^\dagger D, where D is fine or coarse
+// Only works for staggered.
+
+// Fine. Applies (-D_{eo}D_{oe} -D_{oe}D_{eo} + m^2). 
+void apply_square_staggered_normal_eo_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+  stencil_2d* stenc = (stencil_2d*)extra_data;
+  int lattice_size = stenc->lat->get_lattice_size();
+  
+  complex<double>* tmp = new complex<double>[lattice_size];
+  complex<double>* tmp2 = new complex<double>[lattice_size];
+  
+  // Apply D_{eo}D_{oe} via stencils.
+  apply_stencil_2d_eo(tmp2, rhs, stenc);
+  apply_stencil_2d_oe(lhs, tmp2, stenc);
+
+  // Apply D_{oe}D_{eo} via stencils.
+  apply_stencil_2d_oe(tmp2, rhs, stenc);
+  apply_stencil_2d_eo(tmp, tmp2, stenc);
+  
+  // Combine into m^2 - D_{eo}D_{oe} - D_{oe}D_{eo}.
+  for (int i = 0; i < lattice_size; i++)
+  {
+      lhs[i] = stenc->shift*stenc->shift*rhs[i] - lhs[i] - tmp[i];
+  }
+  
+  delete[] tmp;
+  delete[] tmp2; 
+
+}
+
+// Coarse. Applies (-D_{tb}D_{bt} -D_{bt}D_{tb} + m^2). 
+void apply_square_staggered_normal_tb_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+  stencil_2d* stenc = (stencil_2d*)extra_data;
+  int lattice_size = stenc->lat->get_lattice_size();
+  
+  complex<double>* tmp = new complex<double>[lattice_size];
+  complex<double>* tmp2 = new complex<double>[lattice_size];
+  
+  // Apply D_{tb}D_{bt} via stencils.
+  apply_stencil_2d_tb(tmp2, rhs, stenc);
+  apply_stencil_2d_bt(lhs, tmp2, stenc);
+
+  // Apply D_{bt}D_{tb} via stencils.
+  apply_stencil_2d_bt(tmp2, rhs, stenc);
+  apply_stencil_2d_tb(tmp, tmp2, stenc);
+  
+  // Combine into m^2 - D_{tb}D_{bt} - D_{bt}D_{tb}.
+  for (int i = 0; i < lattice_size; i++)
+  {
+      lhs[i] = stenc->shift*stenc->shift*rhs[i] - lhs[i] - tmp[i];
+  }
+  
+  delete[] tmp;
+  delete[] tmp2;
+}
+
+// Functions for applying D^\dagger, that is, \sigma3 D \sigma3, were D is fine or coarse.
+// Only works for staggered.
+
+// Fine. Applies \epsilon D \epsilon.
+void apply_square_staggered_dagger_eo_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+  stencil_2d* stenc = (stencil_2d*)extra_data;
+  int lattice_size = stenc->lat->get_lattice_size();
+  
+  complex<double>* tmp = new complex<double>[lattice_size];
+  
+  // Apply a lattice \epsilon function.
+  lattice_epsilon(lhs, rhs, stenc->lat);
+  
+  // Apply a D stencil.
+  apply_stencil_2d(tmp, lhs, stenc);
+  
+  // Apply a lattice \epsilon function.
+  lattice_epsilon(lhs, tmp, stenc->lat);
+  
+  delete[] tmp; 
+}
+
+// Coarse. Applies \sigma3 D \sigma3
+void apply_square_staggered_dagger_tb_stencil(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+  stencil_2d* stenc = (stencil_2d*)extra_data;
+  int lattice_size = stenc->lat->get_lattice_size();
+  
+  complex<double>* tmp = new complex<double>[lattice_size];
+  
+  // Apply a lattice \sigma3 function.
+  lattice_sigma3(lhs, rhs, stenc->lat);
+  
+  // Apply a D stencil.
+  apply_stencil_2d(tmp, lhs, stenc);
+  
+  // Apply a lattice \sigma3 function.
+  lattice_sigma3(lhs, tmp, stenc->lat);
+  
+  delete[] tmp; 
 }
 
 

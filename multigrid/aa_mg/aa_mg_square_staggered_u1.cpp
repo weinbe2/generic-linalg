@@ -649,7 +649,7 @@ int main(int argc, char** argv)
   
   // Check for incompatible command line arguments.
 
-  if (params.nvec_params.null_eo_prec) // Do even-odd preconditioned generation. Doesn't support all flags.
+  if (params.nvec_params.null_prec != NULL_PRECOND_NONE) // Do even-odd preconditioned generation or normal eqn preconditioned generation. Doesn't support all flags.
   {
     // Check for some destructive cases.
 
@@ -797,10 +797,10 @@ int main(int argc, char** argv)
 #endif // EIGEN_TEST
 
             }
-            else if (params.nvec_params.null_eo_prec) // Do even-odd preconditioned generation. Doesn't support all flags.
+            else if (params.nvec_params.null_prec != NULL_PRECOND_NONE) // Do even-odd or normal preconditioned generation. Doesn't support all flags.
             {
               // Check for some destructive cases.
-              /*
+              
               if (params.nvec_params.bstrat == BLOCK_NONE || params.nvec_params.bstrat == BLOCK_TOPO)
               {
                 cout << "Even-odd preconditioned null generation doesn't work unless --null-eo is \"yes\" or \"corner\".\n" << flush;
@@ -822,7 +822,7 @@ int main(int argc, char** argv)
                   
                   return 1;
                 }
-              }*/
+              }
               
               // We may actually be ready to get some work done!
               
@@ -832,7 +832,8 @@ int main(int argc, char** argv)
               solve.max_iters = params.nvec_params.null_max_iters[mgstruct.curr_level];
               solve.restart = params.nvec_params.null_restart;
               solve.restart_freq = params.nvec_params.null_restart_freq;
-              solve.minres_omega = 0.67; // should expose
+              solve.minres_omega = params.nvec_params.null_relaxation;
+	          solve.sor_omega = params.nvec_params.null_relaxation;
               solve.bicgstabl_l = params.nvec_params.null_bicgstab_l;
               
               // We generate null vectors by solving Ax = 0, with a gaussian initial guess.
@@ -869,40 +870,67 @@ int main(int argc, char** argv)
                 // Construct the residual equation.
                 zero<double>(Arand_guess, mgstruct.curr_fine_size);
 
-		            fine_square_staggered(Arand_guess, rand_guess, (void*)&mgstruct); mgstruct.dslash_count->nullvectors[mgstruct.curr_level]++;
+		        fine_square_staggered(Arand_guess, rand_guess, (void*)&mgstruct); mgstruct.dslash_count->nullvectors[mgstruct.curr_level]++;
                 
                 for (j = 0; j < mgstruct.curr_fine_size; j++)
                 {
                    Arand_guess[j] = -Arand_guess[j]; 
                 }
                 
-                // Do the preconditioned solve, differing depending on the level.
-                if (mgstruct.curr_level == 0) // on the top level, its an e-o preconditioning.
+                if (params.nvec_params.null_prec == NULL_PRECOND_EO)
                 {
-                  // Prepare preconditioned solve.
-                  apply_square_staggered_eoprec_prepare_stencil(Arand_guess_prep, Arand_guess, mgstruct.stencils[0]);
-                  // The prepare is a half-dslash, so we wait until the reconstruct to count it.
-                  
-                  // Perform preconditioned inversion with the encapsulating function.
-                  invif = minv_unpreconditioned(Arand_guess_prec_soln, Arand_guess_prep, mgstruct.curr_fine_size, params.nvec_params.null_gen, solve, apply_square_staggered_m2mdeodoe_stencil, mgstruct.stencils[0], &verb);
-                  mgstruct.dslash_count->nullvectors[0] += invif.ops_count;
-                  
-                  // Perform reconstruct. 
-                  apply_square_staggered_eoprec_reconstruct_stencil(mgstruct.null_vectors[0][i], Arand_guess_prec_soln, Arand_guess, mgstruct.stencils[0]);
-                  mgstruct.dslash_count->nullvectors[0]++;
+                    // Do the even/odd preconditioned solve, differing depending on the level.
+                    if (mgstruct.curr_level == 0) // on the top level, its an e-o preconditioning.
+                    {
+                      // Prepare preconditioned solve.
+                      apply_square_staggered_eoprec_prepare_stencil(Arand_guess_prep, Arand_guess, mgstruct.stencils[0]);
+                      // The prepare is a half-dslash, so we wait until the reconstruct to count it.
+
+                      // Perform preconditioned inversion with the encapsulating function.
+                      invif = minv_unpreconditioned(Arand_guess_prec_soln, Arand_guess_prep, mgstruct.curr_fine_size, params.nvec_params.null_gen, solve, apply_square_staggered_m2mdeodoe_stencil, mgstruct.stencils[0], &verb);
+                      mgstruct.dslash_count->nullvectors[0] += invif.ops_count;
+
+                      // Perform reconstruct. 
+                      apply_square_staggered_eoprec_reconstruct_stencil(mgstruct.null_vectors[0][i], Arand_guess_prec_soln, Arand_guess, mgstruct.stencils[0]);
+                      mgstruct.dslash_count->nullvectors[0]++;
+                    }
+                    else // it's a t-b preconditioning.
+                    {
+                      apply_square_staggered_tbprec_prepare_stencil(Arand_guess_prep, Arand_guess, mgstruct.stencils[mgstruct.curr_level]);
+                      // The prepare is a half-dslash, so we wait until the reconstruct to count it.
+
+                      // Perform preconditioned inversion with the encapsulating function.
+                      invif = minv_unpreconditioned(Arand_guess_prec_soln, Arand_guess_prep, mgstruct.curr_fine_size, params.nvec_params.null_gen, solve, apply_square_staggered_m2mdtbdbt_stencil, mgstruct.stencils[mgstruct.curr_level], &verb);
+                      mgstruct.dslash_count->nullvectors[mgstruct.curr_level] += invif.ops_count;
+
+                      // Perform reconstruct. 
+                      apply_square_staggered_tbprec_reconstruct_stencil(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess_prec_soln, Arand_guess, mgstruct.stencils[mgstruct.curr_level]);
+                      mgstruct.dslash_count->nullvectors[mgstruct.curr_level]++;
+                    }
                 }
-                else // it's a t-b preconditioning.
+                else if (params.nvec_params.null_prec == NULL_PRECOND_NORMAL)
                 {
-                  apply_square_staggered_tbprec_prepare_stencil(Arand_guess_prep, Arand_guess, mgstruct.stencils[mgstruct.curr_level]);
-                  // The prepare is a half-dslash, so we wait until the reconstruct to count it.
-                  
-                  // Perform preconditioned inversion with the encapsulating function.
-                  invif = minv_unpreconditioned(Arand_guess_prec_soln, Arand_guess_prep, mgstruct.curr_fine_size, params.nvec_params.null_gen, solve, apply_square_staggered_m2mdtbdbt_stencil, mgstruct.stencils[mgstruct.curr_level], &verb);
-                  mgstruct.dslash_count->nullvectors[mgstruct.curr_level] += invif.ops_count;
-                  
-                  // Perform reconstruct. 
-                  apply_square_staggered_tbprec_reconstruct_stencil(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess_prec_soln, Arand_guess, mgstruct.stencils[mgstruct.curr_level]);
-                  mgstruct.dslash_count->nullvectors[mgstruct.curr_level]++;
+                    // Do the normal eqn solve, differing depending on the level.
+                    if (mgstruct.curr_level == 0)
+                    {
+                      // Prepare preconditioned solve.
+                      apply_square_staggered_dagger_eo_stencil(Arand_guess_prep, Arand_guess, mgstruct.stencils[0]);
+                      mgstruct.dslash_count->nullvectors[0]++;
+
+                      // Perform preconditioned inversion with normal operator.
+                      invif = minv_unpreconditioned(mgstruct.null_vectors[0][i], Arand_guess_prep, mgstruct.curr_fine_size, params.nvec_params.null_gen, solve, apply_square_staggered_normal_eo_stencil, mgstruct.stencils[0], &verb);
+                      mgstruct.dslash_count->nullvectors[0] += 2*invif.ops_count;
+                    }
+                    else
+                    {
+                      // Prepare preconditioned solve.
+                      apply_square_staggered_dagger_tb_stencil(Arand_guess_prep, Arand_guess, mgstruct.stencils[mgstruct.curr_level]);
+                      mgstruct.dslash_count->nullvectors[mgstruct.curr_level]++;
+
+                      // Perform preconditioned inversion with normal operator.
+                      invif = minv_unpreconditioned(mgstruct.null_vectors[mgstruct.curr_level][i], Arand_guess_prep, mgstruct.curr_fine_size, params.nvec_params.null_gen, solve, apply_square_staggered_normal_tb_stencil, mgstruct.stencils[mgstruct.curr_level], &verb);
+                      mgstruct.dslash_count->nullvectors[mgstruct.curr_level] += 2*invif.ops_count;
+                    }
                 }
                 
                 // Undo residual equation.
@@ -1079,6 +1107,7 @@ int main(int argc, char** argv)
                 
                 level_down(&mgstruct);
             }
+          
             
         }
         

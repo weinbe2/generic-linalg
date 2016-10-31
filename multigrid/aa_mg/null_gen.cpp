@@ -200,7 +200,8 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 	solve.max_iters = nvec_params->null_max_iters[mgstruct->curr_level];
 	solve.restart = nvec_params->null_restart;
 	solve.restart_freq = nvec_params->null_restart_freq;
-	solve.minres_omega = 0.67; // should expose.
+	solve.minres_omega = nvec_params->null_relaxation;
+	solve.sor_omega = nvec_params->null_relaxation;
 	solve.bicgstabl_l = nvec_params->null_bicgstab_l;
 	
 	// We generate null vectors by solving Ax = 0, with a

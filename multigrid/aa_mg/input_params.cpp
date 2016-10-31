@@ -18,14 +18,15 @@ void display_usage()
   cout << "--outer-restart-freq [#]                          (default 64)\n";
   cout << "--null-operator [laplace, laplace2, staggered\n";
   cout << "       g5_staggered, normal_staggered, index]     (default staggered)\n";
-  cout << "--null-eo-precond [yes, no]                       (default no, only applies to staggered)\n";
+  cout << "--null-precond [none, eo, normal]                 (default none, only applies to staggered)\n";
   cout << "--null-solver [gcr, bicgstab, cg, cr, minres,\n";
-  cout << "       arpack, bicgstab-l]                        (default bicgstab)\n";
+  cout << "       arpack, bicgstab-l, richardson]            (default bicgstab)\n";
   cout << "--null-precision [null prec] {#, #...}            (default 5e-5)\n";
   cout << "--null-max-iter [null nax iter] {#, #...}         (default 500)\n";
   cout << "--null-restart [yes, no]                          (default no)\n";
   cout << "--null-restart-freq [#]                           (default 8 if restarting is enabled)\n";
   cout << "--null-bicgstab-l [#]                             (default 4 if using bicgstab-l)\n"; 
+  cout << "--null-relax-param [#]                            (default 1, needs to be set for convergence)\n";
   //cout << "--null-mass [mass] {#, #...}                      (default 1e-4)\n";
   cout << "--null-mass [mass]                                (default 1e-2)\n";
   cout << "--null-eo [corner, yes, no, topo]                 (default yes)\n";
@@ -187,15 +188,19 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
                 params->nvec_params.n_null_vector = atoi(argv[i+1]);
                 i++;
             }
-            else if (strcmp(argv[i], "--null-eo-precond") == 0)
+            else if (strcmp(argv[i], "--null-precond") == 0)
             {
-              if (strcmp(argv[i+1], "yes") == 0)
+              if (strcmp(argv[i+1], "none") == 0)
               {
-                params->nvec_params.null_eo_prec = true;
+                params->nvec_params.null_prec = NULL_PRECOND_NONE;
               }
-              else if (strcmp(argv[i+1], "no") == 0)
+              else if (strcmp(argv[i+1], "eo") == 0)
               {
-                params->nvec_params.null_eo_prec = false;
+                params->nvec_params.null_prec = NULL_PRECOND_EO;
+              }
+              else if (strcmp(argv[i+1], "normal") == 0)
+              {
+                params->nvec_params.null_prec = NULL_PRECOND_NORMAL;
               }
               i++;
             }
@@ -241,6 +246,11 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
                 params->nvec_params.null_bicgstab_l = atoi(argv[i+1]);
                 i++;
             }
+            else if (strcmp(argv[i], "--null-relax-param") == 0)
+            {
+                params->nvec_params.null_relaxation = atof(argv[i+1]);
+                i++;
+            }
             else if (strcmp(argv[i], "--null-mass") == 0)
             {
                 params->nvec_params.null_mass = atof(argv[i+1]);
@@ -268,12 +278,14 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
                 {
                     params->nvec_params.null_gen = MINV_MINRES;
                 }
+                else if (strcmp(argv[i+1], "richardson") == 0)
+                {
+                    params->nvec_params.null_gen = MINV_SOR;
+                }
                 else if (strcmp(argv[i+1], "arpack") == 0)
                 {
                     params->nvec_params.null_gen = MINV_INVALID;
                     params->nvec_use_eigen = true; 
-                    //cout << "[ERROR]: Cannot use eigenvectors as null vectors without arpack bindings.\n";
-                    return 0;
                 }
                 else if (strcmp(argv[i+1], "bicgstab-l") == 0)
                 {
@@ -660,6 +672,10 @@ mg_input_params::mg_input_params()
     // How are we generating null vectors?
     //mg_null_gen_type
     nvec_params.null_gen = MINV_BICGSTAB; // MINV_GCR, MINV_CG, MINV_MINRES, MINV_BICGSTAB_L
+  
+    // How are we preconditioning our solve?
+    //null_precond_strategy
+    nvec_params.null_prec = NULL_PRECOND_NONE; // NULL_PRECOND_EO, NULL_PRECOND_NORMAL
     
     // Relative precision we solve the residual equation to, per level.
     //vector<double>
@@ -680,6 +696,10 @@ mg_input_params::mg_input_params()
     // What l to use if we're using BiCGStab-l for null vector generation.
     //int
     nvec_params.null_bicgstab_l = 4; 
+  
+    // What relaxation parameter are we using for MinRes or Richardson?
+    //double
+    nvec_params.null_relaxation = 1.0; 
     
     // What mass do we use for null vector generation?
     //double
