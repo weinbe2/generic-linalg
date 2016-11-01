@@ -47,6 +47,7 @@ void display_usage()
   cout << "         cr, none]                                (default gcr)\n";
   cout << "--coarse-precision [coarse precision] {#, #, ...} (default 1e-2, same for all levels)\n";
   cout << "--coarse-max-iter [coarse maximum iterations]     (default 1024)\n";
+  cout << "--coarse-restart-freq [#]                         (default 64)\n";
   cout << "--gauge [unit, load, random]                      (default load)\n";
   cout << "--gauge-transform [yes, no]                       (default no)\n";
   cout << "--beta [3.0, 6.0, 10.0, 10000.0]                  (default 6.0)\n";
@@ -407,6 +408,11 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             else if (strcmp(argv[i], "--coarse-max-iter") == 0)
             {
                 params->inner_max = atoi(argv[i+1]);
+                i++;
+            }
+            else if (strcmp(argv[i], "--coarse-restart-freq") == 0)
+            {
+                params->inner_restart = atoi(argv[i+1]);
                 i++;
             }
             else if (strcmp(argv[i], "--gauge") == 0)

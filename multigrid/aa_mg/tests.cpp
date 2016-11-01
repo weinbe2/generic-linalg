@@ -162,6 +162,21 @@ void test_eigenvalue_overlap(mg_operator_struct_complex* mgstruct_ptr, staggered
             cout << "[L" << lev+1 << "_FINEVAL]: Mass " << stagif->mass << " Num " << i << " Eval " << evals[lev][i] << "\n";
             normalize<double>(evecs[lev][i], mgstruct.curr_fine_size);
         }
+        
+        // HACK!
+        
+        for (int count_meh = 0; count_meh < 2; count_meh++)
+        {
+            cout << "Evec " << count_meh << " ";
+            for (int meh = 0; meh < 4; meh++)
+            {
+                cout << evecs[lev][count_meh][meh] << " ";
+            }
+            cout << "\n";
+        }
+        
+        // END HACK!
+        
 
         if (lev < mgstruct.n_refine-1)
         {
