@@ -1,0 +1,3 @@
+This test file sees if the staggered operator can be well preconditioned by a staggered operator with a laplace term.
+
+

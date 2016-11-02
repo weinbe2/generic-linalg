@@ -1250,6 +1250,39 @@ int main(int argc, char** argv)
         
     } // end skipping generation if we're only doing a top level or smoother test. 
     
+    /*
+    cout << fixed;
+    
+    cout << "Hopping: \n";
+    cout << "{";
+    for (i = 0; i < mgstruct.stencils[1]->lat->get_nc(); i++)
+    {
+        cout << "{";
+        for (j = 0; j < mgstruct.stencils[1]->lat->get_nc()-1; j++)
+        {
+            cout << real(mgstruct.stencils[1]->hopping[i*mgstruct.stencils[1]->lat->get_nc()+j]) << " + " << imag(mgstruct.stencils[1]->hopping[i*mgstruct.stencils[1]->lat->get_nc()+j]) << "*I,";
+        }
+        cout << real(mgstruct.stencils[1]->hopping[i*mgstruct.stencils[1]->lat->get_nc()+j]) << " + " << imag(mgstruct.stencils[1]->hopping[i*mgstruct.stencils[1]->lat->get_nc()+j]) << "*I";
+        cout << "},";
+    }
+    cout << "}\n";
+    
+    cout << "\nClover: \n";
+    cout << "{";
+    for (i = 0; i < mgstruct.stencils[1]->lat->get_nc(); i++)
+    {
+        cout << "{";
+        for (j = 0; j < mgstruct.stencils[1]->lat->get_nc()-1; j++)
+        {
+            cout << real(mgstruct.stencils[1]->clover[i*mgstruct.stencils[1]->lat->get_nc()+j]) << " + " << imag(mgstruct.stencils[1]->clover[i*mgstruct.stencils[1]->lat->get_nc()+j]) << "*I,";
+        }
+        cout << real(mgstruct.stencils[1]->clover[i*mgstruct.stencils[1]->lat->get_nc()+j]) << " + " << imag(mgstruct.stencils[1]->clover[i*mgstruct.stencils[1]->lat->get_nc()+j]) << "*I";
+        cout << "},";
+    }
+    cout << "}\n";
+    
+    return 0;
+    */
     
 #ifdef PRINT_NULL_VECTOR
     cout << "\nCheck projector:\n"; 

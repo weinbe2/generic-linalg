@@ -615,6 +615,81 @@ void square_staggered_eoprec_reconstruct(complex<double>* lhs_full, complex<doub
   }
 }
 
+
+// Square lattice.
+// Kinetic term for a 2D staggered w/ period bc, plus 2-link laplace.
+// Applies lhs = A*rhs.
+// The unit vectors are e_1 = xhat, e_2 = yhat.
+// The "extra_data" is a cast to a complex gauge_field[N*N*2], 
+//    loaded by the function read_lattice_u1. 
+// Apsi[x][y] = m psi[x,y] - U[y][x,x+1] 
+void square_staggered_2linklaplace_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data)
+{
+  // Declare variables.
+  int i;
+  int x,y;
+  double eta1; 
+  staggered_u1_op* stagif = (staggered_u1_op*)extra_data;
+  complex<double>* lattice = stagif->lattice;
+  double mass = stagif->mass; 
+  int x_fine = stagif->x_fine;
+  int y_fine = stagif->y_fine;
+
+  // For a 2D square lattice, the stencil is:
+  //   1 |  0 -eta1  0 |
+  //   - | +1    0  -1 |  , where eta1 = (-1)^x
+  //   2 |  0 +eta1  0 |
+  //
+  // e2 = yhat
+  // ^
+  // | 
+  // |-> e1 = xhat
+  // 
+  // Plus a two link laplace stencil term. 
+
+  // Apply the stencil.
+  for (i = 0; i < x_fine*y_fine; i++)
+  {
+    lhs[i] = 0.0;
+    x = i%x_fine; // integer mod.
+    y = i/x_fine; // integer divide.
+    eta1 = 1 - 2*(x%2);
+
+    // + e1.
+    lhs[i] = lhs[i]-lattice[y*x_fine*2+x*2]*rhs[y*x_fine+((x+1)%x_fine)];
+
+    // - e1.
+    lhs[i] = lhs[i]+ conj(lattice[y*x_fine*2+((x+x_fine-1)%x_fine)*2])*rhs[y*x_fine+((x+x_fine-1)%x_fine)]; // The extra +N is because of the % sign convention.
+
+    // + e2.
+    lhs[i] = lhs[i]- eta1*lattice[y*x_fine*2+x*2+1]*rhs[((y+1)%y_fine)*x_fine+x];
+
+    // - e2.
+    lhs[i] = lhs[i]+ eta1*conj(lattice[((y+y_fine-1)%y_fine)*x_fine*2+x*2+1])*rhs[((y+y_fine-1)%y_fine)*x_fine+x];
+
+    // Normalization.
+    lhs[i] = 0.5*lhs[i];
+
+    // 0
+    // Added mass term here.
+    lhs[i] = lhs[i]+ mass*rhs[i];
+    
+    // Add the two link laplace term, rescaled by a wilson coeff. 
+    
+    // + 2*e1.
+    lhs[i] = lhs[i]-stagif->wilson_coeff * lattice[y*x_fine*2+x*2] * lattice[y*x_fine*2+((x+1)%x_fine)*2] * rhs[y*x_fine+((x+2)%x_fine)];
+
+    // - 2*e1.
+    lhs[i] = lhs[i]-stagif->wilson_coeff * conj(lattice[y*x_fine*2+((x+x_fine-1)%x_fine)*2]) * conj(lattice[y*x_fine*2+((x+x_fine-2)%x_fine)*2]) * rhs[y*x_fine+((x+x_fine-2)%x_fine)]; 
+
+    // + 2*e2.
+    lhs[i] = lhs[i]-stagif->wilson_coeff * lattice[y*x_fine*2+x*2+1] * lattice[((y+1)%y_fine)*x_fine*2+x*2+1] * rhs[((y+2)%y_fine)*x_fine+x];
+
+    // - 2*e2.
+    lhs[i] = lhs[i]-stagif->wilson_coeff * conj(lattice[((y+y_fine-1)%y_fine)*x_fine*2+x*2+1]) * conj(lattice[((y+y_fine-2)%y_fine)*x_fine*2+x*2+1]) * rhs[((y+y_fine-2)%y_fine)*x_fine+x];
+  }
+}
+
 // Operators for symmetric shifts.
 void staggered_symmshift_x(complex<double>* lhs, complex<double>* rhs, void* extra_data)
 {

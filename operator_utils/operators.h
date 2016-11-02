@@ -11,6 +11,7 @@ struct staggered_u1_op
   int x_fine;
   int y_fine; 
   int Nc; // only relevant for square laplace. 
+  double wilson_coeff; // only relevant for staggered + 2 link laplace. 
 };
 
 enum op_type
@@ -80,6 +81,16 @@ void square_staggered_m2mdeodoe_u1(complex<double>* lhs, complex<double>* rhs, v
 // Reconstruct the full solution for an even/odd preconditioned solve.
 // Takes in lhs_e, rhs_o, returns lhs_full (copying over the even part from lhs_e)
 void square_staggered_eoprec_reconstruct(complex<double>* lhs_full, complex<double>* lhs_e, complex<double>* rhs_o, void* extra_data);
+
+
+// Square lattice.
+// Kinetic term for a 2D staggered w/ period bc, plus 2-link laplace.
+// Applies lhs = A*rhs.
+// The unit vectors are e_1 = xhat, e_2 = yhat.
+// The "extra_data" is a cast to a complex gauge_field[N*N*2], 
+//    loaded by the function read_lattice_u1. 
+// Apsi[x][y] = m psi[x,y] - U[y][x,x+1] 
+void square_staggered_2linklaplace_u1(complex<double>* lhs, complex<double>* rhs, void* extra_data);
 
 // Operators for symmetric shifts.
 void staggered_symmshift_x(complex<double>* lhs, complex<double>* rhs, void* extra_data);
