@@ -76,7 +76,5 @@ void null_generate_free(mg_operator_struct_complex* mgstruct, null_vector_params
 // Function to generate null vectors by throwing a random source and smoothing.
 void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vector_params* nvec_params, inversion_verbose_struct* verb, std::mt19937* generator);
 
-// Function to generate null vectors by throwing a random source and smoothing, using a preconditioned (e/o or normal) solve.
-void null_generate_random_smooth_prec(mg_operator_struct_complex* mgstruct, null_vector_params* nvec_params, inversion_verbose_struct* verb, std::mt19937* generator);
 
 #endif // MG_NULL_GEN

@@ -159,23 +159,9 @@ void test_eigenvalue_overlap(mg_operator_struct_complex* mgstruct_ptr, staggered
         cout << "\n\nAll eigenvalues:\n";
         for (i = 0; i < n_eigen[lev]; i++)
         {
-            cout << "[L" << lev+1 << "_FINEVAL]: Mass " << stagif->mass << " Num " << i << " Eval " << evals[lev][i] << "\n";
+            cout << "[L" << lev+1 << "_FINEVAL]: Mass " << stagif->mass << " Num " << i << " Eval " << real(evals[lev][i]) << " + " << imag(evals[lev][i]) << " *I\n";
             normalize<double>(evecs[lev][i], mgstruct.curr_fine_size);
         }
-        
-        // HACK!
-        
-        for (int count_meh = 0; count_meh < 2; count_meh++)
-        {
-            cout << "Evec " << count_meh << " ";
-            for (int meh = 0; meh < 4; meh++)
-            {
-                cout << evecs[lev][count_meh][meh] << " ";
-            }
-            cout << "\n";
-        }
-        
-        // END HACK!
         
 
         if (lev < mgstruct.n_refine-1)
@@ -307,13 +293,14 @@ void test_eigenvalue_overlap(mg_operator_struct_complex* mgstruct_ptr, staggered
         }
     }
 
-
+    
     cout << "\n\nAll eigenvalues:\n";
     for (i = 0; i < n_eigen[lev]; i++)
     {
-        cout << "[L" << lev+1 << "_FINEVAL]: Mass " << stagif->mass << " Num " << i << " Eval " << evals[lev][i] << "\n";
-        normalize<double>(evecs[lev][i], mgstruct.curr_coarse_size);
+        cout << "[L" << lev+1 << "_FINEVAL]: Mass " << stagif->mass << " Num " << i << " Eval " << real(evals[lev][i]) << " + " << imag(evals[lev][i]) << " *I\n";
+        normalize<double>(evecs[lev][i], mgstruct.curr_fine_size);
     }
+
 
     // End generating coarse level. 
 

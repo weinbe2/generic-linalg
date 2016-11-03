@@ -768,6 +768,10 @@ int main(int argc, char** argv)
                 char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
                 complex<double>* eigs_tmp = new complex<double>[mgstruct.n_vector/params.nvec_params.null_partitions];
                 arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, eigs_tmp, mgstruct.null_vectors[mgstruct.curr_level], mgstruct.curr_fine_size, n_eigen, n_cv, params.nvec_params.null_max_iters[n], eigtype, params.nvec_params.null_precisions[n], 0.0, fine_square_staggered, (void*)&mgstruct); 
+                for (i = 0; i < mgstruct.n_vector/params.nvec_params.null_partitions; i++)
+                {
+                    cout << "[L" << mgstruct.curr_level+1 << "_NULLVEC_ARPACK]: Eigenvalue " << i << " is " << eigs_tmp[i] << "\n";
+                }
                 delete[] eigs_tmp; 
                 arpack_dcn_free(&ar_strc);
                 
@@ -797,180 +801,37 @@ int main(int argc, char** argv)
 #endif // EIGEN_TEST
 
             }
-            else if (params.nvec_params.null_prec != NULL_PRECOND_NONE) // Do even-odd or normal preconditioned generation. Doesn't support all flags.
+            else
             {
               // Check for some destructive cases.
                 
-                
-              if (params.nvec_params.opt_null != STAGGERED)
+              if (params.nvec_params.null_prec != NULL_PRECOND_NONE) // even-odd, normal prec doesn't support all flags
               {
-                cout << "Even-odd preconditioned null generation doesn't work unless --null-operator is \"staggered\".\n" << flush;
-                return 1;
-              }
-              
-              if (params.nvec_params.bstrat == BLOCK_NONE || params.nvec_params.bstrat == BLOCK_TOPO)
-              {
-                cout << "Even-odd preconditioned null generation doesn't work unless --null-eo is \"yes\" or \"corner\".\n" << flush;
-                return 1;
-              }
-              
-              for (i = 0; i < mgstruct.n_refine; i++)
-              {
-                // If a stencil doesn't exist (or is too small, but for the time being it won't exist if it's too small...)
-                if (mgstruct.stencils[i] == 0)
-                {
-                  cout << "Even-odd preconditioned null generation doesn't work unless all fine and intermediate stencils exist and have all dimensions >= 2.\n" << flush;
-                  
-                  return 1;
-                }
-              }
-              
-              null_generate_random_smooth_prec(&mgstruct, &params.nvec_params, &verb, &generator);
-              
-            }
-            /*else if (true) // test D, D^\dagger test.
-            {
-                // We may actually be ready to get some work done!
-              
-              // Prepare an inverter struct.
-              minv_inverter_params solve;
-              solve.tol = params.nvec_params.null_precisions[mgstruct.curr_level];
-              solve.max_iters = params.nvec_params.null_max_iters[mgstruct.curr_level];
-              solve.restart = params.nvec_params.null_restart;
-              solve.restart_freq = params.nvec_params.null_restart_freq;
-              solve.minres_omega = params.nvec_params.null_relaxation;
-	          solve.sor_omega = params.nvec_params.null_relaxation;
-              solve.bicgstabl_l = params.nvec_params.null_bicgstab_l;
-              
-              // We generate null vectors by solving Ax = 0, with a gaussian initial guess.
-              // For sanity with the residual, we really solve Ax = -Ax_0,
-              // where x has a zero initial guess, x_0 is a random vector.
-              complex<double>* rand_guess = new complex<double>[mgstruct.curr_fine_size];
-              complex<double>* Arand_guess = new complex<double>[mgstruct.curr_fine_size];
-              complex<double>* Arand_guess_prep = new complex<double>[mgstruct.curr_fine_size]; // holds prepared rhs.
-              complex<double>* Arand_guess_prec_soln = new complex<double>[mgstruct.curr_fine_size]; // holds prepared lhs.
-              
-              for (i = 0; i < mgstruct.n_vector/params.nvec_params.null_partitions/2; i++)
-              {
-                // Create a gaussian random source.
-                gaussian<double>(rand_guess, mgstruct.curr_fine_size, generator);
-                
-                // First, generate a vector from D.
-                  
-                // Make orthogonal to previous solutions. May not be that necessary.
-                if (i > 0) // If there are vectors to orthogonalize against...
-                {
-                  for (j = 0; j < i; j++) // Iterate over all of them...
+                  if (params.nvec_params.opt_null != STAGGERED)
                   {
-                    for (k = 0; k < 1; k++) // And then iterate over even/odd or corners!
+                    cout << "Even-odd preconditioned null generation doesn't work unless --null-operator is \"staggered\".\n" << flush;
+                    return 1;
+                  }
+
+                  if (params.nvec_params.bstrat == BLOCK_NONE || params.nvec_params.bstrat == BLOCK_TOPO)
+                  {
+                    cout << "Even-odd preconditioned null generation doesn't work unless --null-eo is \"yes\" or \"corner\".\n" << flush;
+                    return 1;
+                  }
+
+                  for (i = 0; i < mgstruct.n_refine; i++)
+                  {
+                    // If a stencil doesn't exist (or is too small, but for the time being it won't exist if it's too small...)
+                    if (mgstruct.stencils[i] == 0)
                     {
-                      orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][2*j+k*params.nvec_params.n_null_vector], mgstruct.curr_fine_size);
-                      orthogonal<double>(rand_guess, mgstruct.null_vectors[mgstruct.curr_level][2*j+1+k*params.nvec_params.n_null_vector], mgstruct.curr_fine_size);
+                      cout << "Even-odd preconditioned null generation doesn't work unless all fine and intermediate stencils exist and have all dimensions >= 2.\n" << flush;
+
+                      return 1;
                     }
                   }
-                }
-                
-                // Construct the residual equation.
-                zero<double>(Arand_guess, mgstruct.curr_fine_size);
-
-                
-                apply_stencil_2d(Arand_guess, rand_guess, mgstruct.stencils[mgstruct.curr_level]); mgstruct.dslash_count->nullvectors[mgstruct.curr_level]++;
-                
-                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                {
-                   Arand_guess[j] = -Arand_guess[j]; 
-                }
-                
-                invif = minv_unpreconditioned(mgstruct.null_vectors[mgstruct.curr_level][2*i], Arand_guess, mgstruct.curr_fine_size, params.nvec_params.null_gen, solve, apply_stencil_2d, mgstruct.stencils[mgstruct.curr_level], &verb);
-
-                // Undo residual equation.
-                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                {
-                  mgstruct.null_vectors[mgstruct.curr_level][2*i][j] += rand_guess[j];
-                }
-                
-                // Next, generate a vector from D_dagger. 
-                
-                if (mgstruct.curr_level == 0)
-                {
-                  apply_square_staggered_dagger_eo_stencil(Arand_guess, rand_guess, mgstruct.stencils[mgstruct.curr_level]);
-                }
-                else
-                {
-                  apply_square_staggered_dagger_tb_stencil(Arand_guess, rand_guess, mgstruct.stencils[mgstruct.curr_level]);
-                }
-                  
-                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                {
-                   Arand_guess[j] = -Arand_guess[j]; 
-                }
-                  
-                if (mgstruct.curr_level == 0)
-                {
-                    invif = minv_unpreconditioned(mgstruct.null_vectors[mgstruct.curr_level][2*i+1], Arand_guess, mgstruct.curr_fine_size, params.nvec_params.null_gen, solve, apply_square_staggered_dagger_eo_stencil, mgstruct.stencils[mgstruct.curr_level], &verb);
-                }
-                  else
-                  {
-                      invif = minv_unpreconditioned(mgstruct.null_vectors[mgstruct.curr_level][2*i+1], Arand_guess, mgstruct.curr_fine_size, params.nvec_params.null_gen, solve, apply_square_staggered_dagger_eo_stencil, mgstruct.stencils[mgstruct.curr_level], &verb);
-                  }
-                    
-                // Undo residual equation.
-                for (j = 0; j < mgstruct.curr_fine_size; j++)
-                {
-                  mgstruct.null_vectors[mgstruct.curr_level][2*i+1][j] += rand_guess[j];
-                }
-                
-                // Normalize new vectors.
-                  normalize(mgstruct.null_vectors[mgstruct.curr_level][2*i], mgstruct.curr_fine_size);
-                  normalize(mgstruct.null_vectors[mgstruct.curr_level][2*i+1], mgstruct.curr_fine_size);
-
-                // Orthogonalize against previous vectors. 
-                if (i > 0)
-                {
-                  for (j = 0; j < 2*i; j++)
-                  {
-                    orthogonal<double>(mgstruct.null_vectors[mgstruct.curr_level][2*i], mgstruct.null_vectors[0][j+k*params.nvec_params.n_null_vector], mgstruct.curr_fine_size); 
-                  }
-                }
-
-                // Normalize again.
-                for (k = 0; k < (params.nvec_params.do_ortho_eo ? params.nvec_params.null_partitions : 1); k++)
-                {
-                  normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.nvec_params.n_null_vector], mgstruct.curr_fine_size);
-                }
-              }
-                
-              // If we didn't split null vectors before, we do it now.
-              if (!params.nvec_params.do_ortho_eo)
-              {
-                for (i = 0; i < mgstruct.n_vector/params.nvec_params.null_partitions; i++)
-                {
-                  // Aggregate in chirality (or corners) as needed.  
-                  // This is handled differently if we're on the top level or further down. 
-                  if (mgstruct.curr_level == 0) // top level routines
-                  {
-                    null_partition_staggered(&mgstruct, i, params.nvec_params.bstrat, mgstruct.latt[0]);
-                  }
-                  else // not on the top level
-                  {
-                    null_partition_coarse(&mgstruct, i, params.nvec_params.bstrat);
-                  }
-
-                  for (k = 0; k < params.nvec_params.null_partitions; k++)
-                  {
-                    normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.nvec_params.n_null_vector], mgstruct.curr_fine_size);
-                  }
-                }
               }
               
-              delete[] rand_guess;
-              delete[] Arand_guess;
-              delete[] Arand_guess_prep;
-              delete[] Arand_guess_prec_soln; 
-            }*/
-            else // Generate null vectors. 
-            {
-                null_generate_random_smooth(&mgstruct, &params.nvec_params, &verb, &generator);
+              null_generate_random_smooth(&mgstruct, &params.nvec_params, &verb, &generator); 
             }
 
 

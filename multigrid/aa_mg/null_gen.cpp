@@ -189,156 +189,8 @@ void null_generate_free(mg_operator_struct_complex* mgstruct, null_vector_params
 	}
 }
 
-// Function to generate null vectors by throwing a random source and smoothing.
-void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vector_params* nvec_params, inversion_verbose_struct* verb, std::mt19937* generator)
-{
-	int i,j,k;
-	inversion_info invif; 
-	
-	// Populate an inverter struct.
-	minv_inverter_params solve;
-	solve.tol = nvec_params->null_precisions[mgstruct->curr_level];
-	solve.max_iters = nvec_params->null_max_iters[mgstruct->curr_level];
-	solve.restart = nvec_params->null_restart;
-	solve.restart_freq = nvec_params->null_restart_freq;
-	solve.minres_omega = nvec_params->null_relaxation;
-	solve.sor_omega = nvec_params->null_relaxation;
-	solve.bicgstabl_l = nvec_params->null_bicgstab_l;
-	
-	// We generate null vectors by solving Ax = 0, with a
-	// gaussian initial guess.
-	// For sanity with the residual, we really solve Ax = -Ax_0,
-	// where x has a zero initial guess, x_0 is a random vector.
-	complex<double>* rand_guess = new complex<double>[mgstruct->curr_fine_size];
-	complex<double>* Arand_guess = new complex<double>[mgstruct->curr_fine_size];
-
-	for (i = 0; i < mgstruct->n_vector/nvec_params->null_partitions; i++)
-	{
-		// Create a gaussian random source. 
-		gaussian<double>(rand_guess, mgstruct->curr_fine_size, *generator);
-
-		// Make orthogonal to previous solutions. May not be that necessary.
-		if (i > 0) // If there are vectors to orthogonalize against...
-		{
-			for (j = 0; j < i; j++) // Iterate over all of them...
-			{
-				for (k = 0; k < (nvec_params->do_ortho_eo ? nvec_params->null_partitions : 1); k++) // And then iterate over even/odd or corners!
-				{
-					orthogonal<double>(rand_guess, mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-					if (nvec_params->do_global_ortho_conj)
-					{
-						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-						orthogonal<double>(rand_guess, mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-					}
-				}
-			}
-		}
-
-		// Solve the residual equation. 
-		zero<double>(Arand_guess, mgstruct->curr_fine_size);
-
-		fine_square_staggered(Arand_guess, rand_guess, (void*)mgstruct); mgstruct->dslash_count->nullvectors[mgstruct->curr_level]++;
-
-		for (j = 0; j < mgstruct->curr_fine_size; j++)
-		{
-		   Arand_guess[j] = -Arand_guess[j]; 
-		}
-		zero<double>(mgstruct->null_vectors[mgstruct->curr_level][i], mgstruct->curr_fine_size);
-
-		// Encapsulating function for all null space solvers.
-		invif = minv_unpreconditioned(mgstruct->null_vectors[mgstruct->curr_level][i], Arand_guess, mgstruct->curr_fine_size, nvec_params->null_gen, solve, fine_square_staggered, (void*)mgstruct, verb);
-
-		mgstruct->dslash_count->nullvectors[mgstruct->curr_level] += invif.ops_count; 
-
-		for (j = 0; j < mgstruct->curr_fine_size; j++)
-		{
-			mgstruct->null_vectors[mgstruct->curr_level][i][j] += rand_guess[j];
-		}
-
-		// Split into eo now if need be, otherwise we do it later.
-		if (nvec_params->do_ortho_eo)
-		{
-			// Aggregate in chirality (or corners) as needed.  
-			// This is handled differently if we're on the top level or further down. 
-			
-			if (mgstruct->curr_level == 0) // top level routines
-			{
-				null_partition_staggered(mgstruct, i, nvec_params->bstrat, mgstruct->latt[0]);
-			}
-			else // not on the top level
-			{
-				null_partition_coarse(mgstruct, i, nvec_params->bstrat);
-			}
-		}
-
-
-		// Normalize new vectors.
-		for (k = 0; k < (nvec_params->do_ortho_eo ? nvec_params->null_partitions : 1); k++)
-		{
-			normalize(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-		}
-
-		// Orthogonalize against previous vectors. 
-		if (i > 0)
-		{
-			for (j = 0; j < i; j++)
-			{
-				cout << "[L" << mgstruct->curr_level+1 << "_NULLVEC]: Pre-orthog cosines of " << j << "," << i << " are: "; 
-				for (k = 0; k < (nvec_params->do_ortho_eo ? nvec_params->null_partitions : 1); k++)
-				{
-					// Check dot product before normalization.
-					cout << abs(dot<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size)/sqrt(norm2sq<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector],mgstruct->curr_fine_size)*norm2sq<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector],mgstruct->curr_fine_size))) << " ";
-
-					orthogonal<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size); 
-					if (nvec_params->do_global_ortho_conj)
-					{
-						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-						orthogonal<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size); 
-						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-					}
-				}
-				cout << "\n";
-			}
-		}
-
-		// Normalize again.
-		for (k = 0; k < (nvec_params->do_ortho_eo ? nvec_params->null_partitions : 1); k++)
-		{
-			normalize(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-		}
-
-	}
-
-	// If we didn't split null vectors before, we do it now.
-	if (!nvec_params->do_ortho_eo)
-	{
-		for (i = 0; i < mgstruct->n_vector/nvec_params->null_partitions; i++)
-		{
-			// Aggregate in chirality (or corners) as needed.  
-			// This is handled differently if we're on the top level or further down. 
-			if (mgstruct->curr_level == 0) // top level routines
-			{
-				null_partition_staggered(mgstruct, i, nvec_params->bstrat, mgstruct->latt[0]);
-			}
-			else // not on the top level
-			{
-				null_partition_coarse(mgstruct, i, nvec_params->bstrat);
-			}
-
-			for (k = 0; k < nvec_params->null_partitions; k++)
-			{
-				normalize(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-			}
-		}
-	}
-
-	delete[] rand_guess; 
-	delete[] Arand_guess; 
-}
-
 // Function to generate null vectors by throwing a random source and smoothing, using a preconditioned (e/o or normal) solve.
-void null_generate_random_smooth_prec(mg_operator_struct_complex* mgstruct, null_vector_params* nvec_params, inversion_verbose_struct* verb, std::mt19937* generator)
+void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vector_params* nvec_params, inversion_verbose_struct* verb, std::mt19937* generator)
 {
 	int i,j,k;
 	inversion_info invif;
@@ -394,7 +246,14 @@ void null_generate_random_smooth_prec(mg_operator_struct_complex* mgstruct, null
 			 Arand_guess[j] = -Arand_guess[j]; 
 		}
 
-		if (nvec_params->null_prec == NULL_PRECOND_EO)
+    if (nvec_params->null_prec == NULL_PRECOND_NONE)
+    {
+      // Encapsulating function for all null space solvers.
+      invif = minv_unpreconditioned(mgstruct->null_vectors[mgstruct->curr_level][i], Arand_guess, mgstruct->curr_fine_size, nvec_params->null_gen, solve, fine_square_staggered, (void*)mgstruct, verb);
+
+      mgstruct->dslash_count->nullvectors[mgstruct->curr_level] += invif.ops_count; 
+    }
+		else if (nvec_params->null_prec == NULL_PRECOND_EO)
 		{
 				// Do the even/odd preconditioned solve, differing depending on the level.
 				if (mgstruct->curr_level == 0) // on the top level, its an e-o preconditioning.
