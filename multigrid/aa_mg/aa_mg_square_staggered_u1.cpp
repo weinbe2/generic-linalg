@@ -446,8 +446,9 @@ int main(int argc, char** argv)
     cout << "NullVectors ";
     for (i = 0; i < params.n_refine; i++)
     {
-        cout << params.nvec_params.n_null_vectors[i] << "\n";
+        cout << params.n_vectors[i] << " ";
     }
+    cout << "\n";
     
     // Build lattice objects for each level. 
     mgstruct.latt = new Lattice*[params.n_refine+1];

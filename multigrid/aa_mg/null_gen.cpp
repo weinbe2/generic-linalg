@@ -212,7 +212,7 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 	complex<double>* Arand_guess = new complex<double>[mgstruct->curr_fine_size];
 	complex<double>* Arand_guess_prep = new complex<double>[mgstruct->curr_fine_size]; // holds prepared rhs.
 	complex<double>* Arand_guess_prec_soln = new complex<double>[mgstruct->curr_fine_size]; // holds prepared lhs.
-
+  
 	for (i = 0; i < mgstruct->n_vectors[mgstruct->curr_level]/nvec_params->null_partitions; i++)
 	{
 		// Create a gaussian random source.

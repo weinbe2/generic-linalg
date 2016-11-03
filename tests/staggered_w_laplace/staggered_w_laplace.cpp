@@ -250,7 +250,7 @@ int main(int argc, char** argv)
   
   // Create a GCR(8) preconditioner struct.
   gcr_precond_struct_complex gcrprec;
-  gcrprec.n_step = 8; 
+  gcrprec.n_step = 8;
   gcrprec.rel_res = 1e-10; // guarantee we always do 8 steps.
   gcrprec.matrix_vector = square_staggered_u1;
   gcrprec.matrix_extra_data = &stagif_precond;
@@ -285,7 +285,7 @@ int main(int argc, char** argv)
   //////
   
   // Set the wilson coeff for this solve.
-  stagif_precond.wilson_coeff = 0.02;
+  stagif_precond.wilson_coeff = 0.05;
   stagif_precond.mass = mass;
   
   // Update GCR precond function with new fcn.
@@ -293,8 +293,8 @@ int main(int argc, char** argv)
   
   // Do the inversion
   zero<double>(lhs, fine_size);
-  verb.verb_prefix = "[Dslash_W=0p02]: ";
-  verb.precond_verb_prefix = "[Dslash_W=0p02_GCR(8)]: ";
+  verb.verb_prefix = "[Dslash_W=0p05]: ";
+  verb.precond_verb_prefix = "[Dslash_W=0p05_GCR(8)]: ";
   invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 100000, outer_precision, 1024, square_staggered_u1, (void*)&stagif, gcr_preconditioner, &gcrprec, &verb); 
   
   //////
@@ -303,7 +303,7 @@ int main(int argc, char** argv)
   //////
   
   // Set the wilson coeff for this solve.
-  stagif_precond.wilson_coeff = 0.04;
+  stagif_precond.wilson_coeff = 0.12;
   stagif_precond.mass = mass;
   
   // Update GCR precond function with new fcn.
@@ -311,8 +311,8 @@ int main(int argc, char** argv)
   
   // Do the inversion
   zero<double>(lhs, fine_size);
-  verb.verb_prefix = "[Dslash_W=0p04]: ";
-  verb.precond_verb_prefix = "[Dslash_W=0p04_GCR(8)]: ";
+  verb.verb_prefix = "[Dslash_W=0p12]: ";
+  verb.precond_verb_prefix = "[Dslash_W=0p12_GCR(8)]: ";
   invif = minv_vector_gcr_var_precond_restart(lhs, rhs, fine_size, 100000, outer_precision, 1024, square_staggered_u1, (void*)&stagif, gcr_preconditioner, &gcrprec, &verb); 
   
   

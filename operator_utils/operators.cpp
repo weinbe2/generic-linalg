@@ -676,6 +676,9 @@ void square_staggered_2linklaplace_u1(complex<double>* lhs, complex<double>* rhs
     
     // Add the two link laplace term, rescaled by a wilson coeff. 
     
+    // 0
+    lhs[i] = lhs[i] + stagif->wilson_coeff * 4.0*rhs[i];
+    
     // + 2*e1.
     lhs[i] = lhs[i]-stagif->wilson_coeff * lattice[y*x_fine*2+x*2] * lattice[y*x_fine*2+((x+1)%x_fine)*2] * rhs[y*x_fine+((x+2)%x_fine)];
 
