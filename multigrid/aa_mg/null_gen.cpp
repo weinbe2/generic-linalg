@@ -28,7 +28,7 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 			{
 				if (!Lat->index_is_even(j))
 				{
-					mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j] = mgstruct->null_vectors[0][num_null_vec][j];
+					mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vectors[0]/2][j] = mgstruct->null_vectors[0][num_null_vec][j];
 					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
 			}
@@ -47,7 +47,7 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 			staggered_symmshift_x(tmp2, tmp, mgstruct->matrix_extra_data);
 			for (j = 0; j < mgstruct->curr_fine_size; j++)
 			{
-				mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j] += complex<double>(0.0,0.5)*tmp2[j];
+				mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vectors[0]/2][j] += complex<double>(0.0,0.5)*tmp2[j];
 			}
 
 			// -i/2 \Gamma_2 \Gamma_1
@@ -57,14 +57,14 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 			staggered_symmshift_y(tmp2, tmp, mgstruct->matrix_extra_data);
 			for (j = 0; j < mgstruct->curr_fine_size; j++)
 			{
-				mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j] -= complex<double>(0.0,0.5)*tmp2[j];
+				mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vectors[0]/2][j] -= complex<double>(0.0,0.5)*tmp2[j];
 			}
 
 			// Form the two projectors.
 			for (j = 0; j < mgstruct->curr_fine_size; j++)
 			{
-				mgstruct->null_vectors[0][num_null_vec][j] = 0.5*(mgstruct->null_vectors[0][num_null_vec][j]+mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j]);
-				mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j] = mgstruct->null_vectors[0][num_null_vec][j]-mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/2][j];
+				mgstruct->null_vectors[0][num_null_vec][j] = 0.5*(mgstruct->null_vectors[0][num_null_vec][j]+mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vectors[0]/2][j]);
+				mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vectors[0]/2][j] = mgstruct->null_vectors[0][num_null_vec][j]-mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vectors[0]/2][j];
 			}
 			delete[] tmp;
 			delete[] tmp2; 
@@ -78,17 +78,17 @@ void null_partition_staggered(mg_operator_struct_complex* mgstruct, int num_null
 				Lat->index_to_coord(j, coord, nd);
 				if (coord[0]%2 == 1 && coord[1]%2 == 0) // odd corner
 				{
-					mgstruct->null_vectors[0][num_null_vec+2*mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
+					mgstruct->null_vectors[0][num_null_vec+2*mgstruct->n_vectors[0]/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
 					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
 				else if (coord[0]%2 == 0 && coord[1]%2 == 1) // odd corner
 				{
-					mgstruct->null_vectors[0][num_null_vec+3*mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
+					mgstruct->null_vectors[0][num_null_vec+3*mgstruct->n_vectors[0]/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
 					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
 				else if (coord[0]%2 == 1 && coord[1]%2 == 1) // even corner
 				{
-					mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vector/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
+					mgstruct->null_vectors[0][num_null_vec+mgstruct->n_vectors[0]/4][j] = mgstruct->null_vectors[0][num_null_vec][j];
 					mgstruct->null_vectors[0][num_null_vec][j] = 0.0;
 				}
 			}
@@ -110,16 +110,16 @@ void null_partition_coarse(mg_operator_struct_complex* mgstruct, int num_null_ve
 		case BLOCK_TOPO:
 			for (j = 0; j < mgstruct->curr_fine_size; j++)
 			{
-				c = j % mgstruct->n_vector; // What color index do we have?
-											   // 0 to mgstruct->n_vector/2-1 is even, else is odd.
-				//int x_coord = (i - c)/mgstruct->n_vector % mgstruct->curr_x_fine;
-				//int y_coord = ((i - c)/mgstruct->n_vector - x_coord)/mgstruct->curr_x_fine;
+				c = j % mgstruct->n_vectors[mgstruct->curr_level]; // What color index do we have?
+											   // 0 to mgstruct->n_vectors[mgstruct->curr_level]/2-1 is even, else is odd.
+				//int x_coord = (i - c)/mgstruct->n_vectors[mgstruct->curr_level] % mgstruct->curr_x_fine;
+				//int y_coord = ((i - c)/mgstruct->n_vectors[mgstruct->curr_level] - x_coord)/mgstruct->curr_x_fine;
 
-				// If c is >= mgstruct->n_vector/2, it's odd!
+				// If c is >= mgstruct->n_vectors[mgstruct->curr_level]/2, it's odd!
 
-				if (c >= mgstruct->n_vector/2)
+				if (c >= mgstruct->n_vectors[mgstruct->curr_level]/2)
 				{
-					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+mgstruct->n_vector/2][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+mgstruct->n_vectors[mgstruct->curr_level]/2][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
 					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j] = 0.0;
 				}
 			}
@@ -127,25 +127,25 @@ void null_partition_coarse(mg_operator_struct_complex* mgstruct, int num_null_ve
 		case BLOCK_CORNER:
 			for (j = 0; j < mgstruct->curr_fine_size; j++)
 			{
-				c = j % mgstruct->n_vector; // What color index do we have?
-											   // 0 to mgstruct->n_vector/2-1 is even, else is odd.
-				//int x_coord = (i - c)/mgstruct->n_vector % mgstruct->curr_x_fine;
-				//int y_coord = ((i - c)/mgstruct->n_vector - x_coord)/mgstruct->curr_x_fine;
+				c = j % mgstruct->n_vectors[mgstruct->curr_level]; // What color index do we have?
+											   // 0 to mgstruct->n_vectors[mgstruct->curr_level]/2-1 is even, else is odd.
+				//int x_coord = (i - c)/mgstruct->n_vectors[mgstruct->curr_level] % mgstruct->curr_x_fine;
+				//int y_coord = ((i - c)/mgstruct->n_vectors[mgstruct->curr_level] - x_coord)/mgstruct->curr_x_fine;
 
 
-				if (c >= mgstruct->n_vector/4 && c < 2*mgstruct->n_vector/4)
+				if (c >= mgstruct->n_vectors[mgstruct->curr_level]/4 && c < 2*mgstruct->n_vectors[mgstruct->curr_level]/4)
 				{
-					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+mgstruct->n_vector/4][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+mgstruct->n_vectors[mgstruct->curr_level]/4][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
 					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j] = 0.0;
 				}
-				else if (c >= 2*mgstruct->n_vector/4 && c < 3*mgstruct->n_vector/4)
+				else if (c >= 2*mgstruct->n_vectors[mgstruct->curr_level]/4 && c < 3*mgstruct->n_vectors[mgstruct->curr_level]/4)
 				{
-					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+2*mgstruct->n_vector/4][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+2*mgstruct->n_vectors[mgstruct->curr_level]/4][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
 					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j] = 0.0;
 				}
-				else if (c >= 3*mgstruct->n_vector/4)
+				else if (c >= 3*mgstruct->n_vectors[mgstruct->curr_level]/4)
 				{
-					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+3*mgstruct->n_vector/4][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
+					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec+3*mgstruct->n_vectors[mgstruct->curr_level]/4][j] = mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j];
 					mgstruct->null_vectors[mgstruct->curr_level][num_null_vec][j] = 0.0;
 				}
 			}
@@ -185,7 +185,7 @@ void null_generate_free(mg_operator_struct_complex* mgstruct, null_vector_params
 
 	for (k = 0; k < nvec_params->null_partitions; k++)
 	{
-		normalize(mgstruct->null_vectors[mgstruct->curr_level][k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
+		normalize(mgstruct->null_vectors[mgstruct->curr_level][k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
 	}
 }
 
@@ -213,7 +213,7 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 	complex<double>* Arand_guess_prep = new complex<double>[mgstruct->curr_fine_size]; // holds prepared rhs.
 	complex<double>* Arand_guess_prec_soln = new complex<double>[mgstruct->curr_fine_size]; // holds prepared lhs.
 
-	for (i = 0; i < mgstruct->n_vector/nvec_params->null_partitions; i++)
+	for (i = 0; i < mgstruct->n_vectors[mgstruct->curr_level]/nvec_params->null_partitions; i++)
 	{
 		// Create a gaussian random source.
 		gaussian<double>(rand_guess, mgstruct->curr_fine_size, *generator);
@@ -225,12 +225,12 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 			{
 				for (k = 0; k < (nvec_params->do_ortho_eo ? nvec_params->null_partitions : 1); k++) // And then iterate over even/odd or corners!
 				{
-					orthogonal<double>(rand_guess, mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
+					orthogonal<double>(rand_guess, mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
 					if (nvec_params->do_global_ortho_conj)
 					{
-						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-						orthogonal<double>(rand_guess, mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
+						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
+						orthogonal<double>(rand_guess, mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
+						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
 					}
 				}
 			}
@@ -334,7 +334,7 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 		// Normalize new vectors.
 		for (k = 0; k < (nvec_params->do_ortho_eo ? nvec_params->null_partitions : 1); k++)
 		{
-			normalize(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
+			normalize(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
 		}
 
 		// Orthogonalize against previous vectors. 
@@ -346,14 +346,14 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 				for (k = 0; k < (nvec_params->do_ortho_eo ? nvec_params->null_partitions : 1); k++)
 				{
 					// Check dot product before normalization.
-					cout << abs(dot<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size)/sqrt(norm2sq<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector],mgstruct->curr_fine_size)*norm2sq<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector],mgstruct->curr_fine_size))) << " ";
+					cout << abs(dot<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size)/sqrt(norm2sq<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vectors[mgstruct->curr_level]],mgstruct->curr_fine_size)*norm2sq<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]],mgstruct->curr_fine_size))) << " ";
 
-					orthogonal<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size); 
+					orthogonal<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size); 
 					if (nvec_params->do_global_ortho_conj)
 					{
-						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
-						orthogonal<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size); 
-						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
+						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
+						orthogonal<double>(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size); 
+						conj<double>(mgstruct->null_vectors[mgstruct->curr_level][j+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
 					}
 				}
 				cout << "\n";
@@ -363,14 +363,14 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 		// Normalize again.
 		for (k = 0; k < (nvec_params->do_ortho_eo ? nvec_params->null_partitions : 1); k++)
 		{
-			normalize(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
+			normalize(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
 		}
 	}
 
 	// If we didn't split null vectors before, we do it now.
 	if (!nvec_params->do_ortho_eo)
 	{
-		for (i = 0; i < mgstruct->n_vector/nvec_params->null_partitions; i++)
+		for (i = 0; i < mgstruct->n_vectors[mgstruct->curr_level]/nvec_params->null_partitions; i++)
 		{
 			// Aggregate in chirality (or corners) as needed.  
 			// This is handled differently if we're on the top level or further down. 
@@ -385,7 +385,7 @@ void null_generate_random_smooth(mg_operator_struct_complex* mgstruct, null_vect
 
 			for (k = 0; k < nvec_params->null_partitions; k++)
 			{
-				normalize(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vector], mgstruct->curr_fine_size);
+				normalize(mgstruct->null_vectors[mgstruct->curr_level][i+k*nvec_params->n_null_vectors[mgstruct->curr_level]], mgstruct->curr_fine_size);
 			}
 		}
 	}

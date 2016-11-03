@@ -30,7 +30,7 @@ enum null_precond_strategy
 struct null_vector_params
 {
   op_type opt_null;
-  int n_null_vector; 
+  std::vector<int> n_null_vectors;
   minv_inverter null_gen; 
   null_precond_strategy null_prec; 
   std::vector<double> null_precisions; 
@@ -48,7 +48,6 @@ struct null_vector_params
   null_vector_params()
   {
     opt_null = STAGGERED;
-    n_null_vector = 0;
     null_gen = MINV_BICGSTAB;
     null_prec = NULL_PRECOND_NONE; 
     null_restart = false;

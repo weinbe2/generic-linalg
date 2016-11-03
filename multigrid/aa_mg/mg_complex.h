@@ -3,7 +3,9 @@
 #define MG_COMPLEX
 
 #include <complex>
+#include <vector>
 using std::complex;
+using std::vector; 
 
 #include "mg.h"
 #include "lattice.h"
@@ -153,7 +155,7 @@ struct mg_operator_struct_complex
   stencil_2d** dagger_stencils; // Array of pointers to stencils of daggered operator for each level.
                                 // Only created if needed (eg, for normal smoother).
 
-  int n_vector; // Number of vectors. 
+  int* n_vectors; // Number of vectors per level. 
   complex<double>*** null_vectors; // Holds the null vectors. First index level, second n_vector, third size.
   void (*matrix_vector)(complex<double>*, complex<double>*, void*);
   void (*matrix_vector_dagger)(complex<double>*, complex<double>*, void*);

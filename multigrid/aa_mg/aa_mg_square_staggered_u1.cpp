@@ -128,8 +128,12 @@ int main(int argc, char** argv)
   // Set parameters. This input parameters class automatically
   // gets populated by a set of default parameters. Look in 
   // "input_params.cpp" to see the defaults.
+    
+  cout << "[STATE]: About to construct input parameters.\n" << flush;
+    
   mg_input_params params; // multigrid params. 
 
+  cout << "[STATE]: Constructed input parameters.\n" << flush;
 
   // Other initialization-type deals. 
   // Describe the source type.
@@ -149,6 +153,7 @@ int main(int argc, char** argv)
   }
 
 
+  cout << "[STATE]: About to load input parameters.\n" << flush;
 
   /////////////////////////////////////////////
   // Get a few parameters from command line. //
@@ -157,6 +162,8 @@ int main(int argc, char** argv)
   {
       return 0;
   }
+    
+  cout << "[STATE]: Loaded Input Parameters.\n" << flush;
 
   //printf("Mass %.8e Blocksize %d %d Null Vectors %d\n", MASS, X_BLOCKSIZE, Y_BLOCKSIZE, n_null_vector);
   //return 0;
@@ -224,7 +231,7 @@ int main(int argc, char** argv)
     {
         cout << " Nc " << Nc;
     }
-    cout << "\n";
+    cout << "\n" << flush; 
     
     // Do some allocation.
     // Initialize the lattice. Indexing: index = y*N + x.
@@ -337,7 +344,7 @@ int main(int argc, char** argv)
             break;
     }
     
-    cout << "[OP]: Null Gen Operator " << op_null_name << "\n";
+    cout << "[OP]: Null Gen Operator " << op_null_name << "\n" << flush;
     
     // Build an mg_struct.
     mg_operator_struct_complex mgstruct;
@@ -372,29 +379,51 @@ int main(int argc, char** argv)
         }
     }
     
-    //mgstruct.blocksize_x[0] = 8;
-    //mgstruct.blocksize_y[0] = 8;
-    //for (i = 1; i < n_refine; i++)
+    if ((int)params.nvec_params.n_null_vectors.size() != params.n_refine && (int)params.nvec_params.n_null_vectors.size() != 1)
+    {
+        cout << "[ERROR]: Incorrect number of null vectors supplied. Needs to be either 1 or nrefine.\n";
+    }
+    if ((int)params.nvec_params.n_null_vectors.size() != params.n_refine)
+    {
+        for (i = 1; i < params.n_refine; i++)
+        {
+            params.nvec_params.n_null_vectors.push_back(params.nvec_params.n_null_vectors[0]);
+        }
+    }
     
     // If we do the free test, we construct a constant vector.
     if (params.do_free)
     {
-        params.nvec_params.n_null_vector = 1;
+        for (i = 0; i < params.n_refine; i++)
+        {
+            params.nvec_params.n_null_vectors[i] = 1;
+        }
     }
+    
+    mgstruct.n_vectors = new int[params.n_refine]; 
     
     switch (params.nvec_params.bstrat)
     {
         case BLOCK_NONE:
-            mgstruct.n_vector = params.nvec_params.n_null_vector;
+            for (i = 0; i < params.n_refine; i++)
+            {
+                mgstruct.n_vectors[i] = params.nvec_params.n_null_vectors[i];
+            }
             params.nvec_params.null_partitions = 1;
             break;
         case BLOCK_EO:
         case BLOCK_TOPO:
-            mgstruct.n_vector = 2*params.nvec_params.n_null_vector;
+            for (i = 0; i < params.n_refine; i++)
+            {
+                mgstruct.n_vectors[i] = 2*params.nvec_params.n_null_vectors[i];
+            }
             params.nvec_params.null_partitions = 2;
             break;
         case BLOCK_CORNER:
-            mgstruct.n_vector = 4*params.nvec_params.n_null_vector;
+            for (i = 0; i < params.n_refine; i++)
+            {
+                mgstruct.n_vectors[i] = 4*params.nvec_params.n_null_vectors[i];
+            }
             params.nvec_params.null_partitions = 4; 
             break;
     }
@@ -414,7 +443,11 @@ int main(int argc, char** argv)
     {
         cout << mgstruct.blocksize_y[i] << " "; 
     }
-    cout << "NullVectors " << params.nvec_params.n_null_vector << "\n";
+    cout << "NullVectors ";
+    for (i = 0; i < params.n_refine; i++)
+    {
+        cout << params.nvec_params.n_null_vectors[i] << "\n";
+    }
     
     // Build lattice objects for each level. 
     mgstruct.latt = new Lattice*[params.n_refine+1];
@@ -426,7 +459,7 @@ int main(int argc, char** argv)
         {
             lattice_size[0] = mgstruct.latt[i-1]->get_lattice_dimension(0)/mgstruct.blocksize_x[i-1];
             lattice_size[1] = mgstruct.latt[i-1]->get_lattice_dimension(1)/mgstruct.blocksize_y[i-1];
-            mgstruct.latt[i] = new Lattice(nd, lattice_size, mgstruct.n_vector);
+            mgstruct.latt[i] = new Lattice(nd, lattice_size, mgstruct.n_vectors[i-1]);
         }
     }
     
@@ -456,7 +489,7 @@ int main(int argc, char** argv)
     }
     else // give it some garbage so it doesn't complain.
     {
-        mgstruct.curr_dof_coarse = mgstruct.n_vector; 
+        mgstruct.curr_dof_coarse = mgstruct.n_vectors[0]; // wooo garbage
         mgstruct.curr_x_coarse = mgstruct.x_fine/mgstruct.blocksize_x[0];
         mgstruct.curr_y_coarse = mgstruct.y_fine/mgstruct.blocksize_y[0];
         mgstruct.curr_coarse_size = mgstruct.curr_y_coarse*mgstruct.curr_x_coarse*mgstruct.curr_dof_coarse;
@@ -573,8 +606,8 @@ int main(int argc, char** argv)
     mgstruct.null_vectors = new complex<double>**[mgstruct.n_refine];
     for (i = 0; i < mgstruct.n_refine; i++)
     {
-        mgstruct.null_vectors[i] = new complex<double>*[mgstruct.n_vector];
-        for (j = 0; j < mgstruct.n_vector; j++)
+        mgstruct.null_vectors[i] = new complex<double>*[mgstruct.n_vectors[i]];
+        for (j = 0; j < mgstruct.n_vectors[i]; j++)
         {
             mgstruct.null_vectors[i][j] = new complex<double>[mgstruct.latt[i]->get_lattice_size()];
             zero<double>(mgstruct.null_vectors[i][j], mgstruct.latt[i]->get_lattice_size());
@@ -679,7 +712,7 @@ int main(int argc, char** argv)
     
     if (!(my_test == TOP_LEVEL_ONLY || my_test == SMOOTHER_ONLY))
     {
-        cout << "[MG]: Creating " << mgstruct.n_vector << " null vectors.\n" << flush; 
+        cout << "[MG]: Creating " << mgstruct.n_vectors[mgstruct.curr_level] << " null vectors.\n" << flush; 
         
         // Generate top level!
         cout << "[NULLVEC]: About to generate null vectors.\n" << flush; 
@@ -762,13 +795,13 @@ int main(int argc, char** argv)
             else if (params.nvec_use_eigen) // use ARPACK. It can't get here if we don't have EIGEN_TEST
             {
                 #ifdef EIGEN_TEST 
-                int n_eigen = mgstruct.n_vector/params.nvec_params.null_partitions;
-                int n_cv = min(10*mgstruct.n_vector/params.nvec_params.null_partitions, mgstruct.curr_fine_size);
+                int n_eigen = mgstruct.n_vectors[n]/params.nvec_params.null_partitions;
+                int n_cv = min(10*mgstruct.n_vectors[n]/params.nvec_params.null_partitions, mgstruct.curr_fine_size);
                 arpack_dcn_t* ar_strc = arpack_dcn_init(mgstruct.curr_fine_size, n_eigen, n_cv); 
                 char eigtype[3]; strcpy(eigtype, "SM"); // Smallest magnitude eigenvalues.
-                complex<double>* eigs_tmp = new complex<double>[mgstruct.n_vector/params.nvec_params.null_partitions];
+                complex<double>* eigs_tmp = new complex<double>[mgstruct.n_vectors[n]/params.nvec_params.null_partitions];
                 arpack_solve_t info_solve = arpack_dcn_getev(ar_strc, eigs_tmp, mgstruct.null_vectors[mgstruct.curr_level], mgstruct.curr_fine_size, n_eigen, n_cv, params.nvec_params.null_max_iters[n], eigtype, params.nvec_params.null_precisions[n], 0.0, fine_square_staggered, (void*)&mgstruct); 
-                for (i = 0; i < mgstruct.n_vector/params.nvec_params.null_partitions; i++)
+                for (i = 0; i < mgstruct.n_vectors[n]/params.nvec_params.null_partitions; i++)
                 {
                     cout << "[L" << mgstruct.curr_level+1 << "_NULLVEC_ARPACK]: Eigenvalue " << i << " is " << eigs_tmp[i] << "\n";
                 }
@@ -780,7 +813,7 @@ int main(int argc, char** argv)
                 cout << "[L" << mgstruct.curr_level+1 << "_NULLVEC_ARPACK]: Number of iteration steps: " << info_solve.niter << "\n";
                 cout << "[L" << mgstruct.curr_level+1 << "_NULLVEC_ARPACK]: Number of matrix multiplies: " << info_solve.nops << "\n";
                 
-                for (i = 0; i < mgstruct.n_vector/params.nvec_params.null_partitions; i++)
+                for (i = 0; i < mgstruct.n_vectors[n]/params.nvec_params.null_partitions; i++)
                 {
                     // Aggregate in chirality (or corners) as needed.  
                     // This is handled differently if we're on the top level or further down. 
@@ -795,7 +828,7 @@ int main(int argc, char** argv)
 
                     for (k = 0; k < params.nvec_params.null_partitions; k++)
                     {
-                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.nvec_params.n_null_vector], mgstruct.curr_fine_size);
+                        normalize(mgstruct.null_vectors[mgstruct.curr_level][i+k*params.nvec_params.n_null_vectors[n]], mgstruct.curr_fine_size);
                     }
                 }
 #endif // EIGEN_TEST
@@ -1865,13 +1898,14 @@ int main(int argc, char** argv)
     delete[] mgstruct.blocksize_y; 
     for (i = 0; i < mgstruct.n_refine; i++)
     {
-        for (j = 0; j < mgstruct.n_vector; j++)
+        for (j = 0; j < mgstruct.n_vectors[i]; j++)
         {
             delete[] mgstruct.null_vectors[i][j];
         }
         delete[] mgstruct.null_vectors[i];
     }
     delete mgstruct.dslash_count; 
+    delete[] mgstruct.n_vectors; 
     delete[] mgstruct.null_vectors; 
     if (mgstruct.n_refine > 0)
     {

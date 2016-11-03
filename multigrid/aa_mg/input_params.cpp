@@ -3,7 +3,6 @@
 
 #include "input_params.h"
 
-
 // Print usage. 
 void display_usage()
 {
@@ -34,7 +33,7 @@ void display_usage()
   cout << "--null-ortho-eo [yes, no]                         (default no)\n"; 
   cout << "--mass [mass]                                     (default 1e-2)\n";
   cout << "--blocksize [blocksize] {#, #...}                 (default 4, same for all levels)\n";
-  cout << "--nvec [nvec]                                     (default 4)\n";
+  cout << "--nvec [nvec] {#, #...}                           (default 4, same for all levels)\n";
   cout << "--nrefine [number coarse]                         (default 1)\n";
   cout << "--cycle-type [v, k]                               (default v)\n";
   cout << "--mg-type [self, normal_eqn]                      (default self)\n";
@@ -186,8 +185,13 @@ int parse_inputs(int argc, char** argv, mg_input_params *params)
             }
             else if (strcmp(argv[i], "--nvec") == 0)
             {
-                params->nvec_params.n_null_vector = atoi(argv[i+1]);
+                params->nvec_params.n_null_vectors[0] = atoi(argv[i+1]);
                 i++;
+                while (i+1 != argc && argv[i+1][0] != '-')
+                { 
+                  params->nvec_params.n_null_vectors.push_back(atoi(argv[i+1]));
+                  i++;
+                }
             }
             else if (strcmp(argv[i], "--null-precond") == 0)
             {
@@ -612,7 +616,6 @@ mg_input_params::mg_input_params()
 {
     ////// TOP LEVEL PROPERTIES ////////
     
-    
     // Describe the staggered fermions
     // double
     mass = 0.01; // Can be overridden on command line with --mass 
@@ -672,9 +675,9 @@ mg_input_params::mg_input_params()
     //   Generate "n_null_vector" null vectors, partition into four corners.
     //    Total number of null vectors is 4*VECTOR_COUNT. 
     //int
-    nvec_params.n_null_vector = 4; // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
+    nvec_params.n_null_vectors.push_back(4); // Note: Gets multiplied by 2 for LAPLACE_NC2 test.
                            // Can be overriden on command line with --nvec
-    
+  
     // How are we generating null vectors?
     //mg_null_gen_type
     nvec_params.null_gen = MINV_BICGSTAB; // MINV_GCR, MINV_CG, MINV_MINRES, MINV_BICGSTAB_L

@@ -524,7 +524,7 @@ void mg_preconditioner(complex<double>* lhs, complex<double>* rhs, int size, voi
     int x_coarse = mgprecond->mgstruct->curr_x_coarse; // how many coarse sites are there in the x dir?
     int y_coarse = mgprecond->mgstruct->curr_y_coarse; // how many coarse sites are there in the y dir?
     int coarse_size = x_coarse*y_coarse; 
-    int coarse_length = coarse_size*mgprecond->mgstruct->n_vector; 
+    int coarse_length = coarse_size*mgprecond->mgstruct->n_vectors[mgprecond->mgstruct->curr_level]; 
     
     // Store inversion info.
     inversion_info invif;
